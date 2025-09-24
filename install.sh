@@ -135,18 +135,23 @@ else
 fi
 
 # Recargar configuración del shell
-source "$PROFILE"
+echo -e "${YELLOW}IMPORTANTE:${NC} Para que los cambios surtan efecto en tu terminal actual, ejecuta manualmente:\n"
+echo -e "    source $PROFILE\n"
+echo -e "Esto actualizará tu entorno y permitirá usar BootZen desde cualquier terminal."
 
 # Verificar disponibilidad del script principal
+echo -e "${GREEN}Verificando la disponibilidad de '$SCRIPT_NAME'...${NC}"
 if command -v $SCRIPT_NAME >/dev/null 2>&1; then
     echo -e "${GREEN}BootZen instalado correctamente. Puedes usar '$SCRIPT_NAME' desde cualquier terminal.${NC}"
     echo -e "\nEjemplo: $SCRIPT_NAME MiNuevoProyecto\n"
 else
-    echo -e "${RED}Error: '$SCRIPT_NAME' no está disponible en el PATH.${NC}"
-    echo -e "Asegúrate de que la instalación se haya completado correctamente:\n"
-    echo -e "- Intenta ejecutar: source $PROFILE"
-    echo -e "- Luego intenta de nuevo: $SCRIPT_NAME MiNuevoProyecto\n"
-    echo -e "- Si el problema persiste, revisa el contenido de $PROFILE para asegurarte de que la ruta se agregó correctamente.\n"
-    echo -e "- Valida que $INSTALL_DIR contenga el script '$SCRIPT_NAME'.\n"
+    echo -e "\n${RED}Error: '$SCRIPT_NAME' no está disponible en el PATH.${NC}"
+    echo -e "\nAsegúrate de que la instalación se haya completado correctamente:\n"
+    echo -e "   - Intenta ejecutar: source $PROFILE"
+    echo -e "   - Luego intenta de nuevo: $SCRIPT_NAME MiNuevoProyecto"
+    echo -e "   - Si el problema persiste, revisa el contenido de $PROFILE para asegurarte de que la ruta se agregó correctamente."
+    echo -e "   - Verifica que $INSTALL_DIR exista y contenga los archivos de BootZen."
+    echo -e "   - Valida que $INSTALL_DIR contenga el script '$SCRIPT_NAME'."
     echo -e "\nSi necesitas ayuda, visita: https://github.com/lgzarturo/bootzen/issues"
 fi
+echo -e "\n${GREEN}¡Gracias por instalar BootZen!${NC}"
