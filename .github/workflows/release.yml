@@ -1,0 +1,58 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'   # se dispara cuando haces push de un tag tipo v1.0.3
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # necesitamos todo el historial para git log
+
+      - name: Get previous tag
+        id: previoustag
+        run: |
+          prev_tag=$(git describe --tags --abbrev=0 HEAD^ || echo "")
+          echo "prev_tag=$prev_tag" >> $GITHUB_OUTPUT
+
+      - name: Generate changelog from commits
+        id: changelog
+        run: |
+          if [ -z "${{ steps.previoustag.outputs.prev_tag }}" ]; then
+            log=$(git log --pretty=format:"* %s (%h)" )
+          else
+            log=$(git log ${{ steps.previoustag.outputs.prev_tag }}..HEAD --pretty=format:"* %s (%h)")
+          fi
+          echo "log<<EOF" >> $GITHUB_OUTPUT
+          echo "$log" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Update CHANGELOG.md
+        run: |
+          echo "## $GITHUB_REF_NAME - $(date +'%Y-%m-%d')" >> tmp_changelog.md
+          echo "" >> tmp_changelog.md
+          echo "${{ steps.changelog.outputs.log }}" >> tmp_changelog.md
+          echo "" >> tmp_changelog.md
+          cat CHANGELOG.md >> tmp_changelog.md 2>/dev/null || true
+          mv tmp_changelog.md CHANGELOG.md
+
+      - name: Commit updated CHANGELOG.md
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add CHANGELOG.md
+          git commit -m "docs: update changelog for $GITHUB_REF_NAME" || echo "No changes to commit"
+          git push
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          body: ${{ steps.changelog.outputs.log }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

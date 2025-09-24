@@ -73,15 +73,23 @@ npm run build
 # Iniciar servicios
 echo -e "\n${GREEN}✨ Iniciando servicios...${NC}"
 
-# Terminal 1: PHP Server
-gnome-terminal --tab --title="PHP Server" -- bash -c "php -S localhost:8000 -t public; exec bash"
 
-# Terminal 2: Tailwind Watch
-gnome-terminal --tab --title="Tailwind" -- bash -c "npm run tailwindcss:watch; exec bash"
-
-# TODO: Soportar el uso de Redis o Docker con los contenedores.
-# Terminal 3: Redis
-# gnome-terminal --tab --title="Redis" -- bash -c "redis-server; exec bash"
+# Validar si alacritty está instalado
+if command -v alacritty &> /dev/null; then
+    # Terminal 1: PHP Server
+    alacritty --title "PHP Server" -e bash -c "php -S localhost:8000 -t public; exec bash" &
+    # Terminal 2: Tailwind Watch
+    alacritty --title "Tailwind" -e bash -c "npm run tailwindcss:watch; exec bash" &
+    # TODO: Soportar el uso de Redis o Docker con los contenedores.
+    # Terminal 3: Redis
+    # alacritty --title "Redis" -e bash -c "redis-server; exec bash" &
+else
+    echo -e "${YELLOW}⚠️ Alacritty no está instalado.${NC}"
+    echo -e "${YELLOW}Ejecuta manualmente los siguientes comandos en tu terminal:${NC}"
+    echo -e "  php -S localhost:8000 -t public"
+    echo -e "  npm run tailwindcss:watch"ss
+    echo -e "${YELLOW}Se recomienda instalar Alacritty para una mejor experiencia multiproceso.${NC}"
+fi
 
 echo -e "${GREEN}╔════════════════════════════════════════╗${NC}"
 echo -e "${GREEN}║         ✅ Entorno Iniciado            ║${NC}"

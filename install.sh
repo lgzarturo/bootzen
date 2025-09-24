@@ -8,7 +8,7 @@
 #   Este script verifica los requisitos del sistema, clona el repositorio de BootZen,
 #   y configura el entorno para que el usuario pueda usar BootZen desde cualquier terminal.
 #
-# Versión: 1.0.2
+# Versión: 1.0.3
 #
 
 set -e
@@ -155,3 +155,4 @@ else
     echo -e "\nSi necesitas ayuda, visita: https://github.com/lgzarturo/bootzen/issues"
 fi
 echo -e "\n${GREEN}¡Gracias por instalar BootZen!${NC}"
+exit 0

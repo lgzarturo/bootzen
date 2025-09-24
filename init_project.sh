@@ -38,13 +38,14 @@
 #   10. Mensaje final con instrucciones para continuar el desarrollo.
 #
 # Requisitos:
-#   - Bash
+#   - Bash o Zsh
+#   - PHP 8.2 o superior
 #   - Composer
 #   - NPM
 #   - Git
 #   - OpenSSL
 #
-# Versión: 1.0.2
+# Versión: 1.0.3
 #
 
 set -e
@@ -357,7 +358,8 @@ cat > .vscode/extensions.json <<EOL
         "cjhowe7.laravel-blade",
         "recca0120.vscode-phpunit",
         "open-southeners.phpstan-vscode",
-        "ms-vscode.makefile-tools"
+        "ms-vscode.makefile-tools",
+        "GitHub.vscode-github-actions"
     ]
 }
 EOL
@@ -749,4 +751,5 @@ echo -e "\n${GREEN} 🚀 ¡Proyecto $PROJECT_NAME creado con éxito!${NC}\n"
 echo -e "\n${YELLOW}Siguiente paso: cd $PROJECT_NAME:${NC}\n"
 echo -e "   1. npm run dev (para iniciar la compilación de Tailwind CSS en modo desarrollo)"
 echo -e "   2. Configura tu base de datos en el archivo .env"
-echo -e "   3. ¡Empieza a desarrollar tu aplicación!\n"
+echo -e "   3. ¡Empieza a desarrollar tu aplicación!"
+exit 0
