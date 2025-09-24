@@ -37,6 +37,8 @@ jobs:
         run: |
           echo "## $GITHUB_REF_NAME - $(date +'%Y-%m-%d')" >> tmp_changelog.md
           echo "" >> tmp_changelog.md
+          echo "🟢 Esta versión ha sido publicada como release estable." >> tmp_changelog.md
+          echo "" >> tmp_changelog.md
           echo "${{ steps.changelog.outputs.log }}" >> tmp_changelog.md
           echo "" >> tmp_changelog.md
           cat CHANGELOG.md >> tmp_changelog.md 2>/dev/null || true
