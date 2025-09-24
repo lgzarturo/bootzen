@@ -23,11 +23,24 @@ Puedes instalar BootZen fácilmente con el script `install.sh`, que automatiza l
 - Recarga la configuración del shell.
 - Verifica que el comando `init_project.sh` esté disponible globalmente.
 
+
 Instala BootZen ejecutando:
 
 ```bash
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/lgzarturo/bootzen/main/install.sh)"
 ```
+
+---
+
+## Actualización automática
+
+Puedes actualizar BootZen a la última versión estable (release, tag o main) ejecutando:
+
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/lgzarturo/bootzen/main/updater.sh)"
+```
+
+El script detecta si hay un release disponible y actualiza a ese release. Si no hay release, actualiza al último tag. Si no hay tag, actualiza la rama main. Si BootZen no está instalado, te pedirá instalarlo primero.
 
 ---
 

@@ -1,5 +1,5 @@
 #!/bin/bash
-#
+#s
 # install.sh - Instalador automático de BootZen
 #
 # Autor: Arturo Lopez (https://github.com/lgzarturo)
@@ -8,7 +8,7 @@
 #   Este script verifica los requisitos del sistema, clona el repositorio de BootZen,
 #   y configura el entorno para que el usuario pueda usar BootZen desde cualquier terminal.
 #
-# Versión: 1.0.0
+# Versión: 1.0.1
 #
 
 set -e
