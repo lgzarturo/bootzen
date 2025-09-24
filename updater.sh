@@ -7,7 +7,7 @@
 # Descripción:
 #   Este script actualiza BootZen en $HOME/.bootzen al último release, tag o main.
 #
-# Versión: 1.0.1
+# Versión: 1.0.2
 #
 
 set -e

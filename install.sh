@@ -8,7 +8,7 @@
 #   Este script verifica los requisitos del sistema, clona el repositorio de BootZen,
 #   y configura el entorno para que el usuario pueda usar BootZen desde cualquier terminal.
 #
-# Versión: 1.0.1
+# Versión: 1.0.2
 #
 
 set -e

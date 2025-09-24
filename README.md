@@ -1,4 +1,7 @@
 # BootZen: a modular micro framework
+# ⚠️ **Estado actual: BootZen NO cuenta con un release estable.**
+
+> Los tags publicados son versiones preliminares para pruebas y desarrollo. No se recomienda su uso en producción hasta que se publique el primer release oficial. Consulta el archivo [CHANGELOG.md](CHANGELOG.md) para más detalles.
 
 **Arranca en zen: Desarrolla con calma, crece con poder.**
 
