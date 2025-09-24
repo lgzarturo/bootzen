@@ -1,4 +1,14 @@
 # CHANGELOG
+#
+## [1.0.2] - 2025-09-24
+### Cambios
+- Se agrega advertencia visible en README.md sobre el estado no estable del proyecto.
+- Se crea y documenta el archivo CHANGELOG.md.
+- Se mejora la documentación para clarificar el uso recomendado y el estado de los releases.
+
+### Notas
+> Esta versión aún no es un release estable. No se recomienda su uso en producción hasta que se publique un release oficial.
+
 
 ## [1.0.1] - 2025-09-24
 ### Cambios
