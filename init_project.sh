@@ -252,19 +252,15 @@ parameters:
     excludePaths:
         - vendor/*
         - storage/*
-    checkMissingIterableValueType: false
+        - .php-cs-fixer.php
     reportUnmatchedIgnoredErrors: false
-    autoload_files:
-        - src/Helpers/helpers.php
 EOL
 
 # Crear archivo de configuración de Pest
 cat > pest.php <<EOL
 <?php
 
-use Pest\Plugin;
-
-Plugin::uses('pest-plugin');
+// Archivo de configuración de Pest. Puedes definir macros, hooks, etc. aquí.
 EOL
 
 # Crear archivo de configuración de PHPUnit
@@ -360,7 +356,8 @@ cat > .vscode/extensions.json <<EOL
         "bradlc.vscode-tailwindcss",
         "cjhowe7.laravel-blade",
         "recca0120.vscode-phpunit",
-        "open-southeners.phpstan-vscode"
+        "open-southeners.phpstan-vscode",
+        "ms-vscode.makefile-tools"
     ]
 }
 EOL
@@ -645,8 +642,14 @@ module.exports = {
 }
 EOL
 
+cat > src/Helpers/helpers.php <<EOL
+<?php
+
+// Puedes agregar funciones helper aquí.
+EOL
+
 cat > Makefile <<EOL
-.PHONY: help install dev build start test test-coverage format lint analyze count create-controller create-model create-service
+.PHONY: help install dev build start test format lint analyze count create-controller create-model create-service
 
 help: ## Mostrar esta ayuda
 	@grep -E '^[a-zA-Z_-]+:.*?## .*\$\$' Makefile | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", \$\$1, \$\$2}'
@@ -667,9 +670,6 @@ start: ## Iniciar entorno de desarrollo
 
 test: ## Ejecutar tests
 	vendor/bin/pest
-
-test-coverage: ## Ejecutar tests con coverage
-	vendor/bin/pest --coverage
 
 format: ## Formatear código
 	vendor/bin/php-cs-fixer fix
@@ -713,6 +713,37 @@ echo -e "\n${YELLOW}-Configurando Husky para pre-commit...${NC}"
 npx husky install
 npx husky add .husky/pre-commit "npx lint-staged"
 echo -e "${GREEN}-Husky configurado.${NC}"
+
+echo -e "\n${YELLOW}-Verificando instalaciones...${NC}"
+php -v
+npm -v
+node -v
+composer -v
+git --version
+echo -e "${GREEN}-Instalaciones verificadas.${NC}"
+
+echo -e "\n${YELLOW}-Verificando paquetes instalados...${NC}"
+npm list tailwindcss
+npm list husky
+npm list lint-staged
+npm list concurrently
+vendor/bin/phpstan --version
+vendor/bin/pest --version
+composer show friendsofphp/php-cs-fixer
+echo -e "${GREEN}-Paquetes verificados.${NC}"
+
+echo -e "\n${YELLOW}-Optimizando autoload de Composer...${NC}"
+composer dump-autoload
+echo -e "${GREEN}-Autoload optimizado.${NC}"
+
+echo -e "\n${YELLOW}-Ejecutando análisis estático con PHPStan y formateo con PHP CS Fixer...${NC}"
+vendor/bin/phpstan analyse src tests
+vendor/bin/php-cs-fixer fix --dry-run --diff
+echo -e "${GREEN}-Análisis y formateo completados.${NC}"
+
+echo -e "\n${YELLOW}-Ejecutando pruebas con Pest...${NC}"
+vendor/bin/pest
+echo -e "${GREEN}-Pruebas ejecutadas.${NC}"
 
 echo -e "\n${GREEN} 🚀 ¡Proyecto $PROJECT_NAME creado con éxito!${NC}\n"
 echo -e "\n${YELLOW}Siguiente paso: cd $PROJECT_NAME:${NC}\n"
