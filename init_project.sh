@@ -359,7 +359,8 @@ cat > .vscode/extensions.json <<EOL
         "recca0120.vscode-phpunit",
         "open-southeners.phpstan-vscode",
         "ms-vscode.makefile-tools",
-        "GitHub.vscode-github-actions"
+        "GitHub.vscode-github-actions",
+        "SanderRonde.phpstan-vscode"
     ]
 }
 EOL
