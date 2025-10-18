@@ -101,9 +101,22 @@ if [ "$FAILED" -eq 1 ]; then
     exit 1
 fi
 
+
 REPO_URL="https://github.com/lgzarturo/bootzen"
 INSTALL_DIR="$HOME/.bootzen"
 SCRIPT_NAME="init_project.sh"
+PHAR_NAME="bootzen.phar"
+
+# Descargar el último .phar desde GitHub Releases
+echo -e "${YELLOW}Descargando el último archivo .phar desde GitHub Releases...${NC}"
+LATEST_PHAR_URL=$(curl -s https://api.github.com/repos/lgzarturo/bootzen/releases/latest | grep "browser_download_url.*phar" | cut -d '"' -f4)
+if [ -n "$LATEST_PHAR_URL" ]; then
+    curl -L "$LATEST_PHAR_URL" -o "$INSTALL_DIR/$PHAR_NAME"
+    chmod +x "$INSTALL_DIR/$PHAR_NAME"
+    echo -e "${GREEN}Archivo .phar descargado correctamente: $INSTALL_DIR/$PHAR_NAME${NC}"
+else
+    echo -e "${RED}No se encontró un archivo .phar en el último release. Puedes compilarlo manualmente con build-phar.php.${NC}"
+fi
 
 # Detectar shell
 SHELL_NAME="$(basename "$SHELL")"

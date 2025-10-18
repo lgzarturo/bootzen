@@ -42,10 +42,10 @@ if (!isset($templates[$type])) {
 
 $className = getResilientClassName($name, $templates[$type]);
 $namespace = match($type) {
-    'controller' => 'App\\Controllers',
-    'model' => 'App\\Models',
-    'service' => 'App\\Services',
-    'migration' => 'App\\Database\\Migrations',
+    'controller' => 'BootZen\\Controllers',
+    'model' => 'BootZen\\Models',
+    'service' => 'BootZen\\Services',
+    'migration' => 'BootZen\\Database\\Migrations',
     'test' => 'Tests\\Feature',
 };
 
@@ -98,9 +98,9 @@ function generateController($className, $namespace) {
 
 namespace {$namespace};
 
-use App\Core\Controller;
-use App\Core\Request;
-use App\Core\Response;
+use BootZen\Core\Controller;
+use BootZen\Core\Request;
+use BootZen\Core\Response;
 
 class {$className} extends Controller
 {
@@ -113,10 +113,10 @@ class {$className} extends Controller
             // Fetch from database
             return [];
         });
-        
+
         return \$this->view('index', compact('data'));
     }
-    
+
     /**
      * Show the form for creating a new resource.
      */
@@ -124,7 +124,7 @@ class {$className} extends Controller
     {
         return \$this->view('create');
     }
-    
+
     /**
      * Store a newly created resource.
      */
@@ -133,22 +133,22 @@ class {$className} extends Controller
         \$validated = \$request->validate([
             'name' => 'required|string|max:255',
         ]);
-        
+
         try {
             \$this->db->beginTransaction();
-            
+
             // Insert logic here
-            
+
             \$this->db->commit();
             \$this->cache->forget('items_list');
-            
+
             return \$this->redirect('/')->with('success', 'Item created successfully');
         } catch (\Exception \$e) {
             \$this->db->rollBack();
             return \$this->back()->with('error', 'Failed to create item');
         }
     }
-    
+
     /**
      * Display the specified resource.
      */
@@ -159,14 +159,14 @@ class {$className} extends Controller
             \$stmt->execute([\$id]);
             return \$stmt->fetch();
         });
-        
+
         if (!item) {
             return \$this->notFound();
         }
-        
+
         return \$this->view('show', compact('item'));
     }
-    
+
     /**
      * Update the specified resource.
      */
@@ -175,24 +175,24 @@ class {$className} extends Controller
         \$validated = \$request->validate([
             'name' => 'required|string|max:255',
         ]);
-        
+
         try {
             \$this->db->beginTransaction();
-            
+
             \$stmt = \$this->db->prepare("UPDATE items SET name = ?, updated_at = NOW() WHERE id = ?");
             \$stmt->execute([\$validated['name'], \$id]);
-            
+
             \$this->db->commit();
             \$this->cache->forget("item_{\$id}");
             \$this->cache->forget('items_list');
-            
+
             return \$this->json(['success' => true, 'message' => 'Updated successfully']);
         } catch (\Exception \$e) {
             \$this->db->rollBack();
             return \$this->json(['success' => false, 'message' => 'Update failed'], 500);
         }
     }
-    
+
     /**
      * Remove the specified resource.
      */
@@ -201,10 +201,10 @@ class {$className} extends Controller
         try {
             \$stmt = \$this->db->prepare("DELETE FROM items WHERE id = ?");
             \$stmt->execute([\$id]);
-            
+
             \$this->cache->forget("item_{\$id}");
             \$this->cache->forget('items_list');
-            
+
             return \$this->json(['success' => true, 'message' => 'Deleted successfully']);
         } catch (\Exception \$e) {
             return \$this->json(['success' => false, 'message' => 'Delete failed'], 500);
@@ -230,27 +230,27 @@ function generateModel($className, $namespace, $name) {
 
 namespace {$namespace};
 
-use App\Core\Model;
+use BootZen\Core\Model;
 
 class {$className} extends Model
 {
     protected string \$table = '{$table}';
-    
+
     protected array \$fillable = [
         'name',
         'description',
         'tenant_id',
     ];
-    
+
     protected array \$hidden = [
         'password',
     ];
-    
+
     protected array \$casts = [
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
-    
+
     /**
      * Get all records with caching
      */
@@ -262,7 +262,7 @@ class {$className} extends Model
             return \$stmt->fetchAll();
         });
     }
-    
+
     /**
      * Find record by ID
      */
@@ -274,7 +274,7 @@ class {$className} extends Model
             return \$stmt->fetch() ?: null;
         });
     }
-    
+
     /**
      * Create new record
      */
@@ -283,44 +283,44 @@ class {$className} extends Model
         \$data['tenant_id'] = \$this->getTenantId();
         \$data['created_at'] = date('Y-m-d H:i:s');
         \$data['updated_at'] = date('Y-m-d H:i:s');
-        
+
         \$columns = array_keys(\$data);
         \$values = array_map(fn(\$col) => ":\$col", \$columns);
-        
-        \$sql = "INSERT INTO {\$this->table} (" . implode(', ', \$columns) . ") 
+
+        \$sql = "INSERT INTO {\$this->table} (" . implode(', ', \$columns) . ")
                 VALUES (" . implode(', ', \$values) . ")";
-        
+
         \$stmt = \$this->db->prepare(\$sql);
         \$stmt->execute(\$data);
-        
+
         \$this->clearCache();
-        
+
         return (int) \$this->db->lastInsertId();
     }
-    
+
     /**
      * Update record
      */
     public function update(int \$id, array \$data): bool
     {
         \$data['updated_at'] = date('Y-m-d H:i:s');
-        
+
         \$sets = array_map(fn(\$col) => "\$col = :\$col", array_keys(\$data));
-        
-        \$sql = "UPDATE {\$this->table} SET " . implode(', ', \$sets) . " 
+
+        \$sql = "UPDATE {\$this->table} SET " . implode(', ', \$sets) . "
                 WHERE id = :id AND tenant_id = :tenant_id";
-        
+
         \$data['id'] = \$id;
         \$data['tenant_id'] = \$this->getTenantId();
-        
+
         \$stmt = \$this->db->prepare(\$sql);
         \$result = \$stmt->execute(\$data);
-        
+
         \$this->clearCache(\$id);
-        
+
         return \$result;
     }
-    
+
     /**
      * Delete record
      */
@@ -328,12 +328,12 @@ class {$className} extends Model
     {
         \$stmt = \$this->db->prepare("DELETE FROM {\$this->table} WHERE id = ? AND tenant_id = ?");
         \$result = \$stmt->execute([\$id, \$this->getTenantId()]);
-        
+
         \$this->clearCache(\$id);
-        
+
         return \$result;
     }
-    
+
     /**
      * Clear cache
      */
@@ -362,21 +362,21 @@ function generateService($className, $namespace) {
 
 namespace {$namespace};
 
-use App\Core\Service;
-use App\Core\Cache;
-use App\Core\Database;
+use BootZen\Core\Service;
+use BootZen\Core\Cache;
+use BootZen\Core\Database;
 
 class {$className} extends Service
 {
     private Cache \$cache;
     private Database \$db;
-    
+
     public function __construct()
     {
         \$this->cache = Cache::getInstance();
         \$this->db = Database::getInstance();
     }
-    
+
     /**
      * Process business logic
      */
@@ -384,16 +384,16 @@ class {$className} extends Service
     {
         // Validate input
         \$this->validate(\$data);
-        
+
         // Process data
         \$result = \$this->performOperation(\$data);
-        
+
         // Cache result
         \$this->cacheResult(\$result);
-        
+
         return \$result;
     }
-    
+
     /**
      * Validate input data
      */
@@ -402,10 +402,10 @@ class {$className} extends Service
         if (empty(\$data)) {
             throw new \InvalidArgumentException('Data cannot be empty');
         }
-        
+
         // Add validation logic
     }
-    
+
     /**
      * Perform the main operation
      */
@@ -418,7 +418,7 @@ class {$className} extends Service
             'timestamp' => time(),
         ];
     }
-    
+
     /**
      * Cache the result
      */
@@ -443,9 +443,9 @@ function generateMigration($name) {
     return <<<PHP
 <?php
 
-namespace App\Database\Migrations;
+namespace BootZen\Database\Migrations;
 
-use App\Core\Migration;
+use BootZen\Core\Migration;
 
 class Create{$name}Table extends Migration
 {
@@ -466,10 +466,10 @@ class Create{$name}Table extends Migration
             INDEX idx_status (status),
             INDEX idx_created (created_at)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
-        
+
         \$this->execute(\$sql);
     }
-    
+
     /**
      * Reverse the migration
      */
@@ -510,10 +510,10 @@ class {$className} extends TestCase
             'name' => 'Test {$name}',
             'description' => 'Test description',
         ];
-        
+
         // Act
         \$result = \$this->post('/{$name}', \$data);
-        
+
         // Assert
         expect(\$result)
             ->toBeArray()
@@ -521,7 +521,7 @@ class {$className} extends TestCase
             ->and(\$result['data'])
             ->toHaveKey('name', \$data['name']);
     }
-    
+
     /**
      * @test
      */
@@ -529,16 +529,16 @@ class {$className} extends TestCase
     {
         // Arrange
         \$id = 1;
-        
+
         // Act
         \$result = \$this->get('/{$name}/{\$id}');
-        
+
         // Assert
         expect(\$result)
             ->toBeArray()
             ->toHaveKey('id', \$id);
     }
-    
+
     /**
      * @test
      */
@@ -547,16 +547,16 @@ class {$className} extends TestCase
         // Arrange
         \$id = 1;
         \$data = ['name' => 'Updated {$name}'];
-        
+
         // Act
         \$result = \$this->put('/{$name}/{\$id}', \$data);
-        
+
         // Assert
         expect(\$result)
             ->toBeArray()
             ->toHaveKey('success', true);
     }
-    
+
     /**
      * @test
      */
@@ -564,10 +564,10 @@ class {$className} extends TestCase
     {
         // Arrange
         \$id = 1;
-        
+
         // Act
         \$result = \$this->delete('/{$name}/{\$id}');
-        
+
         // Assert
         expect(\$result)
             ->toBeArray()

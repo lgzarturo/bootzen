@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     tags:
-      - 'v*'   # se dispara cuando haces push de un tag tipo v1.0.3
+      - "v*" # se dispara cuando haces push de un tag tipo v1.0.3
 
 jobs:
   release:
@@ -13,7 +13,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # necesitamos todo el historial para git log
+          fetch-depth: 0 # necesitamos todo el historial para git log
 
       - name: Get previous tag
         id: previoustag
@@ -52,9 +52,20 @@ jobs:
           git commit -m "docs: update changelog for $GITHUB_REF_NAME" || echo "No changes to commit"
           git push
 
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: phar
+
+      - name: Build .phar
+        run: |
+          php build-phar.php
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           body: ${{ steps.changelog.outputs.log }}
+          files: bootzen-*.phar
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

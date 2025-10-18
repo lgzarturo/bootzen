@@ -29,7 +29,8 @@
 #      - phpunit.xml (configuración de PHPUnit)
 #      - Archivos de configuración de VSCode (.vscode/settings.json, launch.json, extensions.json)
 #      - resources/css/app.css (estilos base con Tailwind)
-#      - public/index.php (página de inicio del proyecto)
+#      - public/index_welcome.php (página de bienvenida inicial)
+#      - public/index.php (página de inicio del framework)
 #      - package.json (herramientas frontend y scripts)
 #      - tailwind.config.js (configuración de Tailwind)
 #   7. Inicialización de repositorio git y primer commit.
@@ -63,6 +64,7 @@ echo -e "${GREEN}-Creando proyecto: $PROJECT_NAME${NC}"
 # Crear la estructura de directorios
 mkdir -p $PROJECT_NAME/{public/{css,js,images},src/{Controllers,Models,Views,Services,Database/{Migrations,Seeders},Core,Middleware,Helpers},config,tests/{Unit,Feature},views/{layouts,components,pages},storage/{logs,cache,uploads},.vscode,.scripts,resources/{css,js}}
 
+
 # Copiar los scripts de utilidad
 echo -e "\n${YELLOW}-Copiando scripts...${NC}"
 
@@ -72,6 +74,13 @@ cp "$SCRIPT_DIR/bin/count_lines.sh" $PROJECT_NAME/.scripts/count_lines.sh
 cp "$SCRIPT_DIR/bin/make.sh" $PROJECT_NAME/.scripts/make.sh
 cp "$SCRIPT_DIR/bin/start.sh" $PROJECT_NAME/.scripts/start.sh
 chmod +x $PROJECT_NAME/.scripts/analyzer.sh $PROJECT_NAME/.scripts/count_lines.sh $PROJECT_NAME/.scripts/make.sh $PROJECT_NAME/.scripts/start.sh
+
+# Copiar el .phar descargado por el instalador si existe
+if [ -f "$HOME/.bootzen/bootzen.phar" ]; then
+    cp "$HOME/.bootzen/bootzen.phar" "$PROJECT_NAME/public/bootzen.phar"
+    chmod +x "$PROJECT_NAME/public/bootzen.phar"
+    echo -e "${GREEN}-Archivo bootzen.phar copiado a public/.${NC}"
+fi
 
 echo -e "${GREEN}-Scripts copiados.${NC}"
 
@@ -104,7 +113,7 @@ cat > composer.json <<EOL
     },
     "autoload": {
         "psr-4": {
-            "App\\\\": "src/"
+            "BootZen\\\\": "src/"
         },
         "files": [
             "src/Helpers/helpers.php"
@@ -156,6 +165,8 @@ APP_ENV=development
 APP_DEBUG=true
 APP_URL=http://localhost:8000
 APP_KEY=base64:$(openssl rand -base64 32)
+
+SHOW_WELCOME=true
 
 LOG_CHANNEL=stack
 
@@ -314,7 +325,7 @@ cat > .vscode/settings.json <<EOL
         "*.php": "php"
     },
     "files.exclude": {
-        "**/vendor": true,  
+        "**/vendor": true,
         "**/node_modules": true,
         "**/.env": true,
         "**/storage/logs": true,
@@ -402,14 +413,14 @@ h1, h2, h3 {
 }
 EOL
 
-# Crear archivo index.php en public
-cat > public/index.php <<EOL
+# Crear archivo index_welcome.php en public
+cat > public/index_welcome.php <<EOL
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BootZen Framework - $PROJECT_NAME</title>
+    <title>BootZen Framework - my-php-app</title>
     <link href="/css/app.css" rel="stylesheet">
     <link href="/css/index_welcome.css" rel="stylesheet">
     <script>
@@ -440,9 +451,9 @@ cat > public/index.php <<EOL
             <p class="mt-2 font-bold animate-fade-in-delay">
                 <?php
                 // Mostrar fecha en formato AM/PM y UTC-5
-                \$timezone = getenv('APP_TIMEZONE') ?: 'America/Cancun';
-                \$dt = new DateTime('now', new DateTimeZone(\$timezone));
-                echo "Fecha actual: " . \$dt->format('Y-m-d h:i:s A') . " (" . \$dt->getTimezone()->getName() . ")";
+                $timezone = getenv('APP_TIMEZONE') ?: 'America/Cancun';
+                $dt = new DateTime('now', new DateTimeZone($timezone));
+                echo "Fecha actual: " . $dt->format('Y-m-d h:i:s A') . " (" . $dt->getTimezone()->getName() . ")";
                 ?>
             </p>
         </div>
@@ -537,6 +548,134 @@ cat > public/index.php <<EOL
     </style>
 </body>
 </html>
+EOL
+
+# Crear archivo index.php en public
+
+cat > public/index.php <<EOL
+<?php
+
+/**
+ * Punto de entrada principal de BootZen Framework.
+ *
+ * Este archivo gestiona el arranque global de la aplicación web, inicializando el autoload de Composer,
+ * mostrando la portada de bienvenida si corresponde y ejecutando el ciclo de vida principal del framework BootZen.
+ *
+ * @package App Public
+ * @author Arturo Lopez <lgzarturo@gmail.com>
+ * @copyright 2025 BootZen
+ * @license MIT
+ * @version 1.0.4
+ * @since 1.0.0
+ * @date 2025-09-26
+ *
+ * @todo Permitir configuración dinámica de portadas por entorno
+ *
+ * @internal Este archivo no debe ser modificado salvo para ajustes globales de arranque
+ *
+ * @example
+ * Configuración típica en Apache
+ * DocumentRoot / var / www / html / public
+ * Directory / var / www / html / public
+ * AllowOverride All
+ * End Directory
+ *
+ * @see App Core Application
+ * @see App Controllers HomeController
+ * @see App Controllers ApiRoutes
+ *
+ * Dependencias
+ * - Composer autoload vendor / autoload.php
+ * - App Core Application ciclo de vida y gestión de rutas
+ * - App Controllers HomeController rutas principales
+ * - App Controllers ApiRoutes rutas de API REST
+ *
+ * Patrones de diseño
+ * - Front Controller centraliza el manejo de peticiones HTTP
+ * - Dependency Injection gestiona dependencias vía Application
+ *
+ * Consideraciones de seguridad
+ * - Validar variables de entorno antes de mostrar portadas
+ * - Evitar exposición de archivos sensibles fuera de public
+ *
+ * Consideraciones de rendimiento
+ * - El autoload de Composer optimiza la carga de clases
+ * - El enrutador minimiza el coste de resolución de rutas
+ */
+
+declare(strict_types=1);
+
+// Si existe el archivo bootzen.phar en public, lo cargamos
+if (file_exists(__DIR__ . '/bootzen.phar')) {
+    include_once __DIR__ . '/bootzen.phar';
+}
+
+require_once __DIR__ . '/../vendor/autoload.php';
+
+/**
+ * Determina si se debe mostrar la portada de bienvenida.
+ *
+ * @var bool $show_portada Indica si se muestra la portada inicial
+ */
+$show_portada = getenv('SHOW_WELCOME') ?: false;
+
+if ($show_portada) {
+    /**
+     * Incluye y muestra la portada de bienvenida estática.
+     *
+     * @example
+     * // Para mostrar la portada, exportar la variable:
+     * // export SHOW_WELCOME=1
+     *
+     * @see public/index_welcome.php
+     */
+    include __DIR__ . '/index_welcome.php';
+    exit;
+}
+
+// Arranque normal de la aplicación BootZen
+
+use App\Controllers\ApiRoutes;
+use App\Controllers\HomeController;
+use App\Core\Application;
+
+/**
+ * Instancia principal de la aplicación BootZen.
+ *
+ * @var Application $app Controlador global del ciclo de vida
+ */
+$app = new Application();
+
+/**
+ * Registra las rutas principales del HomeController.
+ *
+ * @see App\Controllers\HomeController::register
+ * @param \App\Core\Router $router Instancia del enrutador
+ * @return void
+ */
+HomeController::register($app->getRouter());
+
+/**
+ * Registra las rutas de la API REST.
+ *
+ * @see App\Controllers\ApiRoutes::register
+ * @param \App\Core\Router $router Instancia del enrutador
+ * @return void
+ */
+ApiRoutes::register($app->getRouter());
+
+/**
+ * Ejecuta el ciclo de vida principal de la aplicación.
+ *
+ * Procesa la petición HTTP, resuelve la ruta y genera la respuesta.
+ *
+ * @throws \Exception Si ocurre un error en el manejo de la petición
+ * @return void
+ * @example
+ * // Ejecución típica:
+ * $app->handle();
+ */
+$app->handle();
 EOL
 
 # Crear archivo de estilos personalizado para la página de bienvenida
