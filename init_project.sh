@@ -617,9 +617,9 @@ require_once __DIR__ . '/../vendor/autoload.php';
  *
  * @var bool $show_portada Indica si se muestra la portada inicial
  */
-$show_portada = getenv('SHOW_WELCOME') ?: false;
+\$show_portada = getenv('SHOW_WELCOME') ?: false;
 
-if ($show_portada) {
+if (\$show_portada) {
     /**
      * Incluye y muestra la portada de bienvenida estática.
      *
@@ -642,27 +642,27 @@ use App\Core\Application;
 /**
  * Instancia principal de la aplicación BootZen.
  *
- * @var Application $app Controlador global del ciclo de vida
+ * @var Application \$app Controlador global del ciclo de vida
  */
-$app = new Application();
+\$app = new Application();
 
 /**
  * Registra las rutas principales del HomeController.
  *
  * @see App\Controllers\HomeController::register
- * @param \App\Core\Router $router Instancia del enrutador
+ * @param \App\Core\Router \$router Instancia del enrutador
  * @return void
  */
-HomeController::register($app->getRouter());
+HomeController::register(\$app->getRouter());
 
 /**
  * Registra las rutas de la API REST.
  *
  * @see App\Controllers\ApiRoutes::register
- * @param \App\Core\Router $router Instancia del enrutador
+ * @param \App\Core\Router \$router Instancia del enrutador
  * @return void
  */
-ApiRoutes::register($app->getRouter());
+ApiRoutes::register(\$app->getRouter());
 
 /**
  * Ejecuta el ciclo de vida principal de la aplicación.
@@ -673,9 +673,9 @@ ApiRoutes::register($app->getRouter());
  * @return void
  * @example
  * // Ejecución típica:
- * $app->handle();
+ * \$app->handle();
  */
-$app->handle();
+\$app->handle();
 EOL
 
 # Crear archivo de estilos personalizado para la página de bienvenida
