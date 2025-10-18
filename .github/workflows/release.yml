@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     tags:
-      - "v*" # se dispara cuando haces push de un tag tipo v1.0.3
+      - "v*" # se dispara cuando haces push de un tag tipo v1.0.8
 
 jobs:
   release:

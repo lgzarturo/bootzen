@@ -1,10 +1,10 @@
 # CHANGELOG
 
-## [1.0.7] - 2025-10-18
+## [1.0.8] - 2025-10-18
 
 ### Cambios
 
-- Se actualiza la versión del framework a 1.0.7.
+- Se actualiza la versión del framework a 1.0.8.
 
 ## [1.0.7] - 2025-10-18
 
