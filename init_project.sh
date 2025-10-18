@@ -451,9 +451,9 @@ cat > public/index_welcome.php <<EOL
             <p class="mt-2 font-bold animate-fade-in-delay">
                 <?php
                 // Mostrar fecha en formato AM/PM y UTC-5
-                $timezone = getenv('APP_TIMEZONE') ?: 'America/Cancun';
-                $dt = new DateTime('now', new DateTimeZone($timezone));
-                echo "Fecha actual: " . $dt->format('Y-m-d h:i:s A') . " (" . $dt->getTimezone()->getName() . ")";
+                \$timezone = getenv('APP_TIMEZONE') ?: 'America/Cancun';
+                \$dt = new DateTime('now', new DateTimeZone(\$timezone));
+                echo "Fecha actual: " . \$dt->format('Y-m-d h:i:s A') . " (" . \$dt->getTimezone()->getName() . ")";
                 ?>
             </p>
         </div>
