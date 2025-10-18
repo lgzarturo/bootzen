@@ -44,14 +44,6 @@ jobs:
           cat CHANGELOG.md >> tmp_changelog.md 2>/dev/null || true
           mv tmp_changelog.md CHANGELOG.md
 
-      - name: Commit updated CHANGELOG.md
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add CHANGELOG.md
-          git commit -m "docs: update changelog for $GITHUB_REF_NAME" || echo "No changes to commit"
-          git push
-
       - name: Set up PHP
         uses: shivammathur/setup-php@v2
         with:
