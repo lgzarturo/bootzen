@@ -13,7 +13,7 @@
  * @author     Arturo Lopez <lgzarturo@gmail.com>
  * @copyright  2025 BootZen
  * @license    MIT
- * @version    1.0.6
+ * @version    1.0.7
  * @since      1.0.0
  *
  * @see        BootZen\Core\Router

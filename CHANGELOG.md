@@ -1,10 +1,16 @@
 # CHANGELOG
 
-## [1.0.6] - 2025-11-01
+## [1.0.7] - 2025-10-18
 
 ### Cambios
 
-- Se actualiza la versión del framework a 1.0.6.
+- Se actualiza la versión del framework a 1.0.7.
+
+## [1.0.7] - 2025-10-18
+
+### Cambios
+
+- Se actualiza la versión del framework a 1.0.7.
 - Se mejora la documentación en varios archivos.
 - Se corrigen errores menores en el código.
 
@@ -12,7 +18,7 @@
 
 > Esta versión aún no es un release estable. No se recomienda su uso en producción hasta que se publique un release oficial.
 
-## [1.0.5] - 2025-10-25
+## [1.0.5] - 2025-10-18
 
 ### Cambios
 

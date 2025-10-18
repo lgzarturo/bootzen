@@ -1,6 +1,6 @@
 # BootZen: a modular micro framework
 
-La versión actual v1.0.6 de BootZen es una versión preliminar para pruebas y desarrollo.
+La versión actual v1.0.7 de BootZen es una versión preliminar para pruebas y desarrollo.
 
 > Los tags publicados son versiones preliminares para pruebas y desarrollo. No se recomienda su uso en producción hasta que se publique el primer release oficial. Consulta el archivo [CHANGELOG.md](CHANGELOG.md) para más detalles.
 
