@@ -52,7 +52,7 @@ jobs:
 
       - name: Build .phar
         run: |
-          php build-phar.php
+          php -d phar.readonly=0 build-phar.php
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
