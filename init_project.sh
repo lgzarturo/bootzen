@@ -77,9 +77,9 @@ chmod +x $PROJECT_NAME/.scripts/analyzer.sh $PROJECT_NAME/.scripts/count_lines.s
 
 # Copiar el .phar descargado por el instalador si existe
 if [ -f "$HOME/.bootzen/bootzen.phar" ]; then
-    cp "$HOME/.bootzen/bootzen.phar" "$PROJECT_NAME/public/bootzen.phar"
-    chmod +x "$PROJECT_NAME/public/bootzen.phar"
-    echo -e "${GREEN}-Archivo bootzen.phar copiado a public/.${NC}"
+    cp "$HOME/.bootzen/bootzen.phar" "$PROJECT_NAME/bootzen.phar"
+    chmod +x "$PROJECT_NAME/bootzen.phar"
+    echo -e "${GREEN}-Archivo bootzen.phar copiado a $PROJECT_NAME/.${NC}"
 fi
 
 echo -e "${GREEN}-Scripts copiados.${NC}"
@@ -561,7 +561,7 @@ cat > public/index.php <<EOL
  * Este archivo gestiona el arranque global de la aplicación web, inicializando el autoload de Composer,
  * mostrando la portada de bienvenida si corresponde y ejecutando el ciclo de vida principal del framework BootZen.
  *
- * @package App Public
+ * @package BootZen Public
  * @author Arturo Lopez <lgzarturo@gmail.com>
  * @copyright 2025 BootZen
  * @license MIT
@@ -580,15 +580,15 @@ cat > public/index.php <<EOL
  * AllowOverride All
  * End Directory
  *
- * @see App Core Application
- * @see App Controllers HomeController
- * @see App Controllers ApiRoutes
+ * @see BootZen Core Application
+ * @see BootZen Controllers HomeController
+ * @see BootZen Controllers ApiRoutes
  *
  * Dependencias
  * - Composer autoload vendor / autoload.php
- * - App Core Application ciclo de vida y gestión de rutas
- * - App Controllers HomeController rutas principales
- * - App Controllers ApiRoutes rutas de API REST
+ * - BootZen Core Application ciclo de vida y gestión de rutas
+ * - BootZen Controllers HomeController rutas principales
+ * - BootZen Controllers ApiRoutes rutas de API REST
  *
  * Patrones de diseño
  * - Front Controller centraliza el manejo de peticiones HTTP
@@ -606,8 +606,8 @@ cat > public/index.php <<EOL
 declare(strict_types=1);
 
 // Si existe el archivo bootzen.phar en public, lo cargamos
-if (file_exists(__DIR__ . '/bootzen.phar')) {
-    include_once __DIR__ . '/bootzen.phar';
+if (file_exists(__DIR__ . '/../bootzen.phar')) {
+    include_once __DIR__ . '/../bootzen.phar';
 }
 
 require_once __DIR__ . '/../vendor/autoload.php';
@@ -635,9 +635,9 @@ if (\$show_portada) {
 
 // Arranque normal de la aplicación BootZen
 
-use App\Controllers\ApiRoutes;
-use App\Controllers\HomeController;
-use App\Core\Application;
+use BootZen\Controllers\ApiRoutes;
+use BootZen\Controllers\HomeController;
+use BootZen\Core\Application;
 
 /**
  * Instancia principal de la aplicación BootZen.
@@ -649,8 +649,8 @@ use App\Core\Application;
 /**
  * Registra las rutas principales del HomeController.
  *
- * @see App\Controllers\HomeController::register
- * @param \App\Core\Router \$router Instancia del enrutador
+ * @see BootZen\Controllers\HomeController::register
+ * @param \BootZen\Core\Router \$router Instancia del enrutador
  * @return void
  */
 HomeController::register(\$app->getRouter());
@@ -658,8 +658,8 @@ HomeController::register(\$app->getRouter());
 /**
  * Registra las rutas de la API REST.
  *
- * @see App\Controllers\ApiRoutes::register
- * @param \App\Core\Router \$router Instancia del enrutador
+ * @see BootZen\Controllers\ApiRoutes::register
+ * @param \BootZen\Core\Router \$router Instancia del enrutador
  * @return void
  */
 ApiRoutes::register(\$app->getRouter());
