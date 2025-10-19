@@ -135,7 +135,7 @@ resources/        # CSS, JS
 
 ## Distribución y Actualización
 
-- El framework se distribuye como un `.phar` versionado (ej: `bootzen-1.0.9.phar`).
+- El framework se distribuye como un `.phar` versionado (ej: `bootzen-1.1.0.phar`).
 - El instalador y el actualizador descargan el último `.phar` desde GitHub Releases y lo integran en cada nuevo proyecto.
 - El workflow de GitHub Actions compila el `.phar` usando PHP 8.4 y lo publica automáticamente.
 

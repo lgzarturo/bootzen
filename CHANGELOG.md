@@ -1,5 +1,17 @@
 # CHANGELOG
 
+## [1.1.0] - 2025-10-18
+
+### Cambios
+
+- Se actualiza la versión del framework a 1.1.0.
+- Se mejora la documentación en varios archivos.
+- Se corrigen errores menores en el código.
+- Se optimiza el proceso de generación del archivo `.phar`.
+- Se actualiza el script de instalación para manejar mejor las configuraciones de shell.
+
+---
+
 ## [1.0.9] - 2025-10-18
 
 ### Cambios
@@ -9,11 +21,15 @@
 - Se corrigen errores menores en el código.
 - Se elimina la firma del archivo `.phar` para evitar problemas de integridad al copiar/renombrar.
 
+---
+
 ## [1.0.8] - 2025-10-18
 
 ### Cambios
 
-- Se actualiza la versión del framework a 1.0.9.
+- Se actualiza la versión del framework a 1.0.8.
+
+---
 
 ## [1.0.7] - 2025-10-18
 
@@ -27,6 +43,8 @@
 
 > Esta versión aún no es un release estable. No se recomienda su uso en producción hasta que se publique un release oficial.
 
+---
+
 ## [1.0.5] - 2025-10-18
 
 ### Cambios
@@ -38,6 +56,8 @@
 ### Notas
 
 > Esta versión aún no es un release estable. No se recomienda su uso en producción hasta que se publique un release oficial.
+
+---
 
 ## [1.0.4] - 2025-10-18
 
@@ -54,6 +74,8 @@
 
 > Esta versión marca el inicio del sistema de distribución y actualización automática del framework mediante archivos `.phar` versionados. Facilita la actualización y el uso de BootZen en nuevos proyectos.
 
+---
+
 ## [1.0.2] - 2025-09-24
 
 ### Cambios
@@ -65,6 +87,8 @@
 ### Notas
 
 > Esta versión aún no es un release estable. No se recomienda su uso en producción hasta que se publique un release oficial.
+
+---
 
 ## [1.0.1] - 2025-09-24
 

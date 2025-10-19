@@ -1,9 +1,8 @@
 
 <?php
 
-// Leer la versión desde el archivo VERSION
-$version = trim(file_get_contents(__DIR__ . '/VERSION'));
-$pharFile = "bootzen-$version.phar";
+// Generar siempre bootzen.phar (sin versión en el nombre)
+$pharFile = "bootzen.phar";
 
 // Si ya existe lo borramos
 if (file_exists($pharFile)) {

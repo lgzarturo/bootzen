@@ -12,7 +12,7 @@
  * @author     Arturo Lopez <lgzarturo@gmail.com>
  * @copyright  2025 BootZen
  * @license    MIT
- * @version    1.0.9
+ * @version    1.1.0
  * @since      1.0.0
  * *
  * @see        https://developer.mozilla.org/es/docs/Web/HTTP/CORS
