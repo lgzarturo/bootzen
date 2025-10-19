@@ -18,8 +18,8 @@ $phar->buildFromDirectory(__DIR__ . '/core/src');
 $stub = file_get_contents(__DIR__ . '/core/stub.php');
 $phar->setStub($stub);
 
-// Firmar con SHA1 (seguridad básica)
-$phar->setSignatureAlgorithm(Phar::SHA1);
+
+// No firmar el phar para evitar problemas de integridad al copiar/renombrar
 
 // Hacemos el phar ejecutable
 chmod($pharFile, 0755);

@@ -1,10 +1,19 @@
 # CHANGELOG
 
+## [1.0.9] - 2025-10-18
+
+### Cambios
+
+- Se actualiza la versión del framework a 1.0.9.
+- Se mejora la documentación en varios archivos.
+- Se corrigen errores menores en el código.
+- Se elimina la firma del archivo `.phar` para evitar problemas de integridad al copiar/renombrar.
+
 ## [1.0.8] - 2025-10-18
 
 ### Cambios
 
-- Se actualiza la versión del framework a 1.0.8.
+- Se actualiza la versión del framework a 1.0.9.
 
 ## [1.0.7] - 2025-10-18
 

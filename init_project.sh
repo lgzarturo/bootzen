@@ -46,7 +46,7 @@
 #   - Git
 #   - OpenSSL
 #
-# Versión: 1.0.8
+# Versión: 1.0.9
 #
 
 set -e
@@ -565,7 +565,7 @@ cat > public/index.php <<EOL
  * @author Arturo Lopez <lgzarturo@gmail.com>
  * @copyright 2025 BootZen
  * @license MIT
- * @version 1.0.8
+ * @version 1.0.9
  * @since 1.0.0
  * @date 2025-09-26
  *

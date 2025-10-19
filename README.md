@@ -1,6 +1,6 @@
 # BootZen: a modular micro framework
 
-La versión actual v1.0.8 de BootZen es una versión preliminar para pruebas y desarrollo.
+La versión actual v1.0.9 de BootZen es una versión preliminar para pruebas y desarrollo.
 
 > Los tags publicados son versiones preliminares para pruebas y desarrollo. No se recomienda su uso en producción hasta que se publique el primer release oficial. Consulta el archivo [CHANGELOG.md](CHANGELOG.md) para más detalles.
 
@@ -22,7 +22,7 @@ BootZen automatiza la creación de la base de tu proyecto PHP con una estructura
 
 ## Instalación automática y uso del .phar versionado
 
-BootZen ahora distribuye el framework como un archivo `.phar` versionado (por ejemplo, `bootzen-1.0.8.phar`) que se descarga automáticamente desde GitHub Releases y se integra en cada nuevo proyecto.
+BootZen ahora distribuye el framework como un archivo `.phar` versionado (por ejemplo, `bootzen-1.0.9.phar`) que se descarga automáticamente desde GitHub Releases y se integra en cada nuevo proyecto.
 
 El proceso automatizado incluye:
 

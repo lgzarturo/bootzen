@@ -7,7 +7,7 @@
 # Descripción:
 #   Este script actualiza BootZen en $HOME/.bootzen al último release, tag o main.
 #
-# Versión: 1.0.8
+# Versión: 1.0.9
 #
 
 set -e
@@ -29,6 +29,8 @@ fi
 
 PHAR_NAME="bootzen.phar"
 
+# Asegurar que la carpeta destino existe
+mkdir -p "$INSTALL_DIR"
 # Descargar el último .phar desde GitHub Releases
 echo -e "${YELLOW}Descargando el último archivo .phar desde GitHub Releases...${NC}"
 LATEST_PHAR_URL=$(curl -s https://api.github.com/repos/lgzarturo/bootzen/releases/latest | grep "browser_download_url.*phar" | cut -d '"' -f4)

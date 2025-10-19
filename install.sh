@@ -8,7 +8,7 @@
 #   Este script verifica los requisitos del sistema, clona el repositorio de BootZen,
 #   y configura el entorno para que el usuario pueda usar BootZen desde cualquier terminal.
 #
-# Versión: 1.0.8
+# Versión: 1.0.9
 #
 
 set -e
@@ -128,6 +128,8 @@ else
     git clone "$REPO_URL" "$INSTALL_DIR"
 fi
 
+# Asegurar que la carpeta destino existe
+mkdir -p "$INSTALL_DIR"
 # Descargar el último .phar desde GitHub Releases
 echo -e "${YELLOW}Descargando el último archivo .phar desde GitHub Releases...${NC}"
 LATEST_PHAR_URL=$(curl -s https://api.github.com/repos/lgzarturo/bootzen/releases/latest | grep "browser_download_url.*phar" | cut -d '"' -f4)
