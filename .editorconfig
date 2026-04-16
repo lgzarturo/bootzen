@@ -1,0 +1,38 @@
+# EditorConfig ayuda a mantener estilos de codificación consistentes
+# Compatible con VS Code, HTML, CSS y JS puro
+root = true
+
+[*]
+indent_style = space
+indent_size = 2
+end_of_line = lf
+charset = utf-8
+trim_trailing_whitespace = true
+insert_final_newline = true
+max_line_length = 80
+quote_type = double
+
+[*.md]
+trim_trailing_whitespace = false
+
+[*.{yml,yaml}]
+indent_size = 2
+
+[compose.yaml]
+indent_size = 4
+
+[*.js]
+indent_style = space
+indent_size = 2
+max_line_length = 80
+quote_type = double
+
+[*.css]
+indent_style = space
+indent_size = 2
+max_line_length = 80
+
+[*.html]
+indent_style = space
+indent_size = 2
+max_line_length = 80

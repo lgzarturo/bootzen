@@ -2,7 +2,10 @@
 
 ## Visión General
 
-BootZen es un microframework PHP modular, distribuido como un archivo `.phar` versionado para facilitar la instalación, actualización y portabilidad. Su arquitectura está pensada para proyectos monolíticos y modulares, con enfoque en buenas prácticas, extensibilidad y automatización.
+BootZen es un microframework PHP modular, distribuido como un archivo `.phar`
+versionado para facilitar la instalación, actualización y portabilidad. Su
+arquitectura está pensada para proyectos monolíticos y modulares, con enfoque en
+buenas prácticas, extensibilidad y automatización.
 
 ---
 
@@ -72,6 +75,7 @@ graph TD
    ```
 
 2. Accede a `http://localhost:8000/api/hello` y obtendrás:
+
    ```json
    { "message": "Hola desde la API BootZen" }
    ```
@@ -80,7 +84,8 @@ graph TD
 
 ## Filosofía
 
-- **Simple:** Crea sitios y APIs sin dependencias externas ni configuraciones complejas.
+- **Simple:** Crea sitios y APIs sin dependencias externas ni configuraciones
+  complejas.
 - **Modular:** Estructura clara y extensible.
 - **Portable:** El framework se distribuye como un solo archivo `.phar`.
 - **Sin complicaciones:** El flujo de desarrollo es directo y sin fricción.
@@ -114,11 +119,13 @@ resources/        # CSS, JS
 
 ## Componentes Principales
 
-- **Application**: Orquesta el ciclo de vida de la app, gestiona dependencias y el router.
+- **Application**: Orquesta el ciclo de vida de la app, gestiona dependencias y
+  el router.
 - **Router**: Resuelve rutas y despacha controladores.
 - **Request/Response**: Abstracción de la petición y respuesta HTTP.
 - **Controllers**: Definen la lógica de endpoints y vistas.
-- **Middleware**: Permite lógica antes/después de la petición (CORS, autenticación, etc).
+- **Middleware**: Permite lógica antes/después de la petición (CORS,
+  autenticación, etc).
 - **Helpers**: Funciones globales reutilizables.
 - **Services**: Lógica de negocio reutilizable.
 - **Database**: Migraciones y seeders para la persistencia.
@@ -127,17 +134,23 @@ resources/        # CSS, JS
 
 ## Flujo de Arranque
 
-1. El archivo `public/index.php` carga el autoloader de Composer y, si existe, el archivo `bootzen.phar`.
-2. El stub del `.phar` registra el autoloader para el namespace `BootZen\` y ejecuta el bootstrap principal.
-3. Se instancia `Application`, se registran rutas y controladores, y se ejecuta el ciclo de vida de la app.
+1. El archivo `public/index.php` carga el autoloader de Composer y, si existe,
+   el archivo `bootzen.phar`.
+2. El stub del `.phar` registra el autoloader para el namespace `BootZen\` y
+   ejecuta el bootstrap principal.
+3. Se instancia `Application`, se registran rutas y controladores, y se ejecuta
+   el ciclo de vida de la app.
 
 ---
 
 ## Distribución y Actualización
 
-- El framework se distribuye como un `.phar` versionado (ej: `bootzen-1.1.0.phar`).
-- El instalador y el actualizador descargan el último `.phar` desde GitHub Releases y lo integran en cada nuevo proyecto.
-- El workflow de GitHub Actions compila el `.phar` usando PHP 8.4 y lo publica automáticamente.
+- El framework se distribuye como un `.phar` versionado (ej:
+  `bootzen-1.1.0.phar`).
+- El instalador y el actualizador descargan el último `.phar` desde GitHub
+  Releases y lo integran en cada nuevo proyecto.
+- El workflow de GitHub Actions compila el `.phar` usando PHP 8.4 y lo publica
+  automáticamente.
 
 ---
 
@@ -145,7 +158,8 @@ resources/        # CSS, JS
 
 ### Propósito
 
-Genera el archivo `.phar` versionado del framework BootZen, empaquetando el núcleo y componentes necesarios para su ejecución portable.
+Genera el archivo `.phar` versionado del framework BootZen, empaquetando el
+núcleo y componentes necesarios para su ejecución portable.
 
 ### Contenido y Explicación
 
@@ -179,10 +193,13 @@ echo "Phar generado: $pharFile\n";
 
 #### Detalles
 
-- **Versión**: El nombre del archivo `.phar` incluye la versión leída de `VERSION`.
+- **Versión**: El nombre del archivo `.phar` incluye la versión leída de
+  `VERSION`.
 - **buildFromDirectory**: Empaqueta todo el contenido de `core/src`.
-- **Stub**: El archivo `core/stub.php` define el autoloader y el bootstrap principal.
-- **Sin firma**: Se omite la firma para evitar errores al copiar/renombrar el archivo.
+- **Stub**: El archivo `core/stub.php` define el autoloader y el bootstrap
+  principal.
+- **Sin firma**: Se omite la firma para evitar errores al copiar/renombrar el
+  archivo.
 - **Permisos**: El archivo generado es ejecutable.
 
 ---
@@ -190,8 +207,10 @@ echo "Phar generado: $pharFile\n";
 ## Recomendaciones
 
 - No modificar el `.phar` después de generarlo.
-- Usar siempre el instalador y actualizador para mantener la integridad y la versión correcta.
-- El stub debe ser compatible con el autoloader y el flujo de arranque del framework.
+- Usar siempre el instalador y actualizador para mantener la integridad y la
+  versión correcta.
+- El stub debe ser compatible con el autoloader y el flujo de arranque del
+  framework.
 
 ---
 

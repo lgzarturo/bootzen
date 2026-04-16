@@ -6,7 +6,9 @@ labels: [bug]
 
 # ¡Gracias por tu reporte!
 
-Agradecemos que te tomes el tiempo para ayudarnos a mejorar BootZen. Por favor, sigue los pasos recomendados para que podamos atender tu reporte de la mejor manera:
+Agradecemos que te tomes el tiempo para ayudarnos a mejorar BootZen. Por favor,
+sigue los pasos recomendados para que podamos atender tu reporte de la mejor
+manera:
 
 ## Pasos para reportar un bug
 
@@ -23,7 +25,8 @@ Agradecemos que te tomes el tiempo para ayudarnos a mejorar BootZen. Por favor, 
    - ¿Has intentado alguna solución temporal?
 
 4. **Ejemplo mínimo**
-   - Si puedes, comparte un fragmento de código o configuración que permita reproducir el bug fácilmente.
+   - Si puedes, comparte un fragmento de código o configuración que permita
+     reproducir el bug fácilmente.
 
 ---
 
@@ -32,6 +35,7 @@ Agradecemos que te tomes el tiempo para ayudarnos a mejorar BootZen. Por favor, 
 **Descripción del bug:**
 
 **Pasos para reproducir:**
+
 1. ...
 2. ...
 
@@ -40,6 +44,7 @@ Agradecemos que te tomes el tiempo para ayudarnos a mejorar BootZen. Por favor, 
 **Comportamiento actual:**
 
 **Información del entorno:**
+
 - SO: (Linux, Mac, Windows)
 - Versión de BootZen:
 - Versión de PHP:

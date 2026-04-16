@@ -8,7 +8,8 @@
 - Se mejora la documentación en varios archivos.
 - Se corrigen errores menores en el código.
 - Se optimiza el proceso de generación del archivo `.phar`.
-- Se actualiza el script de instalación para manejar mejor las configuraciones de shell.
+- Se actualiza el script de instalación para manejar mejor las configuraciones
+  de shell.
 
 ---
 
@@ -19,7 +20,8 @@
 - Se actualiza la versión del framework a 1.0.9.
 - Se mejora la documentación en varios archivos.
 - Se corrigen errores menores en el código.
-- Se elimina la firma del archivo `.phar` para evitar problemas de integridad al copiar/renombrar.
+- Se elimina la firma del archivo `.phar` para evitar problemas de integridad al
+  copiar/renombrar.
 
 ---
 
@@ -41,7 +43,8 @@
 
 ### Notas
 
-> Esta versión aún no es un release estable. No se recomienda su uso en producción hasta que se publique un release oficial.
+> Esta versión aún no es un release estable. No se recomienda su uso en
+> producción hasta que se publique un release oficial.
 
 ---
 
@@ -55,7 +58,8 @@
 
 ### Notas
 
-> Esta versión aún no es un release estable. No se recomienda su uso en producción hasta que se publique un release oficial.
+> Esta versión aún no es un release estable. No se recomienda su uso en
+> producción hasta que se publique un release oficial.
 
 ---
 
@@ -63,16 +67,24 @@
 
 ### Cambios
 
-- BootZen ahora distribuye el framework como archivo `.phar` versionado (`bootzen-<version>.phar`).
-- El workflow de GitHub Actions compila y publica automáticamente el `.phar` en cada release.
-- El instalador descarga el último `.phar` desde GitHub Releases y lo guarda en `~/.bootzen/bootzen.phar`.
-- Al crear un nuevo proyecto con `init_project.sh`, el `.phar` se copia automáticamente a `public/` del proyecto.
-- El archivo `public/index.php` está preparado para cargar y usar el framework desde el `.phar` si existe.
-- Se actualiza la documentación para reflejar el nuevo flujo de instalación y uso del `.phar`.
+- BootZen ahora distribuye el framework como archivo `.phar` versionado
+  (`bootzen-<version>.phar`).
+- El workflow de GitHub Actions compila y publica automáticamente el `.phar` en
+  cada release.
+- El instalador descarga el último `.phar` desde GitHub Releases y lo guarda en
+  `~/.bootzen/bootzen.phar`.
+- Al crear un nuevo proyecto con `init_project.sh`, el `.phar` se copia
+  automáticamente a `public/` del proyecto.
+- El archivo `public/index.php` está preparado para cargar y usar el framework
+  desde el `.phar` si existe.
+- Se actualiza la documentación para reflejar el nuevo flujo de instalación y
+  uso del `.phar`.
 
 ### Notas
 
-> Esta versión marca el inicio del sistema de distribución y actualización automática del framework mediante archivos `.phar` versionados. Facilita la actualización y el uso de BootZen en nuevos proyectos.
+> Esta versión marca el inicio del sistema de distribución y actualización
+> automática del framework mediante archivos `.phar` versionados. Facilita la
+> actualización y el uso de BootZen en nuevos proyectos.
 
 ---
 
@@ -80,13 +92,16 @@
 
 ### Cambios
 
-- Se agrega advertencia visible en README.md sobre el estado no estable del proyecto.
+- Se agrega advertencia visible en README.md sobre el estado no estable del
+  proyecto.
 - Se crea y documenta el archivo CHANGELOG.md.
-- Se mejora la documentación para clarificar el uso recomendado y el estado de los releases.
+- Se mejora la documentación para clarificar el uso recomendado y el estado de
+  los releases.
 
 ### Notas
 
-> Esta versión aún no es un release estable. No se recomienda su uso en producción hasta que se publique un release oficial.
+> Esta versión aún no es un release estable. No se recomienda su uso en
+> producción hasta que se publique un release oficial.
 
 ---
 
@@ -100,7 +115,8 @@
 
 ### Notas
 
-> Esta versión aún no es un release estable. No se recomienda su uso en producción hasta que se publique un release oficial.
+> Esta versión aún no es un release estable. No se recomienda su uso en
+> producción hasta que se publique un release oficial.
 
 ---
 
@@ -116,7 +132,8 @@
 
 ### Notas
 
-> Esta versión aún no es un release estable. No se recomienda su uso en producción hasta que se publique un release oficial.
+> Esta versión aún no es un release estable. No se recomienda su uso en
+> producción hasta que se publique un release oficial.
 
 ---
 
@@ -126,4 +143,5 @@
 
 - Los tags publicados son versiones preliminares para pruebas y desarrollo.
 - Se recomienda esperar al primer release oficial antes de usar en producción.
-- Para reportar errores o sugerencias, visita [GitHub Issues](https://github.com/lgzarturo/bootzen/issues).
+- Para reportar errores o sugerencias, visita
+  [GitHub Issues](https://github.com/lgzarturo/bootzen/issues).
