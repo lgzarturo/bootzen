@@ -5,3 +5,5 @@ Thumbs.db
 # Archivos de configuración de editores
 .idea/
 .vscode/
+
+graphify-out/
