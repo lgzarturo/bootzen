@@ -7,7 +7,7 @@
 # Descripción:
 #   Este script actualiza BootZen en $HOME/.bootzen al último release, tag o main.
 #
-# Versión: 1.1.0
+# Versión: 2.0.0
 #
 
 set -e
@@ -25,20 +25,6 @@ GITHUB_API="https://api.github.com/repos/lgzarturo/bootzen"
 if [ ! -d "$INSTALL_DIR/.git" ]; then
     echo -e "${RED}BootZen no está instalado en $INSTALL_DIR. Ejecuta primero el instalador.${NC}"
     exit 1
-fi
-
-PHAR_NAME="bootzen.phar"
-
-# Asegurar que la carpeta destino existe
-mkdir -p "$INSTALL_DIR"
-# Descargar el último .phar desde GitHub Releases
-echo -e "${YELLOW}Descargando el último archivo .phar desde GitHub Releases...${NC}"
-LATEST_PHAR_URL=$(curl -s https://api.github.com/repos/lgzarturo/bootzen/releases/latest | grep "browser_download_url.*phar" | cut -d '"' -f4)
-if [ -n "$LATEST_PHAR_URL" ]; then
-    curl -L "$LATEST_PHAR_URL" -o "$INSTALL_DIR/$PHAR_NAME" && chmod +x "$INSTALL_DIR/$PHAR_NAME"
-    echo -e "${GREEN}Archivo .phar descargado correctamente: $INSTALL_DIR/$PHAR_NAME${NC}"
-else
-    echo -e "${RED}No se encontró un archivo .phar en el último release. Puedes compilarlo manualmente con build-phar.php.${NC}"
 fi
 
 cd "$INSTALL_DIR"

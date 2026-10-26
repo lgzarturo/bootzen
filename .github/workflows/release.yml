@@ -48,11 +48,18 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: "8.4"
-          extensions: phar
+          extensions: mbstring, fileinfo, pdo_sqlite
+          coverage: none
 
-      - name: Build .phar
+      - name: Verificar antes de publicar
         run: |
-          php -d phar.readonly=0 build-phar.php
+          composer install --no-interaction --no-progress
+          composer check
+
+      - name: Empaquetar framework y skeleton
+        run: |
+          tar -czf "bootzen-${GITHUB_REF_NAME}.tar.gz" \
+            framework skeleton bin init_project.sh VERSION LICENSE README.md
 
       - name: Commit and push updated CHANGELOG.md
         run: |
@@ -68,6 +75,6 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           body: ${{ steps.changelog.outputs.log }}
-          files: bootzen.phar
+          files: bootzen-${{ github.ref_name }}.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GH_PAT }}

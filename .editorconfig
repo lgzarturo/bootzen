@@ -12,6 +12,9 @@ insert_final_newline = true
 max_line_length = 80
 quote_type = double
 
+[*.php]
+indent_size = 4
+
 [*.md]
 trim_trailing_whitespace = false
 

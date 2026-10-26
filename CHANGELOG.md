@@ -1,5 +1,48 @@
 # CHANGELOG
 
+## [Sin publicar] - 2.0.0-dev
+
+Inicio de la v2.0 según [plan/04_PLAN-MVP-MONOLITO.md](plan/04_PLAN-MVP-MONOLITO.md).
+Fase 0: limpieza y reorganización. **Cambios incompatibles con la v1.x.**
+
+### Agregado
+
+- `framework/bootstrap.php` con autoloader propio para `BootZen\` y `App\`:
+  los proyectos funcionan sin `vendor/` en producción.
+- `skeleton/`: el boilerplate como archivos reales (rutas, controlador,
+  vista, tests, `AGENTS.md` para agentes de IA, configuración de Pest, PHPStan
+  y PHP CS Fixer).
+- `bin/bootzen-new`: instalador de proyectos en PHP, multiplataforma.
+- `HttpException`: `abort()` la lanza y `Application` responde con su código
+  de estado en HTML o JSON.
+- Helper `base_path()`, ruta `/up` de health check en el skeleton.
+- `composer.json` de desarrollo en la raíz, tests del framework con Pest y
+  workflow `ci.yml` (PHP 8.2, 8.3 y 8.4 más verificación del proyecto
+  generado).
+
+### Cambiado
+
+- `core/src` se mueve a `framework/src`.
+- `init_project.sh` pasa a ser un envoltorio de `bin/bootzen-new`.
+- `redirect()`, `json_response()` y `download()` retornan un `Response` en vez
+  de terminar la ejecución. `abort()` lanza `HttpException`.
+- El release publica un tarball del framework y el skeleton en lugar de
+  `bootzen.phar`, después de pasar `composer check`.
+- `install.sh` solo exige PHP y git; Composer es opcional.
+
+### Eliminado
+
+- Distribución en `.phar` (`build-phar.php`, `core/stub.php`).
+- `Cache` y `CacheTenant` (Redis/Predis) y la caché de `Component`.
+- `HomeController` y `ApiRoutes` de ejemplo dentro del framework.
+- Polyfills de `rand`, `mt_rand`, `random_int` y `random_bytes`.
+- Scripts `bin/make.sh`, `start.sh`, `analyzer.sh` y `count_lines.sh`
+  (los reemplaza la CLI `bin/bootzen` en la fase 5).
+- Dependencias de runtime del proyecto generado: `vlucas/phpdotenv`,
+  `predis/predis`, `monolog/monolog` y `symfony/var-dumper`.
+
+---
+
 ## [1.1.0] - 2025-10-18
 
 ### Cambios

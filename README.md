@@ -1,208 +1,84 @@
-# BootZen: a modular micro framework
+# BootZen: boilerplate PHP para MVPs monolíticos
 
-La versión actual v1.1.0 de BootZen es una versión preliminar para pruebas y
-desarrollo.
-
-> Los tags publicados son versiones preliminares para pruebas y desarrollo. No
-> se recomienda su uso en producción hasta que se publique el primer release
-> oficial. Consulta el archivo [CHANGELOG.md](CHANGELOG.md) para más detalles.
+> **Estado:** en desarrollo hacia la v2.0. La v1.x (distribuida como `.phar`)
+> queda descontinuada. Consulta el [CHANGELOG](CHANGELOG.md) y el
+> [plan](plan/04_PLAN-MVP-MONOLITO.md).
 
 **Arranca en zen: Desarrolla con calma, crece con poder.**
 
-BootZen es un microframework PHP nativo, diseñado para crear aplicaciones
-mobile-first que brillan en SEO y pueden evolucionar fácilmente hacia soluciones
-SaaS modulares. Su objetivo es ser simple, memorable y modular, invitando a los
-desarrolladores a fluir sin estrés y construir proyectos robustos desde el
-primer momento.
+BootZen es una base de código para construir aplicaciones MVP con arquitectura
+de monolito, pensada para trabajar junto con IA generativa y desplegar sin
+fricción en hosting compartido, VPS o Docker.
 
----
+## Stack
 
-## ¿Qué es BootZen?
+- **PHP 8.2+** sin dependencias de Composer en producción
+- **SQLite** como base de datos por defecto *(fase 3)*
+- **Tailwind CSS v4** con CLI standalone, sin Node en el servidor *(fase 2)*
+- **JavaScript nativo** con módulos ES, sin bundler *(fase 2)*
+- **Plantillas `.php` con componentes `<x-*>`** compiladas y cacheadas *(fase 2)*
 
-BootZen automatiza la creación de la base de tu proyecto PHP con una estructura
-moderna, herramientas de desarrollo, dependencias y scripts auxiliares. El
-script `init_project.sh` te permite iniciar un nuevo proyecto en segundos, listo
-para crecer y adaptarse a tus necesidades.
-
-### Tagline
-
-> Arranca en zen: Desarrolla con calma, crece con poder.
-
----
-
-## Instalación automática y uso del .phar versionado
-
-BootZen ahora distribuye el framework como un archivo `.phar` versionado (por
-ejemplo, `bootzen-1.1.0.phar`) que se descarga automáticamente desde GitHub
-Releases y se integra en cada nuevo proyecto.
-
-El proceso automatizado incluye:
-
-- Clona el repositorio en `~/.bootzen`.
-- Detecta si usas bash o zsh y agrega la ruta al PATH en el archivo de
-  configuración correspondiente.
-- Descarga el último archivo `.phar` publicado en GitHub Releases y lo guarda en
-  `~/.bootzen/bootzen.phar`.
-- Al crear un nuevo proyecto con `init_project.sh`, el archivo `.phar` se copia
-  automáticamente a la carpeta `public/` del proyecto generado.
-- El archivo `public/index.php` está preparado para cargar y usar el framework
-  desde el `.phar` si existe.
-- Recarga la configuración del shell y verifica que el comando `init_project.sh`
-  esté disponible globalmente.
-
-Instala BootZen ejecutando:
+## Instalación rápida
 
 ```bash
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/lgzarturo/bootzen/main/install.sh)"
+bootzen-new mi-app
+cd mi-app
+php -S localhost:8000 -t public
 ```
 
-### ¿Cómo funciona el .phar en los proyectos?
+Más opciones (manual, Windows, actualización) en [INSTALL.md](INSTALL.md).
 
-Cada vez que creas un nuevo proyecto con `init_project.sh`, el archivo
-`bootzen.phar` se copia a `public/` y el `index.php` lo carga automáticamente si
-está presente. Esto permite que el framework se ejecute directamente desde el
-archivo `.phar`, facilitando actualizaciones y distribución.
+## Qué obtienes al crear un proyecto
 
-### Actualización automática
+```
+mi-app/
+├── app/Controllers/      # Tu código (namespace App\)
+├── bootstrap/app.php     # Construye la aplicación
+├── routes/web.php        # Rutas
+├── resources/views/      # Vistas
+├── public/               # Document root (index.php, .htaccess)
+├── storage/              # Logs y cachés
+├── database/             # SQLite local
+├── tests/                # Pest
+├── framework/            # BootZen como código fuente
+├── AGENTS.md             # Guía para agentes de IA (CLAUDE.md la importa)
+└── composer.json         # Solo herramientas de desarrollo
+```
 
-Puedes actualizar BootZen y el archivo `.phar` a la última versión estable
-(release, tag o main) ejecutando:
+El framework vive dentro del proyecto como código legible. Eso permite que la
+IA lo entienda y que el proyecto se despliegue subiendo archivos, sin
+`composer install` en el servidor.
+
+## Desarrollo del framework
 
 ```bash
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/lgzarturo/bootzen/main/updater.sh)"
+git clone https://github.com/lgzarturo/bootzen
+cd bootzen
+composer install
+composer check                      # formato, PHPStan nivel 8 y tests
+php bin/bootzen-new demo --no-git   # genera un proyecto de prueba
 ```
 
-El script detecta si hay un release disponible y actualiza a ese release. Si no
-hay release, actualiza al último tag. Si no hay tag, actualiza la rama main. Si
-BootZen no está instalado, te pedirá instalarlo primero. El archivo `.phar` se
-actualizará automáticamente en tu instalación global y se usará en los nuevos
-proyectos.
+Estructura del repositorio:
 
----
+- `framework/`: código del framework (namespace `BootZen\`)
+- `skeleton/`: el boilerplate tal cual se copia a un proyecto nuevo
+- `bin/bootzen-new`: instalador de proyectos
+- `tests/`: tests del framework y del instalador
+- `plan/`: hoja de ruta y seguimiento
 
-## Estructura del Proyecto
+## Filosofía
 
-El script genera una estructura de carpetas pensada para proyectos monolíticos y
-modulares:
-
-- `public/` (archivos públicos, index.php, assets)
-- `src/` (Controllers, Models, Views, Services, Database, Core, Middleware,
-  Helpers)
-- `config/` (configuración)
-- `tests/` (Unit, Feature)
-- `views/` (layouts, components, pages)
-- `storage/` (logs, cache, uploads)
-- `.vscode/` (configuración recomendada para VSCode)
-- `.scripts/` (scripts auxiliares)
-- `resources/` (css, js)
-
----
-
-## Dependencias
-
-### Composer (PHP)
-
-Las dependencias principales y de desarrollo se definen en `composer.json`:
-
-**Dependencias principales:**
-
-- `php` (>=8.2)
-- `vlucas/phpdotenv`: Manejo de variables de entorno.
-- `predis/predis`: Cliente Redis para PHP.
-- `monolog/monolog`: Logging avanzado.
-- `symfony/var-dumper`: Herramienta de depuración.
-
-**Dependencias de desarrollo:**
-
-- `pestphp/pest`: Framework de testing moderno.
-- `friendsofphp/php-cs-fixer`: Formateador de código PHP.
-- `phpstan/phpstan`: Análisis estático de código.
-- `fakerphp/faker`: Generador de datos falsos para pruebas.
-- `mockery/mockery`: Mocking para tests.
-
-### NPM (Frontend)
-
-Las dependencias de frontend se definen en `package.json`:
-
-**DevDependencies:**
-
-- `tailwindcss`: Framework CSS moderno y utilitario.
-- `husky`: Hooks de git para flujos de trabajo.
-- `lint-staged`: Linting automático en pre-commit.
-- `concurrently`: Ejecuta scripts en paralelo.
-- `@tailwindcss/forms`: Plugin de Tailwind para formularios.
-- `@tailwindcss/typography`: Plugin de Tailwind para tipografía.
-
-**Scripts útiles:**
-
-- `dev`: Compila Tailwind y ejecuta el servidor PHP en modo desarrollo.
-- `build`: Compila CSS para producción.
-- `serve`: Inicia el servidor PHP.
-- `prepare`: Instala Husky.
-
-**Lint-Staged:** Automatiza la revisión de código PHP en cada commit:
-
-- Formatea con PHP CS Fixer
-- Analiza con PHPStan
-- Ejecuta tests con Pest
-
----
-
-## Uso del Script
-
-```bash
-./init_project.sh [NOMBRE_DEL_PROYECTO]
-```
-
-Si no se especifica nombre, se usará `my-php-app` por defecto.
-
-El script:
-
-1. Crea la estructura de carpetas y archivos base.
-2. Copia scripts auxiliares y asigna permisos.
-3. Genera archivos de configuración para Composer, NPM, VSCode, PHP CS Fixer,
-   PHPStan, Pest, PHPUnit, Tailwind, etc.
-4. Inicializa git y realiza el primer commit.
-5. Instala dependencias de Composer y NPM.
-6. Configura Husky y lint-staged para pre-commit.
-7. Muestra instrucciones para continuar el desarrollo.
-
----
-
-## Filosofía BootZen
-
-- **Simple:** Arranca rápido, sin configuraciones complejas.
-- **Memorable:** Estructura clara y fácil de recordar.
-- **Modular:** Listo para crecer como SaaS o monolito.
-- **Fluidez:** Herramientas que ayudan, no estorban.
-- **Mobile-first & SEO:** Pensado para apps modernas y visibles.
-
----
-
-## Requisitos
-
-- Bash
-- Composer
-- NPM
-- Git
-- OpenSSL
-
----
-
-## ¿Listo para fluir?
-
-1. Ejecuta el script y entra al directorio del proyecto.
-2. Corre `npm run dev` para compilar Tailwind y levantar el servidor.
-3. Configura tu base de datos en `.env`.
-4. ¡Comienza a desarrollar con calma y poder!
-
----
+- **Simple:** una sola forma de hacer cada cosa.
+- **Portable:** sin dependencias en producción, cualquier hosting con PHP sirve.
+- **Pensado para IA:** código explícito, tipado estricto y una guía `AGENTS.md`
+  en cada proyecto.
+- **Verificable:** `composer check` es la definición de "terminado".
 
 ## Autor
 
 Desarrollado por [Arturo Lopez](https://github.com/lgzarturo) desde Cancún 🇲🇽🌴
-
----
 
 ## Licencia
 
