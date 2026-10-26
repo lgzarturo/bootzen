@@ -7,8 +7,9 @@
 # Descripción:
 #   Este script verifica los requisitos del sistema, clona el repositorio de BootZen,
 #   y configura el entorno para que el usuario pueda usar BootZen desde cualquier terminal.
+#   Solo PHP y git son obligatorios. Composer se recomienda para desarrollo.
 #
-# Versión: 1.1.0
+# Versión: 2.0.0
 #
 
 set -e
@@ -21,10 +22,7 @@ NC='\033[0m' # Sin color
 
 # Requisitos mínimos
 REQUIRED_PHP="8.2"
-REQUIRED_NODE="22"
-REQUIRED_NPM="10"
 REQUIRED_COMPOSER="2.8"
-REQUIRED_NPX="10"
 
 function version_ge() {
     # Compara dos versiones: $1 >= $2
@@ -60,40 +58,18 @@ else
     FAILED=1
 fi
 
-# Node
-if command -v node >/dev/null 2>&1; then
-    NODE_VERSION=$(node -v | sed 's/v//; s/\..*//')
-    check_version "node" "$REQUIRED_NODE" "$NODE_VERSION" "Node.js" || FAILED=1
-else
-    echo -e "${RED}Node.js no está instalado. Instala Node.js $REQUIRED_NODE.x o superior.${NC}"
+# Git
+if ! command -v git >/dev/null 2>&1; then
+    echo -e "${RED}git no está instalado. Es necesario para descargar BootZen.${NC}"
     FAILED=1
 fi
 
-# NPM
-if command -v npm >/dev/null 2>&1; then
-    NPM_VERSION=$(npm -v | cut -d. -f1)
-    check_version "npm" "$REQUIRED_NPM" "$NPM_VERSION" "npm" || FAILED=1
-else
-    echo -e "${RED}npm no está instalado. Instala npm $REQUIRED_NPM.x o superior.${NC}"
-    FAILED=1
-fi
-
-# Composer
+# Composer (recomendado, solo para desarrollo: tests, PHPStan y formato)
 if command -v composer >/dev/null 2>&1; then
-    COMPOSER_VERSION=$(composer --version | grep -oE '[0-9]+\.[0-9]+')
-    check_version "composer" "$REQUIRED_COMPOSER" "$COMPOSER_VERSION" "Composer" || FAILED=1
+    COMPOSER_VERSION=$(composer --version | grep -oE '[0-9]+\.[0-9]+' | head -n1)
+    check_version "composer" "$REQUIRED_COMPOSER" "$COMPOSER_VERSION" "Composer" || true
 else
-    echo -e "${RED}Composer no está instalado. Instala Composer $REQUIRED_COMPOSER.x o superior.${NC}"
-    FAILED=1
-fi
-
-# NPX
-if command -v npx >/dev/null 2>&1; then
-    NPX_VERSION=$(npx -v | cut -d. -f1)
-    check_version "npx" "$REQUIRED_NPX" "$NPX_VERSION" "npx" || FAILED=1
-else
-    echo -e "${RED}npx no está instalado. Instala npx $REQUIRED_NPX.x o superior.${NC}"
-    FAILED=1
+    echo -e "${YELLOW}Composer no está instalado. Es opcional, pero lo necesitarás para tests y análisis estático.${NC}"
 fi
 
 if [ "$FAILED" -eq 1 ]; then
@@ -104,8 +80,7 @@ fi
 
 REPO_URL="https://github.com/lgzarturo/bootzen"
 INSTALL_DIR="$HOME/.bootzen"
-SCRIPT_NAME="init_project.sh"
-PHAR_NAME="bootzen.phar"
+SCRIPT_NAME="bootzen-new"
 
 # Detectar shell
 SHELL_NAME="$(basename "$SHELL")"
@@ -128,22 +103,10 @@ else
     git clone "$REPO_URL" "$INSTALL_DIR"
 fi
 
-# Asegurar que la carpeta destino existe
-mkdir -p "$INSTALL_DIR"
-# Descargar el último .phar desde GitHub Releases
-echo -e "${YELLOW}Descargando el último archivo .phar desde GitHub Releases...${NC}"
-LATEST_PHAR_URL=$(curl -s https://api.github.com/repos/lgzarturo/bootzen/releases/latest | grep "browser_download_url.*phar" | cut -d '"' -f4)
-if [ -n "$LATEST_PHAR_URL" ]; then
-    curl -L "$LATEST_PHAR_URL" -o "$INSTALL_DIR/$PHAR_NAME" && chmod +x "$INSTALL_DIR/$PHAR_NAME"
-    echo -e "${GREEN}Archivo .phar descargado correctamente: $INSTALL_DIR/$PHAR_NAME${NC}"
-else
-    echo -e "${RED}No se encontró un archivo .phar en el último release. Puedes compilarlo manualmente con build-phar.php.${NC}"
-fi
-
 # Agregar al PATH si no está
-if ! grep -q "$INSTALL_DIR" "$PROFILE"; then
+if ! grep -q "$INSTALL_DIR/bin" "$PROFILE"; then
     echo -e "${GREEN}Agregando BootZen al PATH en $PROFILE...${NC}"
-    echo "export PATH=\"$INSTALL_DIR:\$PATH\"" >> "$PROFILE"
+    echo "export PATH=\"$INSTALL_DIR/bin:$INSTALL_DIR:\$PATH\"" >> "$PROFILE"
 else
     echo -e "\n${YELLOW}La ruta ya está en el PATH de $PROFILE.${NC}"
 fi

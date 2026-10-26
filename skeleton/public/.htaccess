@@ -1,0 +1,13 @@
+<IfModule mod_rewrite.c>
+    Options -MultiViews -Indexes
+    RewriteEngine On
+
+    # Enviar la cabecera Authorization a PHP
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+    # Todo lo que no sea un archivo o carpeta real va al front controller
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteRule ^ index.php [L]
+</IfModule>

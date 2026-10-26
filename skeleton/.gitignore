@@ -1,0 +1,16 @@
+# Dependencias de desarrollo
+/vendor/
+/node_modules/
+
+# Entorno y datos locales
+.env
+
+# Cachés de herramientas
+.php-cs-fixer.cache
+.phpunit.cache/
+.phpunit.result.cache
+
+# Sistema y editores
+.DS_Store
+Thumbs.db
+.idea/
