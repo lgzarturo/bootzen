@@ -1,5 +1,8 @@
 # Plan Maestro: BootZen Framework — PHAR Core + Arquitectura de Plugins
 
+> **Reemplazado.** Este plan se conserva como referencia histórica. El rumbo
+> actual está en [04_PLAN-MVP-MONOLITO.md](04_PLAN-MVP-MONOLITO.md).
+
 ## Contexto
 
 BootZen (v1.1.0) es un microframework PHP distribuido como `.phar` con routing,

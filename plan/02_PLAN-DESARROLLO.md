@@ -1,5 +1,8 @@
 # Plan de Desarrollo BootZen Framework
 
+> **Reemplazado.** Este plan se conserva como referencia histórica. El rumbo
+> actual está en [04_PLAN-MVP-MONOLITO.md](04_PLAN-MVP-MONOLITO.md).
+
 > Objetivo: Evolucionar BootZen de un motor de componentes + router a un
 > **microframework MVC profesional** para proyectos monolíticos PHP, manteniendo
 > la filosofía de simplicidad y la regla del 80% (si lo necesitas en el 80% de
