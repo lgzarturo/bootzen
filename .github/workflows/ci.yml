@@ -29,6 +29,26 @@ jobs:
       - name: Formato, PHPStan y tests
         run: composer check
 
+  coverage:
+    name: Cobertura (PHP 8.3)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: mbstring, fileinfo, pdo_sqlite
+          coverage: pcov
+
+      - name: Instalar dependencias de desarrollo
+        run: composer install --no-interaction --no-progress
+
+      # Solo reporta. El umbral (90% en piezas críticas) se fija al ver la primera medición
+      - name: Reporte de cobertura
+        run: vendor/bin/pest --coverage
+
   skeleton:
     name: Proyecto generado (PHP 8.2)
     runs-on: ubuntu-latest
