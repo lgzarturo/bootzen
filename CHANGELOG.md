@@ -3,9 +3,56 @@
 ## [Sin publicar] - 2.0.0-dev
 
 Inicio de la v2.0 según [plan/04_PLAN-MVP-MONOLITO.md](plan/04_PLAN-MVP-MONOLITO.md).
-Fase 0: limpieza y reorganización. **Cambios incompatibles con la v1.x.**
+**Cambios incompatibles con la v1.x.**
 
-### Agregado
+### Fase 1: núcleo HTTP
+
+#### Agregado
+
+- `Env`: carga `.env` sin dependencias (comillas, comentarios, `export`,
+  interpolación `${VAR}`), sin sobrescribir variables reales del entorno.
+- `Config`: archivos de `config/` con notación de puntos (`config('app.name')`)
+  y caché en un solo archivo (`Config::writeCache()`).
+- `Logger` de archivo diario con niveles PSR-3 y `Cache` de archivos con
+  `remember()`, `increment()` y expiración.
+- Router: patrones compilados una vez, restricciones `{id:\d+}` y `where()`,
+  rutas con nombre y `route()`, grupos con `as`, `resource()`, respuestas
+  405 con `Allow`, `OPTIONS` y `HEAD` automáticos.
+- `Container::call()`: inyecta parámetros de ruta por nombre (con conversión
+  a `int`, `float` y `bool`) y dependencias por tipo.
+- `Pipeline` único para middleware global y de ruta, con alias y grupos.
+- `Request`: `input()`, `all()`, `only()`, `except()`, `has()`, `filled()`,
+  `boolean()`, `integer()`, `param()`, `wantsJson()` y `_method` para
+  formularios.
+- `Response::noContent()` y `withHeaders()`.
+- `ExceptionHandler`: vistas `errors/{codigo}.php`, JSON automático, página
+  de depuración con `APP_DEBUG` y registro de errores 5xx en el log.
+- Helpers `app()`, `config()`, `route()` y `cache()`; `env()` convierte
+  `true`, `false`, `null` y `empty`.
+- Skeleton: `.env.example`, `config/app.php`, páginas de error, rutas con
+  nombre, alias `cors` y grupo `api`. `bootzen-new` genera `.env` con una
+  `APP_KEY` aleatoria.
+- CI: job de cobertura con `pcov`.
+
+#### Cambiado
+
+- `Application` recibe la raíz del proyecto (`new Application(dirname(__DIR__))`)
+  y carga `.env` y `config/` al construirse. `boot()` se elimina.
+- El router lanza `HttpException` 404/405 en vez de devolver respuestas.
+- `Response::json()` no escapa barras ni caracteres Unicode y acepta listas.
+
+#### Eliminado
+
+- Handlers `'Clase@metodo'`: usa `[Clase::class, 'metodo']`.
+- `Application::send()`: `handle()` envía la respuesta y `run()` la devuelve.
+- `Application::__call()` (proxy mágico al router) y `Router::middleware()`
+  para la "siguiente ruta": usa `$app->routes()` y `->middleware()` en la ruta.
+- Respuesta automática de `CorsMiddleware` a todo `OPTIONS`: ahora CORS se
+  aplica solo donde se registra el middleware.
+
+### Fase 0: limpieza y reorganización
+
+#### Agregado
 
 - `framework/bootstrap.php` con autoloader propio para `BootZen\` y `App\`:
   los proyectos funcionan sin `vendor/` en producción.
@@ -20,7 +67,7 @@ Fase 0: limpieza y reorganización. **Cambios incompatibles con la v1.x.**
   workflow `ci.yml` (PHP 8.2, 8.3 y 8.4 más verificación del proyecto
   generado).
 
-### Cambiado
+#### Cambiado
 
 - `core/src` se mueve a `framework/src`.
 - `init_project.sh` pasa a ser un envoltorio de `bin/bootzen-new`.
@@ -30,7 +77,7 @@ Fase 0: limpieza y reorganización. **Cambios incompatibles con la v1.x.**
   `bootzen.phar`, después de pasar `composer check`.
 - `install.sh` solo exige PHP y git; Composer es opcional.
 
-### Eliminado
+#### Eliminado
 
 - Distribución en `.phar` (`build-phar.php`, `core/stub.php`).
 - `Cache` y `CacheTenant` (Redis/Predis) y la caché de `Component`.

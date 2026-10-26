@@ -59,9 +59,9 @@ La cobertura se calculará sobre `framework/src/Core/` y `framework/src/Helpers/
 | Test ID | Input/Condition | Expected Behavior |
 | ------- | --------------- | ----------------- |
 | **E-001** | Inyección de dependencias con referencia circular en constructor. | El `Container` detecta el ciclo infinito y lanza una excepción explicativa (`CircularDependencyException`). |
-| **E-002** | Petición con método HTTP no soportado/inválido. | El `Router` rechaza la petición lanzando una excepción de tipo Method Not Allowed (HTTP 405). |
-| **E-003** | Colisión de rutas dinámicas y estáticas (ej: `/posts/active` vs `/posts/{slug}`). | El `Router` prioriza el orden de registro o el patrón más específico para evitar falsos positivos. |
-| **E-004** | Carga de un archivo de configuración mal formateado o vacío. | El sistema de `Config` maneja la lectura de forma segura y expone un array vacío sin romper la inicialización. |
+| **E-002** | Petición con método HTTP no soportado/inválido. | El `Router` lanza `HttpException` 405 con la cabecera `Allow`; `OPTIONS` responde 204 pasando por el middleware de la ruta. |
+| **E-003** | Colisión de rutas dinámicas y estáticas (ej: `/posts/active` vs `/posts/{slug}`). | El `Router` respeta el orden de registro: gana la primera ruta que coincide (por eso `resource()` registra `create` antes de `show`). |
+| **E-004** | Carga de un archivo de configuración mal formateado o vacío. | `Config` lanza una excepción que nombra el archivo: un error de configuración debe verse al arrancar, no quedar oculto con valores vacíos. |
 
 ### Regression Cases
 

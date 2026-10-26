@@ -22,15 +22,17 @@ The roadmap lives in `plan/04_PLAN-MVP-MONOLITO.md`; progress is tracked in
 
 - `framework/bootstrap.php`: own PSR-4 autoloader (`BootZen\` and `App\`),
   loads `vendor/autoload.php` only if present, then the helpers.
-- `framework/src/Core/`: Application, Router, Route, Request, Response,
-  Container, HttpException, MiddlewareInterface, Component.
+- `framework/src/Core/`: Application, Router, Route, Pipeline, Request,
+  Response, Container, Env, Config, Logger, Cache, ExceptionHandler,
+  HttpException, MiddlewareInterface, Component.
 - `framework/src/Components/`: legacy class components (to be migrated to
   `<x-*>` view components in phase 2).
 - `framework/src/Middleware/`: CorsMiddleware.
 - `framework/src/Helpers/helpers.php`: global helpers. None of them call
   `exit`: they return a `Response` or throw `HttpException`.
-- `skeleton/`: `app/`, `bootstrap/app.php`, `routes/web.php`, `public/`,
-  `resources/views/`, `storage/`, `database/`, `tests/`, `AGENTS.md`.
+- `skeleton/`: `app/`, `bootstrap/app.php`, `config/`, `.env.example`,
+  `routes/web.php`, `public/`, `resources/views/` (incluye `errors/`),
+  `storage/`, `database/`, `tests/`, `AGENTS.md`.
 - `tests/`: Pest tests for the framework and the installer.
 
 ## Commands (repo root)
