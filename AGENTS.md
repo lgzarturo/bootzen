@@ -2,108 +2,82 @@
 
 ## What this repo is
 
-BootZen is a PHP microframework **and** a project scaffolding tool. The repo
-serves two purposes:
+BootZen is a boilerplate for building monolithic PHP MVPs (PHP + SQLite +
+Tailwind + native JS + `<x-*>` view components), designed to be worked on with
+generative AI. The repo has three parts:
 
-1. **Framework source** — `core/src/` contains the framework code (namespace
-   `BootZen\`) that gets packaged into `bootzen.phar`.
-2. **Project generator** — `init_project.sh` scaffolds a new PHP project with
-   its own `composer.json`, `package.json`, Makefile, etc. The scaffolded
-   project is what end users develop in.
+1. **Framework source**: `framework/` (namespace `BootZen\`). It is copied as
+   plain source code into every generated project. No `.phar`, no runtime
+   Composer dependencies.
+2. **Skeleton**: `skeleton/` is the boilerplate exactly as it lands in a new
+   project (namespace `App\` for app code). Placeholders `__APP_NAME__` and
+   `__APP_SLUG__` are replaced on creation.
+3. **Installer**: `bin/bootzen-new` (PHP) copies `skeleton/` + `framework/`
+   into a new directory. `init_project.sh` is a thin compatibility wrapper.
 
-There is **no** `composer.json` or `package.json` at the repo root. Those files
-only exist inside scaffolded projects.
+The roadmap lives in `plan/04_PLAN-MVP-MONOLITO.md`; progress is tracked in
+`plan/03_SEGUIMIENTO.md`. Plans 01 and 02 are historical.
 
-## Architecture
+## Layout
 
-- `core/src/Core/` — Application, Router, Request, Response, Container, Route,
-  Cache, Component
-- `core/src/Controllers/` — HomeController, ApiRoutes (default route
-  registrations)
-- `core/src/Components/` — UI components (Alert, Button, Card, Form, Input,
-  Layout, Navigation)
-- `core/src/Middleware/` — CorsMiddleware
-- `core/src/Helpers/` — Global helper functions
-- `core/stub.php` — Phar autoloader/bootstrap entry point
-- `build-phar.php` — Builds `bootzen.phar` from `core/src/` + `core/stub.php`
-- `bin/` — Shell helper scripts copied into scaffolded projects (start.sh,
-  make.sh, analyzer.sh, count_lines.sh)
+- `framework/bootstrap.php`: own PSR-4 autoloader (`BootZen\` and `App\`),
+  loads `vendor/autoload.php` only if present, then the helpers.
+- `framework/src/Core/`: Application, Router, Route, Request, Response,
+  Container, HttpException, MiddlewareInterface, Component.
+- `framework/src/Components/`: legacy class components (to be migrated to
+  `<x-*>` view components in phase 2).
+- `framework/src/Middleware/`: CorsMiddleware.
+- `framework/src/Helpers/helpers.php`: global helpers. None of them call
+  `exit`: they return a `Response` or throw `HttpException`.
+- `skeleton/`: `app/`, `bootstrap/app.php`, `routes/web.php`, `public/`,
+  `resources/views/`, `storage/`, `database/`, `tests/`, `AGENTS.md`.
+- `tests/`: Pest tests for the framework and the installer.
 
-## Phar build & release
-
-- `build-phar.php` packages everything in `core/src/` into `bootzen.phar` using
-  `core/stub.php` as the stub.
-- CI (`.github/workflows/release.yml`) triggers on `v*` tags: builds the phar
-  with PHP 8.4, updates CHANGELOG.md, creates a GitHub Release with the phar
-  attached.
-- `install.sh` clones the repo to `~/.bootzen` and downloads the latest phar
-  from GitHub Releases.
-- `updater.sh` updates the local `~/.bootzen` clone (prefers release → tag →
-  main).
-
-## Scaffolded project commands
-
-These commands run **inside** a project created by `init_project.sh`, not in
-this repo:
+## Commands (repo root)
 
 ```bash
-# Check pipeline (order matters)
-composer format        # php-cs-fixer fix
-composer lint          # phpstan analyse src tests
-composer test          # pest
+composer install     # dev tools only: Pest, PHPStan, PHP CS Fixer
+composer check       # format:check -> phpstan (level 8) -> pest
+composer format      # apply php-cs-fixer
+composer test        # pest only
 
-# Shortcut: runs all three in order
-composer check
-
-# Dev server (Tailwind watch + PHP built-in server)
-npm run dev
-
-# Production CSS build
-npm run build
-
-# Code generators (inside scaffolded project)
-composer make:controller  # php .scripts/make.php controller
-composer make:model
-composer make:middleware
-composer make:service
-composer make:migration
-composer make:seeder
+php bin/bootzen-new demo --no-git   # generate a project into ./demo
 ```
 
-Scaffolded projects also have a `Makefile` with: `make install`, `make dev`,
-`make test`, `make format`, `make lint`, `make analyze`, `make start`,
-`make build`, `make count`.
+CI (`.github/workflows/ci.yml`) runs `composer check` on PHP 8.2, 8.3 and 8.4,
+then generates a project, checks it answers over `php -S` without `vendor/`,
+and runs `composer check` inside it.
+
+## Release
+
+- Version is tracked in `VERSION`. Tags follow `v{VERSION}`.
+- Pushing a `v*` tag triggers `release.yml`: runs `composer check`, updates
+  `CHANGELOG.md` and publishes `bootzen-<tag>.tar.gz` (framework, skeleton,
+  bin, installer) as a GitHub Release.
+- `install.sh` clones the repo to `~/.bootzen` and adds `~/.bootzen/bin` to the
+  PATH. `updater.sh` moves the clone to the latest release, tag or main.
+
+## Key conventions
+
+- PHP >= 8.2, `declare(strict_types=1)` in every file.
+- Zero Composer `require` dependencies in the framework and the skeleton.
+  Dev tools go in `require-dev` only.
+- PHPStan level 8 with bleeding edge config. PSR-12 via PHP CS Fixer.
+- Pest for tests. Every framework change ships with tests.
+- When the framework API changes, update `skeleton/AGENTS.md` (it is the AI
+  guide inside every generated project), including its "not available yet"
+  list.
 
 ## Commit conventions
 
 Conventional Commits **in Spanish**, infinitive mood, no trailing period,
-lowercase first word:
+lowercase first word, header up to 69 chars:
 
 ```
 feat(api): agregar endpoint de cotizaciones
 fix(auth): corregir validación de sesión
-refactor(db): optimizar consulta de habitaciones
-chore(config): actualizar script de deploy
+chore(ci): actualizar workflow de release
 ```
 
-Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
-
-## Key conventions
-
-- PHP >=8.2, `declare(strict_types=1)` enforced
-- PHPStan level 8 with bleeding edge config
-- PHP CS Fixer with PSR-12+ rules (see `.php-cs-fixer.php` in scaffolded
-  projects)
-- Pest for testing (not PHPUnit directly)
-- Tailwind CSS for frontend (with `@tailwindcss/forms` and
-  `@tailwindcss/typography` plugins)
-- PSR-4 autoloading: namespace `BootZen\` → `src/` in scaffolded projects
-- Scaffolded projects use Husky + lint-staged pre-commit hooks (format → lint →
-  test on `*.php` files)
-- `public/index.php` is the front controller; it loads `bootzen.phar` if
-  present, then Composer autoloader, then Boots the Application
-
-## Version
-
-Current version is tracked in `VERSION` file (currently `1.1.0`). Tags follow
-`v{VERSION}` format (e.g., `v1.1.0`).
+Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`, `perf`,
+`ci`, `build`, `revert`.

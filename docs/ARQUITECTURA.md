@@ -1,220 +1,100 @@
-# Arquitectura BootZen Framework
+# Arquitectura BootZen
 
-## Visión General
+## Visión general
 
-BootZen es un microframework PHP modular, distribuido como un archivo `.phar`
-versionado para facilitar la instalación, actualización y portabilidad. Su
-arquitectura está pensada para proyectos monolíticos y modulares, con enfoque en
-buenas prácticas, extensibilidad y automatización.
+BootZen es un boilerplate para aplicaciones PHP monolíticas. Cada proyecto
+contiene el código del framework en `framework/` (namespace `BootZen\`) y su
+propio código en `app/` (namespace `App\`). No hay `.phar` ni dependencias de
+Composer en producción: el proyecto funciona subiendo los archivos a cualquier
+servidor con PHP 8.2 o superior.
+
+La hoja de ruta completa está en
+[plan/04_PLAN-MVP-MONOLITO.md](../plan/04_PLAN-MVP-MONOLITO.md).
 
 ---
 
-## Diagrama de Arquitectura
+## Diagrama de arranque
 
 ```mermaid
 graph TD
-  A[public/index.php] -->|Carga| B[bootzen.phar]
-  B -->|Stub: Autoloader| C[BootZen\Application]
-  C --> D[Router]
-  D --> E[Controllers]
-  D --> F[Middleware]
-  C --> G[Request]
-  C --> H[Response]
-  E --> I[Views]
-  C --> J[Services]
-  C --> K[Helpers]
-  C --> L[Database]
+  A[public/index.php] --> B[framework/bootstrap.php]
+  B -->|autoloader BootZen y App, helpers| C[bootstrap/app.php]
+  C -->|new Application, rutas| D[Application::handle]
+  D --> E[Middleware global]
+  E --> F[Router]
+  F --> G[Middleware de ruta]
+  G --> H[Controlador en app/Controllers]
+  H -->|Response, string o array| I[Response::send]
+```
+
+1. `public/index.php` carga `framework/bootstrap.php`.
+2. `bootstrap.php` define `BOOTZEN_BASE_PATH`, registra el autoloader PSR-4
+   para `BootZen\` y `App\`, carga `vendor/autoload.php` si existe (solo en
+   desarrollo) y los helpers globales.
+3. `bootstrap/app.php` crea la `Application`, registra middleware global y
+   las rutas de `routes/web.php`, y retorna la instancia. Los tests la usan
+   igual.
+4. `Application::handle()` construye el `Request`, ejecuta el pipeline y envía
+   la respuesta. Las excepciones se convierten en respuestas: `HttpException`
+   (lanzada por `abort()`) conserva su código; cualquier otra es un 500 sin
+   detalles salvo con `APP_DEBUG`.
+
+---
+
+## Estructura del repositorio
+
+```
+bootzen/
+├── framework/        # Código del framework, se copia tal cual a cada proyecto
+│   ├── bootstrap.php
+│   └── src/          # Core, Components, Middleware, Helpers
+├── skeleton/         # Boilerplate de un proyecto nuevo
+├── bin/bootzen-new   # Instalador de proyectos (PHP)
+├── tests/            # Tests del framework y del instalador (Pest)
+├── docs/             # Documentación
+└── plan/             # Hoja de ruta y seguimiento
+```
+
+## Estructura de un proyecto generado
+
+```
+mi-app/
+├── app/Controllers/   # Código de la aplicación (App\)
+├── bootstrap/app.php  # Construcción de la aplicación
+├── routes/web.php     # Rutas
+├── resources/views/   # Vistas
+├── public/            # Document root
+├── storage/           # Logs y cachés
+├── database/          # SQLite local
+├── tests/             # Pest
+├── framework/         # BootZen
+└── AGENTS.md          # Guía para agentes de IA
 ```
 
 ---
 
-## Ejemplo: Crear un sitio web simple
+## Componentes del framework
 
-1. Instala BootZen y genera tu proyecto:
-
-   ```bash
-   init_project.sh MiSitioWeb
-   cd MiSitioWeb
-   php -S localhost:8000 -t public
-   ```
-
-2. Crea un controlador en `src/Controllers/HomeController.php`:
-
-   ```php
-   <?php
-   namespace BootZen\Controllers;
-
-   class HomeController {
-     public static function register($router) {
-       $router->get('/', function() {
-         return '<h1>Bienvenido a BootZen</h1>';
-       });
-     }
-   }
-   ```
-
-3. Accede a `http://localhost:8000/` y verás tu sitio funcionando.
+- **Application**: orquesta el ciclo de vida, el contenedor, el middleware
+  global y el manejo de errores.
+- **Container**: inyección de dependencias con autowiring por reflexión.
+- **Router / Route**: rutas por método, parámetros `{id}`, grupos con prefijo
+  y middleware.
+- **Request / Response**: abstracciones HTTP inmutables.
+- **HttpException**: error HTTP con código y cabeceras; lo lanza `abort()`.
+- **MiddlewareInterface**: contrato `process(Request, callable $next)`.
+- **Helpers**: funciones globales (`env`, `base_path`, `e`, `redirect`,
+  `abort`, `logger`, etc.). Ninguna termina la ejecución con `exit`.
+- **Component** y `Components/`: componentes como clases PHP. Se reemplazan
+  por componentes de vista `<x-*>` en la fase 2.
 
 ---
 
-## Ejemplo: API REST sencilla
+## Distribución y actualización
 
-1. Agrega un controlador de API en `src/Controllers/ApiRoutes.php`:
-
-   ```php
-   <?php
-   namespace BootZen\Controllers;
-
-   class ApiRoutes {
-     public static function register($router) {
-       $router->get('/api/hello', function() {
-         return json_encode(['message' => 'Hola desde la API BootZen']);
-       });
-     }
-   }
-   ```
-
-2. Accede a `http://localhost:8000/api/hello` y obtendrás:
-
-   ```json
-   { "message": "Hola desde la API BootZen" }
-   ```
-
----
-
-## Filosofía
-
-- **Simple:** Crea sitios y APIs sin dependencias externas ni configuraciones
-  complejas.
-- **Modular:** Estructura clara y extensible.
-- **Portable:** El framework se distribuye como un solo archivo `.phar`.
-- **Sin complicaciones:** El flujo de desarrollo es directo y sin fricción.
-
----
-
-## Estructura de Carpetas
-
-```
-public/           # Archivos públicos, index.php, assets, bootzen.phar
-src/
-  Controllers/    # Controladores HTTP y API
-  Models/         # Modelos de datos
-  Views/          # Vistas PHP
-  Services/       # Servicios de negocio
-  Database/
-    Migrations/   # Migraciones de base de datos
-    Seeders/      # Datos de ejemplo
-  Core/           # Núcleo del framework (Application, Router, Request, Response, etc.)
-  Middleware/     # Middlewares HTTP
-  Helpers/        # Funciones auxiliares
-config/           # Configuración global
-views/            # Layouts, componentes y páginas
-storage/          # Logs, caché, uploads
-.vscode/          # Configuración recomendada para VSCode
-.scripts/         # Scripts auxiliares
-resources/        # CSS, JS
-```
-
----
-
-## Componentes Principales
-
-- **Application**: Orquesta el ciclo de vida de la app, gestiona dependencias y
-  el router.
-- **Router**: Resuelve rutas y despacha controladores.
-- **Request/Response**: Abstracción de la petición y respuesta HTTP.
-- **Controllers**: Definen la lógica de endpoints y vistas.
-- **Middleware**: Permite lógica antes/después de la petición (CORS,
-  autenticación, etc).
-- **Helpers**: Funciones globales reutilizables.
-- **Services**: Lógica de negocio reutilizable.
-- **Database**: Migraciones y seeders para la persistencia.
-
----
-
-## Flujo de Arranque
-
-1. El archivo `public/index.php` carga el autoloader de Composer y, si existe,
-   el archivo `bootzen.phar`.
-2. El stub del `.phar` registra el autoloader para el namespace `BootZen\` y
-   ejecuta el bootstrap principal.
-3. Se instancia `Application`, se registran rutas y controladores, y se ejecuta
-   el ciclo de vida de la app.
-
----
-
-## Distribución y Actualización
-
-- El framework se distribuye como un `.phar` versionado (ej:
-  `bootzen-1.1.0.phar`).
-- El instalador y el actualizador descargan el último `.phar` desde GitHub
-  Releases y lo integran en cada nuevo proyecto.
-- El workflow de GitHub Actions compila el `.phar` usando PHP 8.4 y lo publica
-  automáticamente.
-
----
-
-## Documentación de build-phar.php
-
-### Propósito
-
-Genera el archivo `.phar` versionado del framework BootZen, empaquetando el
-núcleo y componentes necesarios para su ejecución portable.
-
-### Contenido y Explicación
-
-```php
-<?php
-
-// Leer la versión desde el archivo VERSION
-$version = trim(file_get_contents(__DIR__ . '/VERSION'));
-$pharFile = "bootzen-$version.phar";
-
-// Si ya existe lo borramos
-if (file_exists($pharFile)) {
-    unlink($pharFile);
-}
-
-// Creamos el phar
-$phar = new Phar($pharFile, 0, basename($pharFile));
-$phar->buildFromDirectory(__DIR__ . '/core/src');
-
-// Definir stub
-$stub = file_get_contents(__DIR__ . '/core/stub.php');
-$phar->setStub($stub);
-
-// No firmar el phar para evitar problemas de integridad al copiar/renombrar
-// $phar->setSignatureAlgorithm(Phar::SHA1); // Deshabilitado
-
-// Hacemos el phar ejecutable
-chmod($pharFile, 0755);
-echo "Phar generado: $pharFile\n";
-```
-
-#### Detalles
-
-- **Versión**: El nombre del archivo `.phar` incluye la versión leída de
-  `VERSION`.
-- **buildFromDirectory**: Empaqueta todo el contenido de `core/src`.
-- **Stub**: El archivo `core/stub.php` define el autoloader y el bootstrap
-  principal.
-- **Sin firma**: Se omite la firma para evitar errores al copiar/renombrar el
-  archivo.
-- **Permisos**: El archivo generado es ejecutable.
-
----
-
-## Recomendaciones
-
-- No modificar el `.phar` después de generarlo.
-- Usar siempre el instalador y actualizador para mantener la integridad y la
-  versión correcta.
-- El stub debe ser compatible con el autoloader y el flujo de arranque del
-  framework.
-
----
-
-## Referencias
-
-- [Documentación oficial de Phar](https://www.php.net/manual/es/book.phar.php)
-- [BootZen GitHub](https://github.com/lgzarturo/bootzen)
+- `bin/bootzen-new` copia `skeleton/` y `framework/` a un directorio nuevo y
+  reemplaza los marcadores `__APP_NAME__` y `__APP_SLUG__`.
+- `install.sh` clona el repo en `~/.bootzen` y agrega `~/.bootzen/bin` al
+  `PATH`. `updater.sh` lo mueve al último release, tag o `main`.
+- Cada release publica `bootzen-<tag>.tar.gz` con framework, skeleton e
+  instalador, después de pasar `composer check`.

@@ -1,57 +1,63 @@
-# BootZen - Manual de Instalación
+# BootZen: Manual de Instalación
 
-## Instalación manual
+## Requisitos
 
-Puedes instalar los scripts de BootZen para usarlos desde cualquier terminal y
-crear proyectos base fácilmente:
+- PHP 8.2 o superior (con `mbstring`, `fileinfo` y `pdo_sqlite`)
+- git
+- Composer (opcional, solo para desarrollo: tests, PHPStan y formato)
 
-```bash
-# Clona el repositorio en tu carpeta de scripts personales
-git clone https://github.com/lgzarturo/bootzen ~/.bootzen
-
-# Añade la ruta a tu $PATH en tu archivo de configuración de shell
-echo 'export PATH="$HOME/.bootzen:$PATH"' >> ~/.bashrc   # Para bash
-echo 'export PATH="$HOME/.bootzen:$PATH"' >> ~/.zshrc    # Para zsh
-
-# Recarga la configuración del shell
-source ~/.bashrc   # o source ~/.zshrc
-
-# Descarga manualmente el último archivo .phar desde GitHub Releases y guárdalo en ~/.bootzen/bootzen.phar
-# (Opcional, el instalador automático lo hace por ti)
-
-# Ahora puedes crear proyectos base desde cualquier lugar:
-init_project.sh MiNuevoProyecto
-```
-
-Esto te permitirá ejecutar `init_project.sh` desde cualquier directorio y crear
-proyectos BootZen rápidamente. El archivo `bootzen.phar` se copiará
-automáticamente a la carpeta `public/` de cada nuevo proyecto y el `index.php`
-lo cargará si está presente.
-
-## Instalación automática y uso del .phar
-
-Puedes instalar BootZen automáticamente con el script `install.sh`, que realiza
-los pasos anteriores por ti y descarga el último archivo `.phar` publicado en
-GitHub Releases:
+## Instalación automática
 
 ```bash
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/lgzarturo/bootzen/main/install.sh)"
 ```
 
-Este script detecta si usas bash o zsh, añade la ruta a tu `$PATH` en el archivo
-de configuración correspondiente y descarga el último `.phar` en
-`~/.bootzen/bootzen.phar`.
+El script verifica los requisitos, clona BootZen en `~/.bootzen` y agrega
+`~/.bootzen/bin` a tu `PATH` (en `.bashrc` o `.zshrc`). Después recarga tu
+shell:
 
-### ¿Cómo funciona el .phar en los proyectos?
+```bash
+source ~/.bashrc   # o source ~/.zshrc
+```
 
-Cada vez que creas un nuevo proyecto con `init_project.sh`, el archivo
-`bootzen.phar` se copia automáticamente a `public/` y el `index.php` lo carga si
-está presente. Así el framework se ejecuta directamente desde el archivo
-`.phar`, facilitando actualizaciones y distribución.
+## Instalación manual
 
-### Sobre el script de instalación
+```bash
+git clone https://github.com/lgzarturo/bootzen ~/.bootzen
+echo 'export PATH="$HOME/.bootzen/bin:$HOME/.bootzen:$PATH"' >> ~/.bashrc
+source ~/.bashrc
+```
 
-El script `install.sh` está diseñado para ser seguro y fácil de usar. Clona el
-repositorio en `~/.bootzen`, añade la ruta a tu `$PATH`, descarga el último
-`.phar` y recarga la configuración del shell para que puedas usar los comandos
-de BootZen inmediatamente.
+En Windows no necesitas tocar el `PATH`: ejecuta el instalador con PHP.
+
+```powershell
+git clone https://github.com/lgzarturo/bootzen $HOME\.bootzen
+php $HOME\.bootzen\bin\bootzen-new mi-app
+```
+
+## Crear un proyecto
+
+```bash
+bootzen-new mi-app          # o init_project.sh mi-app (compatibilidad)
+cd mi-app
+php -S localhost:8000 -t public
+```
+
+`bootzen-new` copia el boilerplate (`skeleton/`) y el código del framework
+(`framework/`) dentro del proyecto. No hay `.phar` ni dependencias de Composer
+en producción: el proyecto funciona tal cual en cualquier servidor con PHP.
+
+Opciones:
+
+- `--no-git`: no inicializa un repositorio git.
+
+## Actualizar BootZen
+
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/lgzarturo/bootzen/main/updater.sh)"
+```
+
+Mueve `~/.bootzen` al último release (o al último tag, o a `main`). Los
+proyectos nuevos usarán esa versión. Actualizar `framework/` dentro de un
+proyecto existente llegará con el comando `framework:update` (ver
+`plan/04_PLAN-MVP-MONOLITO.md`).

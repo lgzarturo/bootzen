@@ -5,18 +5,29 @@ Seguimiento del [plan MVP monolito](04_PLAN-MVP-MONOLITO.md). Los planes 01 y
 
 ## Fase 0: Limpieza y reorganización
 
-- [ ] `composer.json` de desarrollo en la raíz con Pest, PHPStan y CS Fixer
-- [ ] Workflow `ci.yml` con PHPStan nivel 8 y tests en PHP 8.2, 8.3 y 8.4
-- [ ] Mover `core/src` a `framework/src` con autoloader propio en
+- [x] `composer.json` de desarrollo en la raíz con Pest, PHPStan y CS Fixer
+- [x] Workflow `ci.yml` con PHPStan nivel 8 y tests en PHP 8.2, 8.3 y 8.4
+      (pendiente confirmar la primera corrida en GitHub Actions)
+- [x] Mover `core/src` a `framework/src` con autoloader propio en
       `framework/bootstrap.php`
-- [ ] Eliminar ejemplos del core (`HomeController`, `ApiRoutes`), Redis
+- [x] Eliminar ejemplos del core (`HomeController`, `ApiRoutes`), Redis
       (`Cache`, `CacheTenant`), polyfills de aleatorios y `exit` en helpers
-- [ ] Carpeta `skeleton/` y `bin/bootzen-new`; `init_project.sh` como
+- [x] Carpeta `skeleton/` y `bin/bootzen-new`; `init_project.sh` como
       envoltorio
-- [ ] Retirar el `.phar` y publicar tarball en el release
-- [ ] Adaptar [docs/test-plans/core-framework.md](../docs/test-plans/core-framework.md)
+- [x] Retirar el `.phar` y publicar tarball en el release
+- [x] Adaptar [docs/test-plans/core-framework.md](../docs/test-plans/core-framework.md)
       a la nueva estructura
-- [ ] `AGENTS.md` inicial del skeleton
+- [x] `AGENTS.md` inicial del skeleton
+
+Notas de cierre:
+
+- `abort()` lanza `HttpException` y `Application` la convierte en respuesta;
+  los manejadores globales de errores se registran solo en `handle()`, así
+  `run()` no altera el estado de PHP en los tests.
+- Los componentes de `framework/src/Components/` siguen como clases PHP hasta
+  la fase 2. Perdieron la caché Redis.
+- La carga de `.env` todavía no existe: `env()` lee variables del sistema
+  hasta la fase 1.
 
 ## Fase 1: Núcleo HTTP sólido
 
