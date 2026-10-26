@@ -100,7 +100,7 @@ class CorsMiddleware implements MiddlewareInterface
 
         // Gestiona solicitudes preflight OPTIONS
         if ($request->getMethod() === 'OPTIONS') {
-            return $this->handlePreflight($request, $origin);
+            return $this->handlePreflight($origin);
         }
 
         // Procesa la solicitud y añade cabeceras CORS
@@ -113,15 +113,14 @@ class CorsMiddleware implements MiddlewareInterface
      * Maneja solicitudes preflight (OPTIONS) añadiendo cabeceras CORS específicas.
      *
      * @internal Solo para uso interno del framework BootZen.
-     * @param Request $request Solicitud HTTP OPTIONS
      * @param string|null $origin Origen de la solicitud
      * @return Response Respuesta HTTP con cabeceras preflight
      *
      * @example
      *   // Ejemplo de respuesta preflight
-     *   $response = $middleware->handlePreflight($request, 'https://dominio.com');
+     *   $response = $middleware->handlePreflight('https://dominio.com');
      */
-    private function handlePreflight(Request $request, ?string $origin): Response
+    private function handlePreflight(?string $origin): Response
     {
         $response = new Response(200);
 

@@ -163,7 +163,6 @@ class Request
         }
 
         // Obtener body según content-type
-        $body = [];
         $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
 
         if (str_contains($contentType, 'application/json')) {

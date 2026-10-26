@@ -96,9 +96,6 @@ class Application
             return;
         }
 
-        // Register error handler
-        $this->registerErrorHandler();
-
         $this->booted = true;
     }
 
@@ -140,6 +137,10 @@ class Application
      */
     public function handle(?Request $request = null): void
     {
+        // Los manejadores globales solo se registran al atender una petición real,
+        // así run() puede usarse en tests sin alterar el estado global de PHP
+        $this->registerErrorHandler();
+
         $response = $this->run($request);
         $this->send($response);
     }
@@ -212,7 +213,10 @@ class Application
      */
     private function handleException(Throwable $e, ?Request $request = null): Response
     {
-        // Mostrar detalles solo en modo debug
+        if ($e instanceof HttpException) {
+            return $this->renderHttpException($e, $request);
+        }
+
         error_log(sprintf(
             "Uncaught %s: %s in %s:%d\nStack trace:\n%s",
             get_class($e),
@@ -231,6 +235,7 @@ class Application
             ], 500);
         }
 
+        // Mostrar detalles solo en modo debug
         $message = $this->isDebugMode()
             ? sprintf(
                 '<h1>%s</h1><p>%s</p><pre>%s</pre>',
@@ -241,6 +246,35 @@ class Application
             : '<h1>500 - Internal Server Error</h1><p>Something went wrong.</p>';
 
         return Response::html($message, 500);
+    }
+
+    /**
+     * Convierte una HttpException (lanzada por abort()) en una respuesta con su código de estado.
+     *
+     * @param HttpException $e Excepción HTTP
+     * @param Request|null $request Solicitud HTTP (opcional)
+     * @return Response Respuesta con el código y cabeceras de la excepción
+     */
+    private function renderHttpException(HttpException $e, ?Request $request = null): Response
+    {
+        $status = $e->getStatusCode();
+        $title = (new Response($status))->getStatusText();
+        $message = $e->getMessage() !== '' ? $e->getMessage() : $title;
+
+        $response = $request && $request->isJson()
+            ? Response::json(['error' => $title, 'message' => $message, 'code' => $status], $status)
+            : Response::html(sprintf(
+                '<h1>%d - %s</h1><p>%s</p>',
+                $status,
+                htmlspecialchars($title),
+                htmlspecialchars($message)
+            ), $status);
+
+        foreach ($e->getHeaders() as $name => $value) {
+            $response = $response->withHeader($name, $value);
+        }
+
+        return $response;
     }
 
     /**

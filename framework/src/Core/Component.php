@@ -4,7 +4,7 @@
  * Component.php
  *
  * Clase base abstracta para componentes visuales reutilizables en el framework BootZen.
- * Proporciona un sistema flexible para la composición, renderizado, cacheo y gestión de slots y propiedades.
+ * Proporciona un sistema flexible para la composición, renderizado y gestión de slots y propiedades.
  * Permite la creación de interfaces reactivas y seguras, soportando patrones de diseño como Composición,
  * Template Method y Decorator.
  *
@@ -15,24 +15,22 @@
  * @version    1.1.0
  * @since      1.0.0
  *
- * @see        BootZen\Core\Cache
  */
 
 declare(strict_types=1);
 
 namespace BootZen\Core;
 
-use BootZen\Core\Cache as Cache;
 use Closure;
 
 /**
  * Clase abstracta Component
  *
  * Define la estructura y comportamiento base para todos los componentes visuales del framework BootZen.
- * Permite la composición jerárquica, el uso de slots, cacheo, hidratación y renderizado seguro de HTML.
+ * Permite la composición jerárquica, el uso de slots, hidratación y renderizado seguro de HTML.
  *
  * Consideraciones de seguridad: sanitiza propiedades para prevenir XSS y permite marcar datos como HTML crudo.
- * Consideraciones de rendimiento: soporta cacheo de salidas y renderizado condicional.
+ * Consideraciones de rendimiento: soporta renderizado condicional.
  *
  */
 abstract class Component
@@ -59,20 +57,6 @@ abstract class Component
     protected array $children = [];
 
     /**
-     * Clave de caché personalizada para el componente.
-     *
-     * @var string|null
-     */
-    protected ?string $cacheKey = null;
-
-    /**
-     * Tiempo de vida de la caché en segundos.
-     *
-     * @var int
-     */
-    protected int $cacheTtl = 3600;
-
-    /**
      * Indica si el componente debe hidratarse en el cliente.
      *
      * @var bool
@@ -85,13 +69,6 @@ abstract class Component
      * @var array<string, mixed>
      */
     protected array $clientData = [];
-
-    /**
-     * Instancia de caché compartida entre componentes.
-     *
-     * @var Cache|null
-     */
-    protected static ?Cache $cache = null;
 
     /**
      * Constructor del componente.
@@ -116,31 +93,13 @@ abstract class Component
     }
 
     /**
-     * Establece la instancia de caché global para todos los componentes.
-     *
-     * @param Cache $cache Instancia de caché
-     */
-    public static function setCache(Cache $cache): void
-    {
-        self::$cache = $cache;
-    }
-
-    /**
-     * Renderiza el componente y aplica cacheo, hooks y datos de hidratación.
+     * Renderiza el componente y aplica hooks y datos de hidratación.
      *
      * @return string HTML renderizado
      * @example echo $componente->render();
      */
     public function render(): string
     {
-        // Verifica caché primero
-        if ($this->cacheKey && self::$cache) {
-            $cached = self::$cache->get($this->buildCacheKey());
-            if ($cached !== null) {
-                return $cached;
-            }
-        }
-
         // Ejecuta hook antes de renderizar
         $this->beforeRender();
 
@@ -149,11 +108,6 @@ abstract class Component
 
         // Ejecuta hook después de renderizar
         $this->afterRender();
-
-        // Cachea la salida si corresponde
-        if ($this->cacheKey && self::$cache) {
-            self::$cache->set($this->buildCacheKey(), $output, $this->cacheTtl);
-        }
 
         // Añade datos de hidratación si es necesario
         if ($this->hydrate) {
@@ -187,22 +141,6 @@ abstract class Component
     protected function afterRender(): void
     {
         // Sobrescribir en clases hijas
-    }
-
-    /**
-     * Habilita el cacheo para este componente.
-     *
-     * @param string $key Clave de caché
-     * @param int $ttl Tiempo de vida en segundos
-     * @return $this
-     * @example $componente->cache('mi_componente', 600);
-     */
-    public function cache(string $key, int $ttl = 3600): self
-    {
-        $this->cacheKey = $key;
-        $this->cacheTtl = $ttl;
-
-        return $this;
     }
 
     /**
@@ -358,7 +296,7 @@ abstract class Component
         }
 
         try {
-            // Hereda configuración de caché e hidratación
+            // Instancia el componente hijo
             $component = new $componentClass($props, $slots);
 
             return $component->render();
@@ -446,20 +384,6 @@ abstract class Component
         }
 
         return (string) $content;
-    }
-
-    /**
-     * Construye la clave de caché única para el componente.
-     *
-     * @internal
-     * @return string Clave de caché
-     */
-    private function buildCacheKey(): string
-    {
-        $componentName = static::class;
-        $propsHash = md5(serialize($this->props));
-
-        return "component:{$componentName}:{$this->cacheKey}:{$propsHash}";
     }
 
     /**
