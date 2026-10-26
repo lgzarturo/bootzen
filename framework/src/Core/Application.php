@@ -3,150 +3,169 @@
 /**
  * Núcleo de la aplicación BootZen
  *
- * Este archivo define la clase principal Application, responsable de orquestar el ciclo de vida de la aplicación,
- * gestionar el contenedor de dependencias, el enrutador, el middleware global y el manejo de errores y excepciones.
- * Implementa el patrón Front Controller y el patrón de Inyección de Dependencias.
- *
- * Consideraciones de seguridad: Maneja excepciones y errores de forma centralizada, permitiendo respuestas seguras.
- * Consideraciones de rendimiento: Inicialización perezosa y ejecución eficiente del middleware.
+ * Define la clase Application, responsable del ciclo de vida: carga del entorno (.env) y la
+ * configuración (config/), registro de servicios en el contenedor, middleware global, enrutamiento
+ * y manejo centralizado de errores.
  *
  * @package    BootZen\Core
  * @author     Arturo Lopez <lgzarturo@gmail.com>
  * @copyright  2025 BootZen
  * @license    MIT
- * @version    1.1.0
  * @since      1.0.0
  *
  * @see Container
  * @see Router
- * @see MiddlewareInterface
- * @see Request
- * @see Response
- *
+ * @see Pipeline
+ * @see ExceptionHandler
  */
 
 declare(strict_types=1);
 
 namespace BootZen\Core;
 
+use ErrorException;
+use LogicException;
 use Throwable;
 
 /**
  * Clase principal de la aplicación BootZen.
  *
- * Orquesta el ciclo de vida de la aplicación, el registro de servicios, el enrutamiento y el manejo de errores.
- * Permite la integración de middleware global y la extensión mediante el contenedor de dependencias.
+ * Al construirse carga .env y config/, ajusta la zona horaria y registra en el contenedor:
+ * Application, Container, Router, Pipeline, Config, Logger, Cache y ExceptionHandler.
  *
+ * @example
+ *   $app = new Application(dirname(__DIR__));
+ *   $app->routes(require __DIR__ . '/../routes/web.php');
+ *   $app->handle();
  */
 class Application
 {
     /**
-     * Contenedor de dependencias de la aplicación
-     * @var Container
+     * Última instancia creada; la usan los helpers globales (config(), route(), logger()...).
      */
-    private Container $container;
+    private static ?self $instance = null;
 
-    /**
-     * Enrutador principal de la aplicación
-     * @var Router
-     */
-    private Router $router;
+    private readonly string $basePath;
+
+    private readonly Container $container;
+
+    private readonly Router $router;
+
+    private readonly Config $config;
 
     /**
      * Middleware global registrado para todas las rutas
-     * @var array<int, string|MiddlewareInterface>
+     *
+     * @var list<string|MiddlewareInterface>
      */
     private array $globalMiddleware = [];
 
     /**
-     * Indica si la aplicación ya fue inicializada (booted)
-     * @var bool
-     */
-    private bool $booted = false;
-
-    /**
-     * Constructor de Application
-     *
+     * @param string|null $basePath Raíz del proyecto; por defecto BOOTZEN_BASE_PATH
      * @param Container|null $container Contenedor de dependencias (opcional)
      */
-    public function __construct(?Container $container = null)
+    public function __construct(?string $basePath = null, ?Container $container = null)
     {
+        $this->basePath = rtrim($basePath ?? self::defaultBasePath(), '/');
         $this->container = $container ?? new Container();
         $this->router = new Router($this->container);
 
+        Env::load($this->basePath('.env'));
+        $this->config = Config::load($this->basePath('config'), $this->basePath('storage/cache/config.php'));
+        $this->configureTimezone();
         $this->registerCoreBindings();
+
+        self::$instance = $this;
     }
 
     /**
-     * Registra instancias esenciales en el contenedor para inyección de dependencias.
+     * Devuelve la instancia actual de la aplicación.
+     *
+     * @throws LogicException Si todavía no se creó ninguna Application
      */
-    private function registerCoreBindings(): void
+    public static function getInstance(): self
     {
-        $this->container->instance(Container::class, $this->container);
-        $this->container->instance(Application::class, $this);
-        $this->container->instance(Router::class, $this->router);
-    }
-
-    /**
-     * Boot the application
-     */
-    public function boot(): void
-    {
-        if ($this->booted) {
-            return;
+        if (self::$instance === null) {
+            throw new LogicException('No hay una Application creada. Crea una en bootstrap/app.php.');
         }
 
-        $this->booted = true;
+        return self::$instance;
     }
 
     /**
-     * Se encarga de iniciar la aplicación
+     * Indica si ya existe una instancia de la aplicación.
+     */
+    public static function hasInstance(): bool
+    {
+        return self::$instance !== null;
+    }
+
+    /**
+     * Ruta absoluta dentro del proyecto.
      *
-     * @param Request|null $request Solicitud HTTP (opcional, por defecto se crea desde globals)
-     * @return Response Respuesta HTTP generada
+     * @example $app->basePath('storage/logs');
+     */
+    public function basePath(string $path = ''): string
+    {
+        return $path === '' ? $this->basePath : $this->basePath . '/' . ltrim($path, '/');
+    }
+
+    /**
+     * Repositorio de configuración.
+     */
+    public function config(): Config
+    {
+        return $this->config;
+    }
+
+    /**
+     * Indica si el modo depuración está activo (config app.debug, o APP_DEBUG si no hay config).
+     */
+    public function isDebug(): bool
+    {
+        $debug = $this->config->get('app.debug', env('APP_DEBUG', false));
+
+        return filter_var($debug, FILTER_VALIDATE_BOOL);
+    }
+
+    /**
+     * Procesa una petición y devuelve la respuesta, sin enviarla ni tocar el estado global de PHP.
+     * Es lo que usan los tests.
+     *
+     * @param Request|null $request Solicitud HTTP (por defecto se crea desde las variables globales)
      */
     public function run(?Request $request = null): Response
     {
-        $this->boot();
-
-        $request = $request ?? Request::fromGlobals();
+        $request ??= Request::fromGlobals();
 
         try {
-            // Ejecuta el middleware global y luego resuelve la ruta
-            return $this->executeGlobalMiddleware($request, function ($request) {
-                return $this->router->resolve($request);
-            });
+            return $this->router->getPipeline()->run(
+                $this->globalMiddleware,
+                $request,
+                fn (Request $request): Response => $this->router->resolve($request)
+            );
         } catch (Throwable $e) {
-            return $this->handleException($e, $request);
+            $handler = $this->exceptionHandler();
+            $handler->report($e, $request);
+
+            return $handler->render($e, $request);
         }
     }
 
     /**
-     * Envia la respuesta HTTP al cliente
-     */
-    public function send(Response $response): void
-    {
-        $response->send();
-    }
-
-    /**
-     * Maneja la solicitud y envía la respuesta al cliente.
+     * Atiende la petición real: registra los manejadores globales de errores, procesa y envía.
      *
-     * @param Request|null $request Solicitud HTTP (opcional, por defecto se crea desde globals)
-     * @return void
+     * @param Request|null $request Solicitud HTTP (por defecto se crea desde las variables globales)
      */
     public function handle(?Request $request = null): void
     {
-        // Los manejadores globales solo se registran al atender una petición real,
-        // así run() puede usarse en tests sin alterar el estado global de PHP
-        $this->registerErrorHandler();
+        $this->registerErrorHandlers();
 
-        $response = $this->run($request);
-        $this->send($response);
+        $this->run($request)->send();
     }
 
     /**
-     * Agrega un middleware que se ejecutará en todas las solicitudes.
+     * Agrega middleware que se ejecuta en todas las peticiones (clase, instancia, alias o grupo).
      */
     public function addGlobalMiddleware(string|MiddlewareInterface $middleware): self
     {
@@ -156,133 +175,38 @@ class Application
     }
 
     /**
-     * Ejecuta la cadena de middleware global de forma recursiva.
-     * Encadenando cada middleware y finalmente llamando al controlador de la ruta.
+     * Registra un alias de middleware para usarlo en rutas y grupos.
      *
-     * @param Request $request Solicitud HTTP
-     * @param callable $final Función final para ejecutar si no hay más middleware
-     * @param array<int, string|MiddlewareInterface>|null $middleware Middleware restante en la cadena (usado internamente)
-     * @return Response Respuesta HTTP generada
+     * @example $app->aliasMiddleware('cors', CorsMiddleware::class);
      */
-    private function executeGlobalMiddleware(Request $request, callable $final, ?array $middleware = null): Response
+    public function aliasMiddleware(string $name, string $class): self
     {
-        $middleware = $middleware ?? $this->globalMiddleware;
+        $this->router->aliasMiddleware($name, $class);
 
-        if (empty($middleware)) {
-            return $final($request);
-        }
-
-        $middlewareClass = array_shift($middleware);
-
-        // Resuelve el middleware desde el contenedor
-        if (is_string($middlewareClass)) {
-            $middlewareInstance = $this->container->make($middlewareClass);
-        } else {
-            $middlewareInstance = $middlewareClass;
-        }
-
-        return $middlewareInstance->process($request, function ($request) use ($middleware, $final) {
-            return $this->executeGlobalMiddleware($request, $final, $middleware);
-        });
+        return $this;
     }
 
     /**
-     * Registra manejadores globales para errores y excepciones no capturadas.
-     */
-    private function registerErrorHandler(): void
-    {
-        set_error_handler(function ($severity, $message, $file, $line) {
-            if (! (error_reporting() & $severity)) {
-                return false;
-            }
-
-            throw new \ErrorException($message, 0, $severity, $file, $line);
-        });
-
-        set_exception_handler(function (Throwable $e) {
-            $this->handleException($e)->send();
-        });
-    }
-
-    /**
-     * Maneja excepciones no capturadas, registrándolas y generando una respuesta adecuada.
+     * Registra un grupo de middleware.
      *
-     * @param Throwable $e Excepción capturada
-     * @param Request|null $request Solicitud HTTP (opcional)
-     * @return Response Respuesta HTTP adecuada
+     * @param list<string|MiddlewareInterface> $middleware
+     * @example $app->middlewareGroup('api', ['cors']);
      */
-    private function handleException(Throwable $e, ?Request $request = null): Response
+    public function middlewareGroup(string $name, array $middleware): self
     {
-        if ($e instanceof HttpException) {
-            return $this->renderHttpException($e, $request);
-        }
+        $this->router->middlewareGroup($name, $middleware);
 
-        error_log(sprintf(
-            "Uncaught %s: %s in %s:%d\nStack trace:\n%s",
-            get_class($e),
-            $e->getMessage(),
-            $e->getFile(),
-            $e->getLine(),
-            $e->getTraceAsString()
-        ));
-
-        // Retorna la respuesta adecuada según el tipo de solicitud
-        if ($request && $request->isJson()) {
-            return Response::json([
-                'error' => 'Internal Server Error',
-                'message' => $this->isDebugMode() ? $e->getMessage() : 'Something went wrong',
-                'code' => $e->getCode(),
-            ], 500);
-        }
-
-        // Mostrar detalles solo en modo debug
-        $message = $this->isDebugMode()
-            ? sprintf(
-                '<h1>%s</h1><p>%s</p><pre>%s</pre>',
-                get_class($e),
-                htmlspecialchars($e->getMessage()),
-                htmlspecialchars($e->getTraceAsString())
-            )
-            : '<h1>500 - Internal Server Error</h1><p>Something went wrong.</p>';
-
-        return Response::html($message, 500);
+        return $this;
     }
 
     /**
-     * Convierte una HttpException (lanzada por abort()) en una respuesta con su código de estado.
+     * Registra rutas usando un callback que recibe el enrutador.
      *
-     * @param HttpException $e Excepción HTTP
-     * @param Request|null $request Solicitud HTTP (opcional)
-     * @return Response Respuesta con el código y cabeceras de la excepción
+     * @param callable(Router): void $callback
      */
-    private function renderHttpException(HttpException $e, ?Request $request = null): Response
+    public function routes(callable $callback): void
     {
-        $status = $e->getStatusCode();
-        $title = (new Response($status))->getStatusText();
-        $message = $e->getMessage() !== '' ? $e->getMessage() : $title;
-
-        $response = $request && $request->isJson()
-            ? Response::json(['error' => $title, 'message' => $message, 'code' => $status], $status)
-            : Response::html(sprintf(
-                '<h1>%d - %s</h1><p>%s</p>',
-                $status,
-                htmlspecialchars($title),
-                htmlspecialchars($message)
-            ), $status);
-
-        foreach ($e->getHeaders() as $name => $value) {
-            $response = $response->withHeader($name, $value);
-        }
-
-        return $response;
-    }
-
-    /**
-     * Verifica si el modo de depuración está habilitado mediante la variable de entorno APP_DEBUG.
-     */
-    private function isDebugMode(): bool
-    {
-        return (bool) ($_ENV['APP_DEBUG'] ?? false);
+        $callback($this->router);
     }
 
     /**
@@ -334,26 +258,96 @@ class Application
     }
 
     /**
-     * Registra rutas usando un callback que recibe el enrutador.
+     * Registra en el contenedor los servicios del framework.
      */
-    public function routes(callable $callback): void
+    private function registerCoreBindings(): void
     {
-        $callback($this->router);
+        $this->container->instance(Container::class, $this->container);
+        $this->container->instance(self::class, $this);
+        $this->container->instance(Router::class, $this->router);
+        $this->container->instance(Pipeline::class, $this->router->getPipeline());
+        $this->container->instance(Config::class, $this->config);
+
+        $this->container->singleton(Logger::class, fn (): Logger => new Logger(
+            $this->basePath('storage/logs'),
+            (string) $this->config->get('app.log_level', 'debug')
+        ));
+
+        $this->container->singleton(Cache::class, fn (): Cache => new Cache($this->basePath('storage/cache/data')));
+
+        $this->container->singleton(ExceptionHandler::class, fn (Container $container): ExceptionHandler => new ExceptionHandler(
+            $container->make(Logger::class),
+            $this->basePath('resources/views'),
+            $this->isDebug()
+        ));
+    }
+
+    private function exceptionHandler(): ExceptionHandler
+    {
+        $handler = $this->container->make(ExceptionHandler::class);
+
+        if (! $handler instanceof ExceptionHandler) {
+            throw new LogicException('El servicio ExceptionHandler debe extender ' . ExceptionHandler::class . '.');
+        }
+
+        return $handler;
     }
 
     /**
-     * Método mágico para enrutar llamadas al enrutador
-     *
-     * @param string $method
-     * @param array<int, mixed> $arguments
-     * @return mixed
+     * Ajusta la zona horaria según config app.timezone.
      */
-    public function __call(string $method, array $arguments): mixed
+    private function configureTimezone(): void
     {
-        if (method_exists($this->router, $method)) {
-            return $this->router->$method(...$arguments);
+        $timezone = $this->config->get('app.timezone');
+
+        if (is_string($timezone) && in_array($timezone, timezone_identifiers_list(), true)) {
+            date_default_timezone_set($timezone);
+        }
+    }
+
+    /**
+     * Registra manejadores globales: warnings como excepciones, excepciones no capturadas y errores fatales.
+     */
+    private function registerErrorHandlers(): void
+    {
+        set_error_handler(static function (int $severity, string $message, string $file, int $line): bool {
+            if (! (error_reporting() & $severity)) {
+                return false;
+            }
+
+            throw new ErrorException($message, 0, $severity, $file, $line);
+        });
+
+        set_exception_handler(function (Throwable $e): void {
+            $handler = $this->exceptionHandler();
+            $handler->report($e);
+            $handler->render($e)->send();
+        });
+
+        register_shutdown_function(function (): void {
+            $error = error_get_last();
+            $fatal = E_ERROR | E_PARSE | E_CORE_ERROR | E_COMPILE_ERROR;
+
+            if ($error === null || ($error['type'] & $fatal) === 0) {
+                return;
+            }
+
+            $e = new ErrorException($error['message'], 0, $error['type'], $error['file'], $error['line']);
+            $handler = $this->exceptionHandler();
+            $handler->report($e);
+
+            if (! headers_sent()) {
+                $handler->render($e)->send();
+            }
+        });
+    }
+
+    private static function defaultBasePath(): string
+    {
+        if (defined('BOOTZEN_BASE_PATH')) {
+            return (string) constant('BOOTZEN_BASE_PATH');
         }
 
-        throw new \BadMethodCallException("Method {$method} does not exist on Application or Router");
+        return (string) getcwd();
     }
 }
