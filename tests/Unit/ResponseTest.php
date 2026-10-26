@@ -34,3 +34,17 @@ it('es inmutable al agregar cabeceras', function (): void {
     expect($original->getHeader('x-test'))->toBeNull()
         ->and($copia->getHeader('x-test'))->toBe('1');
 });
+
+it('crea respuestas sin contenido y agrega varias cabeceras', function (): void {
+    $response = Response::noContent()->withHeaders(['Cache-Control' => 'no-store', 'X-A' => '1']);
+
+    expect($response->getStatusCode())->toBe(204)
+        ->and($response->getBody())->toBe('')
+        ->and($response->getHeader('cache-control'))->toBe('no-store')
+        ->and($response->getHeader('x-a'))->toBe('1');
+});
+
+it('codifica listas y caracteres especiales en JSON sin escapar', function (): void {
+    expect(Response::json([['url' => 'https://a.b/c', 'nombre' => 'Peña']])->getBody())
+        ->toBe('[{"url":"https://a.b/c","nombre":"Peña"}]');
+});

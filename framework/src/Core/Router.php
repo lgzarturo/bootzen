@@ -3,17 +3,17 @@
 /**
  * Router.php
  *
- * Gestiona el registro, agrupación, resolución y ejecución de rutas HTTP en el framework BootZen.
- * Permite definir rutas, grupos, middlewares y resolver peticiones entrantes, integrando el contenedor de dependencias.
- * Implementa los patrones Router y Chain of Responsibility, facilitando la extensión y modularidad del flujo HTTP.
+ * Registro y resolución de rutas HTTP en BootZen: métodos, grupos, rutas con nombre, recursos CRUD,
+ * restricciones de parámetros y respuestas 404/405 automáticas.
+ *
+ * Los parámetros de ruta se guardan en el Request (Request::param()) y se inyectan por nombre
+ * en el handler mediante Container::call().
  *
  * @package    BootZen\Core
  * @author     Arturo Lopez <lgzarturo@gmail.com>
  * @copyright  2025 BootZen
  * @license    MIT
- * @version    1.1.0
  * @since      1.0.0
- *
  */
 
 declare(strict_types=1);
@@ -22,473 +22,406 @@ namespace BootZen\Core;
 
 use Closure;
 use InvalidArgumentException;
+use Stringable;
+use UnexpectedValueException;
 
 /**
- * Clase Router
+ * Router HTTP.
  *
- * Encapsula la lógica de enrutamiento HTTP, permitiendo el registro de rutas, grupos, middlewares y la
- * resolución de peticiones.
- * Utiliza el contenedor de dependencias para instanciar controladores y middlewares, soportando rutas
- * dinámicas y parámetros.
+ * Formatos de handler aceptados:
+ * - `[Controlador::class, 'metodo']` (recomendado)
+ * - Closure, para respuestas triviales
+ * - Clase invocable (`Controlador::class` con __invoke)
  *
- * Consideraciones de seguridad: permite asociar middlewares de autenticación, autorización y CORS a rutas y grupos.
- * Consideraciones de rendimiento: soporta rutas cacheables y ejecución eficiente de la cadena de middlewares.
- *
+ * @example $router->get('/tareas/{id:\d+}', [TareaController::class, 'show'])->name('tareas.show');
  */
 class Router
 {
     /**
-     * Colección de rutas registradas, organizadas por método HTTP.
+     * Acciones de resource(): acción => [métodos, sufijo de path].
+     */
+    private const RESOURCE_ACTIONS = [
+        'index' => [['GET'], ''],
+        'create' => [['GET'], '/create'],
+        'store' => [['POST'], ''],
+        'show' => [['GET'], '/{id}'],
+        'edit' => [['GET'], '/{id}/edit'],
+        'update' => [['PUT', 'PATCH'], '/{id}'],
+        'destroy' => [['DELETE'], '/{id}'],
+    ];
+
+    /**
+     * Rutas en orden de registro (la primera que coincide gana).
      *
-     * @var array<string, Route[]>
+     * @var list<Route>
      */
     private array $routes = [];
 
     /**
-     * Middleware global aplicado a las rutas.
+     * Atributos de los grupos abiertos (prefix, middleware, as).
      *
-     * @var array<int, string|MiddlewareInterface>
-     */
-    private array $middleware = [];
-
-    /**
-     * Pila de grupos de rutas para atributos compartidos (prefix, middleware, etc.).
-     *
-     * @var array<int, array<string, mixed>>
+     * @var list<array{prefix?: string, middleware?: string|MiddlewareInterface|list<string|MiddlewareInterface>, as?: string}>
      */
     private array $groupStack = [];
 
     /**
-     * Contenedor de dependencias para resolver controladores y middleware.
+     * Índice de rutas por nombre, se reconstruye bajo demanda.
      *
-     * @var Container
+     * @var array<string, Route>|null
      */
-    private Container $container;
+    private ?array $nameIndex = null;
 
-    /**
-     * Constructor de Router
-     *
-     * @param Container $container Contenedor de dependencias
-     * @example $router = new Router($container);
-     */
-    public function __construct(Container $container)
+    private readonly Pipeline $pipeline;
+
+    public function __construct(private readonly Container $container, ?Pipeline $pipeline = null)
     {
-        $this->container = $container;
+        $this->pipeline = $pipeline ?? new Pipeline($container);
     }
 
-    /**
-     * Registra una ruta GET
-     *
-     * @param string $path Path de la ruta
-     * @param mixed $handler Handler asociado
-     * @return Route Instancia de la ruta creada
-     * @example $router->get('/home', 'HomeController@index');
-     */
     public function get(string $path, mixed $handler): Route
     {
-        return $this->addRoute('GET', $path, $handler);
+        return $this->addRoute(['GET'], $path, $handler);
     }
 
-    /**
-     * Registra una ruta POST
-     *
-     * @param string $path Path de la ruta
-     * @param mixed $handler Handler asociado
-     * @return Route Instancia de la ruta creada
-     * @example $router->post('/user', 'UserController@store');
-     */
     public function post(string $path, mixed $handler): Route
     {
-        return $this->addRoute('POST', $path, $handler);
+        return $this->addRoute(['POST'], $path, $handler);
     }
 
-    /**
-     * Registra una ruta PUT
-     *
-     * @param string $path Path de la ruta
-     * @param mixed $handler Handler asociado
-     * @return Route Instancia de la ruta creada
-     * @example $router->put('/user/{id}', 'UserController@update');
-     */
     public function put(string $path, mixed $handler): Route
     {
-        return $this->addRoute('PUT', $path, $handler);
+        return $this->addRoute(['PUT'], $path, $handler);
     }
 
-    /**
-     * Registra una ruta PATCH
-     *
-     * @param string $path Path de la ruta
-     * @param mixed $handler Handler asociado
-     * @return Route Instancia de la ruta creada
-     * @example $router->patch('/user/{id}', 'UserController@patch');
-     */
     public function patch(string $path, mixed $handler): Route
     {
-        return $this->addRoute('PATCH', $path, $handler);
+        return $this->addRoute(['PATCH'], $path, $handler);
     }
 
-    /**
-     * Registra una ruta DELETE
-     *
-     * @param string $path Path de la ruta
-     * @param mixed $handler Handler asociado
-     * @return Route Instancia de la ruta creada
-     * @example $router->delete('/user/{id}', 'UserController@destroy');
-     */
     public function delete(string $path, mixed $handler): Route
     {
-        return $this->addRoute('DELETE', $path, $handler);
+        return $this->addRoute(['DELETE'], $path, $handler);
+    }
+
+    public function options(string $path, mixed $handler): Route
+    {
+        return $this->addRoute(['OPTIONS'], $path, $handler);
     }
 
     /**
-     * Registra una ruta para múltiples métodos HTTP
+     * Registra una ruta para varios métodos.
      *
-     * @param array<string> $methods Métodos HTTP
-     * @param string $path Path de la ruta
-     * @param mixed $handler Handler asociado
-     * @return Route Instancia de la última ruta creada
-     * @throws InvalidArgumentException Si no se especifican métodos
-     * @example $router->match(['GET', 'POST'], '/contact', 'ContactController@handle');
+     * @param list<string> $methods
+     * @throws InvalidArgumentException Si la lista de métodos está vacía
      */
     public function match(array $methods, string $path, mixed $handler): Route
     {
-        if (empty($methods)) {
+        if ($methods === []) {
             throw new InvalidArgumentException('Debe especificar al menos un método HTTP.');
         }
-        $route = null;
-        foreach ($methods as $method) {
-            $route = $this->addRoute(strtoupper($method), $path, $handler);
-        }
 
-        // $route está garantizado como Route aquí
-        return $route;
+        return $this->addRoute($methods, $path, $handler);
     }
 
     /**
-     * Registra una ruta para todos los métodos HTTP estándar
-     *
-     * @param string $path Path de la ruta
-     * @param mixed $handler Handler asociado
-     * @return Route Instancia de la ruta creada
-     * @example $router->any('/ping', fn() => 'pong');
+     * Registra una ruta para todos los métodos comunes.
      */
     public function any(string $path, mixed $handler): Route
     {
-        return $this->match(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'], $path, $handler);
+        return $this->addRoute(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'], $path, $handler);
     }
 
     /**
-     * Crea un grupo de rutas con atributos compartidos (prefix, middleware, etc.)
+     * Agrupa rutas con atributos comunes.
      *
-     * @param array<string, mixed> $attributes Atributos del grupo
-     * @param Closure $callback Callback que define las rutas del grupo
-     * @return void
-     * @example
-     *   $router->group(['prefix' => '/admin', 'middleware' => 'auth'], function($router) {
-     *       $router->get('/dashboard', 'AdminController@index');
-     *   });
+     * Atributos: 'prefix' (path), 'middleware' (clase, alias, grupo o lista) y 'as' (prefijo de nombre).
+     *
+     * @param array{prefix?: string, middleware?: string|MiddlewareInterface|list<string|MiddlewareInterface>, as?: string} $attributes
+     * @param Closure(Router): void $callback Registra las rutas del grupo
+     * @example $router->group(['prefix' => '/admin', 'as' => 'admin.', 'middleware' => 'auth'], function (Router $router): void {
+     *     $router->get('/', [AdminController::class, 'index'])->name('index'); // admin.index
+     * });
      */
     public function group(array $attributes, Closure $callback): void
     {
         $this->groupStack[] = $attributes;
-        $callback($this);
-        array_pop($this->groupStack);
+
+        try {
+            $callback($this);
+        } finally {
+            array_pop($this->groupStack);
+        }
     }
 
     /**
-     * Aplica middleware global a las siguientes rutas
+     * Registra las rutas CRUD de un recurso, con nombres '{nombre}.{accion}'.
      *
-     * @param string|array<string> $middleware Middleware(s) global(es)
-     * @return self Instancia modificada
-     * @example $router->middleware('auth');
-     * @example $router->middleware(['auth', 'log']);
+     * | Acción  | Método     | Path                 |
+     * | ------- | ---------- | -------------------- |
+     * | index   | GET        | /{nombre}            |
+     * | create  | GET        | /{nombre}/create     |
+     * | store   | POST       | /{nombre}            |
+     * | show    | GET        | /{nombre}/{id}       |
+     * | edit    | GET        | /{nombre}/{id}/edit  |
+     * | update  | PUT, PATCH | /{nombre}/{id}       |
+     * | destroy | DELETE     | /{nombre}/{id}       |
+     *
+     * @param string $name Nombre del recurso, también es el path (ej. 'tareas')
+     * @param string $controller Clase del controlador con un método por acción
+     * @param array{only?: list<string>, except?: list<string>} $options Acciones a incluir o excluir
+     * @return array<string, Route> Rutas registradas por acción
+     * @throws InvalidArgumentException Si se indica una acción desconocida
      */
-    public function middleware(string|array $middleware): self
+    public function resource(string $name, string $controller, array $options = []): array
     {
-        if (is_string($middleware)) {
-            $middleware = [$middleware];
+        $actions = array_keys(self::RESOURCE_ACTIONS);
+        $requested = [...($options['only'] ?? []), ...($options['except'] ?? [])];
+
+        foreach ($requested as $action) {
+            if (! in_array($action, $actions, true)) {
+                throw new InvalidArgumentException(
+                    "Acción [{$action}] desconocida en resource(). Usa: " . implode(', ', $actions) . '.'
+                );
+            }
         }
 
-        $this->middleware = array_merge($this->middleware, $middleware);
+        if (isset($options['only'])) {
+            $actions = array_values(array_intersect($actions, $options['only']));
+        }
 
-        return $this;
+        $actions = array_values(array_diff($actions, $options['except'] ?? []));
+        $base = '/' . trim($name, '/');
+        $routeName = str_replace('/', '.', trim($name, '/'));
+        $routes = [];
+
+        foreach ($actions as $action) {
+            [$methods, $suffix] = self::RESOURCE_ACTIONS[$action];
+            $routes[$action] = $this->addRoute($methods, $base . $suffix, [$controller, $action])
+                ->name($routeName . '.' . $action);
+        }
+
+        return $routes;
     }
 
     /**
-     * Añade una ruta a la colección interna
+     * Registra un alias de middleware.
      *
-     * @internal
-     * @param string $method Método HTTP
-     * @param string $path Path de la ruta
-     * @param mixed $handler Handler asociado
-     * @return Route Instancia de la ruta creada
+     * @example $router->aliasMiddleware('cors', CorsMiddleware::class);
      */
-    private function addRoute(string $method, string $path, mixed $handler): Route
+    public function aliasMiddleware(string $name, string $class): void
     {
-        $path = $this->getGroupPrefix() . $path;
-        $middleware = array_merge($this->getGroupMiddleware(), $this->middleware);
+        $this->pipeline->alias($name, $class);
+    }
 
-        $route = new Route($method, $path, $handler, $middleware);
+    /**
+     * Registra un grupo de middleware.
+     *
+     * @param list<string|MiddlewareInterface> $middleware
+     * @example $router->middlewareGroup('api', ['cors']);
+     */
+    public function middlewareGroup(string $name, array $middleware): void
+    {
+        $this->pipeline->group($name, $middleware);
+    }
 
-        $this->routes[$method][] = $route;
+    public function getPipeline(): Pipeline
+    {
+        return $this->pipeline;
+    }
 
-        // Reinicia el middleware global para la siguiente ruta
-        $this->middleware = [];
+    /**
+     * Resuelve la petición: busca la ruta, ejecuta su middleware y el handler.
+     *
+     * @throws HttpException 404 si ninguna ruta coincide, 405 si el path existe con otros métodos
+     */
+    public function resolve(Request $request): Response
+    {
+        $path = self::normalizePath($request->getPath());
+        $method = $request->getMethod();
+        $allowed = [];
+        $firstMatch = null;
+
+        foreach ($this->routes as $route) {
+            $parameters = $route->matches($path);
+            if ($parameters === null) {
+                continue;
+            }
+
+            if (! $route->allowsMethod($method)) {
+                array_push($allowed, ...$route->getMethods());
+                $firstMatch ??= [$route, $parameters];
+
+                continue;
+            }
+
+            $request = $request->withRoute($route)->withAttributes($parameters);
+
+            return $this->pipeline->run(
+                $route->getMiddleware(),
+                $request,
+                fn (Request $request): Response => $this->dispatch($route, $request)
+            );
+        }
+
+        if ($allowed === []) {
+            throw new HttpException(404);
+        }
+
+        $allowed = array_values(array_unique([...$allowed, 'OPTIONS']));
+        if (in_array('GET', $allowed, true)) {
+            $allowed[] = 'HEAD';
+        }
+
+        $allowHeader = ['Allow' => implode(', ', $allowed)];
+
+        if ($method === 'OPTIONS' && $firstMatch !== null) {
+            // El preflight pasa por el middleware de la ruta (por ejemplo 'cors') antes del 204 automático
+            [$route, $parameters] = $firstMatch;
+
+            return $this->pipeline->run(
+                $route->getMiddleware(),
+                $request->withRoute($route)->withAttributes($parameters),
+                static fn (): Response => new Response(204, '', $allowHeader)
+            );
+        }
+
+        throw new HttpException(405, '', $allowHeader);
+    }
+
+    /**
+     * Genera el path de una ruta con nombre.
+     *
+     * @param array<string, string|int|float|bool|Stringable> $parameters Parámetros; los sobrantes van al query string
+     * @throws InvalidArgumentException Si la ruta no existe o faltan parámetros
+     * @example $router->url('tareas.show', ['id' => 5]); // /tareas/5
+     */
+    public function url(string $name, array $parameters = []): string
+    {
+        $route = $this->getRoute($name);
+
+        if ($route === null) {
+            throw new InvalidArgumentException("No existe una ruta con el nombre [{$name}].");
+        }
+
+        return $route->url($parameters);
+    }
+
+    /**
+     * Busca una ruta por nombre.
+     */
+    public function getRoute(string $name): ?Route
+    {
+        if ($this->nameIndex === null) {
+            $this->nameIndex = [];
+            foreach ($this->routes as $route) {
+                $routeName = $route->getName();
+                if ($routeName !== null && ! isset($this->nameIndex[$routeName])) {
+                    $this->nameIndex[$routeName] = $route;
+                }
+            }
+        }
+
+        return $this->nameIndex[$name] ?? null;
+    }
+
+    /**
+     * Todas las rutas registradas, en orden.
+     *
+     * @return list<Route>
+     */
+    public function getRoutes(): array
+    {
+        return $this->routes;
+    }
+
+    /**
+     * Normaliza un path: empieza con '/', sin barras repetidas y sin '/' final (salvo la raíz).
+     */
+    public static function normalizePath(string $path): string
+    {
+        return '/' . trim((string) preg_replace('#/+#', '/', $path), '/');
+    }
+
+    /**
+     * @param list<string> $methods
+     * @throws InvalidArgumentException Si el handler no tiene un formato válido
+     */
+    private function addRoute(array $methods, string $path, mixed $handler): Route
+    {
+        $this->assertValidHandler($handler, $path);
+
+        $prefix = '';
+        $namePrefix = '';
+        $middleware = [];
+
+        foreach ($this->groupStack as $group) {
+            $prefix .= '/' . trim($group['prefix'] ?? '', '/');
+            $namePrefix .= $group['as'] ?? '';
+
+            if (isset($group['middleware'])) {
+                $groupMiddleware = $group['middleware'];
+                array_push($middleware, ...(is_array($groupMiddleware) ? $groupMiddleware : [$groupMiddleware]));
+            }
+        }
+
+        $route = new Route($methods, self::normalizePath($prefix . '/' . $path), $handler, $middleware, $namePrefix);
+
+        $this->routes[] = $route;
+        $this->nameIndex = null;
 
         return $route;
     }
 
     /**
-     * Obtiene el prefijo actual de los grupos anidados
+     * Ejecuta el handler de la ruta y convierte su resultado en Response.
      *
-     * @internal
-     * @return string Prefijo concatenado
+     * @throws UnexpectedValueException Si el handler retorna un tipo que no se puede convertir
      */
-    private function getGroupPrefix(): string
+    private function dispatch(Route $route, Request $request): Response
     {
-        $prefix = '';
-        foreach ($this->groupStack as $group) {
-            if (isset($group['prefix'])) {
-                $prefix .= '/' . trim($group['prefix'], '/');
-            }
+        $handler = $route->getHandler();
+
+        if (is_array($handler) && isset($handler[0], $handler[1]) && is_string($handler[0]) && is_string($handler[1])) {
+            $handler = [$handler[0], $handler[1]];
+        } elseif (! $handler instanceof Closure && ! is_string($handler)) {
+            throw new UnexpectedValueException("Handler inválido en la ruta [{$route->getPath()}].");
         }
 
-        return $prefix;
+        $result = $this->container->call($handler, $request->params(), [$request]);
+
+        return match (true) {
+            $result instanceof Response => $result,
+            is_array($result) => Response::json($result),
+            $result === null => Response::noContent(),
+            is_string($result), is_int($result), is_float($result), $result instanceof Stringable => Response::html((string) $result),
+            default => throw new UnexpectedValueException(sprintf(
+                'El handler de [%s] retornó %s; retorna un Response, un string o un array.',
+                $route->getPath(),
+                get_debug_type($result)
+            )),
+        };
     }
 
     /**
-     * Obtiene el middleware de los grupos anidados
-     *
-     * @internal
-     * @return array<int, string|MiddlewareInterface> Middlewares de grupo
+     * @throws InvalidArgumentException Si el handler no tiene un formato válido
      */
-    private function getGroupMiddleware(): array
-    {
-        $middleware = [];
-        foreach ($this->groupStack as $group) {
-            if (isset($group['middleware'])) {
-                $groupMiddleware = is_array($group['middleware']) ? $group['middleware'] : [$group['middleware']];
-                $middleware = array_merge($middleware, $groupMiddleware);
-            }
-        }
-
-        return $middleware;
-    }
-
-    /**
-     * Resuelve la petición HTTP actual y ejecuta la ruta correspondiente
-     *
-     * @param Request $request Instancia de la petición
-     * @return Response Respuesta generada
-     * @since 1.0.0
-     * @throws InvalidArgumentException Si el handler o middleware no es válido
-     * @example $response = $router->resolve($request);
-     */
-    public function resolve(Request $request): Response
-    {
-        $method = $request->getMethod();
-        $path = $request->getPath();
-
-        // Maneja peticiones OPTIONS para CORS
-        if ($method === 'OPTIONS') {
-            return $this->handleOptions($request);
-        }
-
-        // Busca la ruta coincidente
-        $route = $this->findRoute($method, $path);
-
-        if ($route === null) {
-            return Response::notFound('Route not found');
-        }
-
-        // Asigna parámetros de ruta al request
-        $request = $this->setRouteParameters($request, $route, $path);
-
-        // Ejecuta la cadena de middlewares
-        return $this->executeMiddleware($route->getMiddleware(), $request, function ($request) use ($route) {
-            return $this->callHandler($route->getHandler(), $request, $route->getParameters());
-        });
-    }
-
-    /**
-     * Busca una ruta coincidente por método y path
-     *
-     * @internal
-     * @param string $method Método HTTP
-     * @param string $path Path solicitado
-     * @return Route|null Ruta encontrada o null
-     */
-    private function findRoute(string $method, string $path): ?Route
-    {
-        if (! isset($this->routes[$method])) {
-            return null;
-        }
-
-        foreach ($this->routes[$method] as $route) {
-            if ($this->matchRoute($route->getPath(), $path)) {
-                return $route;
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * Verifica si el patrón de ruta coincide con el path solicitado
-     *
-     * @internal
-     * @param string $pattern Patrón de ruta
-     * @param string $path Path solicitado
-     * @return bool true si coincide
-     */
-    private function matchRoute(string $pattern, string $path): bool
-    {
-        // Convierte el patrón de ruta a regex
-        $regex = preg_replace('/\{([^}]+)\}/', '([^/]+)', $pattern);
-        $regex = '#^' . $regex . '$#';
-
-        return preg_match($regex, $path) === 1;
-    }
-
-    /**
-     * Asigna los parámetros dinámicos extraídos del path a la ruta
-     *
-     * @internal
-     * @param Request $request Instancia de la petición
-     * @param Route $route Ruta encontrada
-     * @param string $path Path solicitado
-     * @return Request Instancia de la petición (posiblemente modificada)
-     */
-    private function setRouteParameters(Request $request, Route $route, string $path): Request
-    {
-        $pattern = $route->getPath();
-
-        // Extrae nombres de parámetros
-        preg_match_all('/\{([^}]+)\}/', $pattern, $paramNames);
-
-        // Extrae valores de parámetros
-        $regex = preg_replace('/\{([^}]+)\}/', '([^/]+)', $pattern);
-        $regex = '#^' . $regex . '$#';
-        preg_match($regex, $path, $paramValues);
-
-        // Elimina el match completo
-        array_shift($paramValues);
-
-        // Combina nombres y valores
-        $parameters = [];
-        foreach ($paramNames[1] as $index => $name) {
-            $parameters[$name] = $paramValues[$index] ?? null;
-        }
-
-        $route->setParameters($parameters);
-
-        return $request;
-    }
-
-    /**
-     * Ejecuta la cadena de middlewares y finalmente el handler de la ruta
-     *
-     * @internal
-     * @param array<int, string|MiddlewareInterface> $middleware Middlewares a ejecutar
-     * @param Request $request Instancia de la petición
-     * @param Closure $final Callback final (handler de la ruta)
-     * @return Response Respuesta generada
-     * @throws InvalidArgumentException Si el middleware no es válido
-     */
-    private function executeMiddleware(array $middleware, Request $request, Closure $final): Response
-    {
-        if (empty($middleware)) {
-            return $final($request);
-        }
-
-        $middlewareClass = array_shift($middleware);
-
-        // Resuelve el middleware desde el contenedor
-        if (is_string($middlewareClass)) {
-            $middlewareInstance = $this->container->make($middlewareClass);
-        } else {
-            $middlewareInstance = $middlewareClass;
-        }
-
-        if (! $middlewareInstance instanceof MiddlewareInterface) {
-            throw new InvalidArgumentException("El middleware debe implementar MiddlewareInterface");
-        }
-
-        return $middlewareInstance->process($request, function ($request) use ($middleware, $final) {
-            return $this->executeMiddleware($middleware, $request, $final);
-        });
-    }
-
-    /**
-     * Llama al handler de la ruta y convierte el resultado a Response si es necesario
-     *
-     * @internal
-     * @param mixed $handler Handler asociado
-     * @param Request $request Instancia de la petición
-     * @param array<string, mixed> $parameters Parámetros de ruta
-     * @return Response Respuesta generada
-     * @throws InvalidArgumentException Si el handler no es válido
-     */
-    private function callHandler(mixed $handler, Request $request, array $parameters = []): Response
+    private function assertValidHandler(mixed $handler, string $path): void
     {
         if ($handler instanceof Closure) {
-            $result = $handler($request, ...$parameters);
-        } elseif (is_string($handler) && str_contains($handler, '@')) {
-            [$controller, $method] = explode('@', $handler, 2);
-            $controllerInstance = $this->container->make($controller);
-            $result = $controllerInstance->$method($request, ...$parameters);
-        } elseif (is_array($handler) && count($handler) === 2) {
-            [$controller, $method] = $handler;
-            $controllerInstance = $this->container->make($controller);
-            $result = $controllerInstance->$method($request, ...$parameters);
-        } elseif (is_callable($handler)) {
-            $result = $handler($request, ...$parameters);
-        } else {
-            throw new InvalidArgumentException("Handler de ruta inválido");
+            return;
         }
 
-        // Convierte el resultado a Response si es necesario
-        if (! $result instanceof Response) {
-            if (is_array($result)) {
-                return Response::json($result);
-            } elseif (is_string($result)) {
-                return Response::html($result);
-            } else {
-                return Response::html((string) $result);
-            }
+        if (is_array($handler) && count($handler) === 2 && is_string($handler[0] ?? null) && is_string($handler[1] ?? null)) {
+            return;
         }
 
-        return $result;
-    }
-
-    /**
-     * Maneja peticiones OPTIONS para CORS
-     *
-     * @internal
-     * @param Request $request Instancia de la petición
-     * @return Response Respuesta generada
-     */
-    private function handleOptions(Request $request): Response
-    {
-        // Intenta resolver CorsMiddleware desde el contenedor
-        if ($this->container->has(\BootZen\Middleware\CorsMiddleware::class)) {
-            $cors = $this->container->make(\BootZen\Middleware\CorsMiddleware::class);
-
-            return $cors->process($request, fn ($req) => new Response(200, ''));
+        if (is_string($handler) && ! str_contains($handler, '@') && class_exists($handler) && method_exists($handler, '__invoke')) {
+            return;
         }
 
-        // Fallback: respuesta genérica sin headers
-        return new Response(200, '');
-    }
-
-    /**
-     * Obtiene todas las rutas registradas
-     *
-     * @return array<string, Route[]> Colección de rutas
-     */
-    public function getRoutes(): array
-    {
-        return $this->routes;
+        throw new InvalidArgumentException(sprintf(
+            "Handler inválido en la ruta [%s]. Usa [Controlador::class, 'metodo'], un Closure o una clase invocable.",
+            $path
+        ));
     }
 }

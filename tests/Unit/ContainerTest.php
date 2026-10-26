@@ -45,3 +45,37 @@ it('devuelve la instancia registrada con instance', function (): void {
 
     expect($container->make('dep'))->toBe($dependency);
 });
+
+final class ContainerTestController
+{
+    public function show(ContainerTestDependency $dependency, int $id, ?string $tab = null, bool $activo = false): array
+    {
+        return [get_debug_type($dependency), $id, $tab, $activo];
+    }
+}
+
+it('call() resuelve parámetros por nombre, convierte tipos y autowirea clases', function (): void {
+    $result = (new Container())->call([ContainerTestController::class, 'show'], ['id' => '7', 'activo' => 'true']);
+
+    expect($result)->toBe([ContainerTestDependency::class, 7, null, true]);
+});
+
+it('call() usa las instancias provistas por tipo', function (): void {
+    $dependency = new ContainerTestDependency();
+
+    $result = (new Container())->call(
+        static fn (ContainerTestDependency $dep): bool => $dep === $dependency,
+        [],
+        [$dependency]
+    );
+
+    expect($result)->toBeTrue();
+});
+
+it('call() explica qué parámetro no pudo resolver', function (): void {
+    (new Container())->call(static fn (int $id): int => $id);
+})->throws(InvalidArgumentException::class, 'No se puede resolver el parámetro [$id]');
+
+it('call() rechaza métodos inexistentes', function (): void {
+    (new Container())->call([ContainerTestController::class, 'noExiste']);
+})->throws(InvalidArgumentException::class, 'no existe');

@@ -105,7 +105,7 @@ class Response
     /**
      * Crea una respuesta JSON
      *
-     * @param array<string, mixed> $data Datos a codificar en JSON
+     * @param array<mixed> $data Datos a codificar en JSON (objeto o lista)
      * @param int $statusCode Código de estado HTTP (por defecto 200)
      * @param array<string, string> $headers Cabeceras HTTP adicionales
      * @return self Nueva instancia de Response con contenido JSON
@@ -115,10 +115,11 @@ class Response
     public static function json(array $data, int $statusCode = 200, array $headers = []): self
     {
         $headers['content-type'] = 'application/json';
+        $flags = JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES;
 
         return new self(
             $statusCode,
-            json_encode($data, JSON_THROW_ON_ERROR),
+            json_encode($data, $flags),
             $headers
         );
     }
@@ -150,6 +151,16 @@ class Response
     public static function redirect(string $url, int $statusCode = 302): self
     {
         return new self($statusCode, '', ['location' => $url]);
+    }
+
+    /**
+     * Crea una respuesta 204 No Content (sin cuerpo).
+     *
+     * @param array<string, string> $headers Cabeceras HTTP adicionales
+     */
+    public static function noContent(array $headers = []): self
+    {
+        return new self(204, '', $headers);
     }
 
     /**
@@ -303,6 +314,23 @@ class Response
     {
         $new = clone $this;
         $new->headers[strtolower($name)] = $value;
+
+        return $new;
+    }
+
+    /**
+     * Devuelve una nueva instancia con varias cabeceras agregadas o reemplazadas
+     *
+     * @param array<string, string> $headers Cabeceras nombre => valor
+     * @return self Instancia modificada
+     * @example $response = $response->withHeaders(['Cache-Control' => 'no-store']);
+     */
+    public function withHeaders(array $headers): self
+    {
+        $new = clone $this;
+        foreach ($headers as $name => $value) {
+            $new->headers[strtolower($name)] = $value;
+        }
 
         return $new;
     }

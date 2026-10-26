@@ -3,165 +3,279 @@
 /**
  * Route.php
  *
- * Representa una ruta individual en el framework BootZen, asociando método HTTP, path, handler y middlewares.
- * Permite la definición, consulta y manipulación de rutas, soportando middlewares y parámetros dinámicos.
- * Implementa el patrón Route y es utilizada por el router principal del framework.
+ * Define una ruta HTTP: métodos, patrón, handler, middleware, nombre y restricciones de parámetros.
+ * El patrón se compila a una expresión regular una sola vez, la primera vez que se necesita.
+ *
+ * Sintaxis de parámetros:
+ * - `{id}`: cualquier segmento sin barra.
+ * - `{id:\d+}`: segmento que cumple la expresión regular indicada.
  *
  * @package    BootZen\Core
  * @author     Arturo Lopez <lgzarturo@gmail.com>
  * @copyright  2025 BootZen
  * @license    MIT
- * @version    1.1.0
  * @since      1.0.0
- *
  */
 
 declare(strict_types=1);
 
 namespace BootZen\Core;
 
+use InvalidArgumentException;
+
 /**
- * Clase Route
+ * Ruta registrada en el Router.
  *
- * Encapsula la información de una ruta HTTP, incluyendo método, path, handler, middlewares y parámetros.
- * Permite la integración de middlewares y la gestión de parámetros dinámicos en el framework BootZen.
- *
- * Consideraciones de seguridad: permite asociar middlewares de autenticación, autorización y validación.
- * Consideraciones de rendimiento: soporta rutas inmutables y cacheables para optimizar el enrutamiento.
- *
+ * @example $router->get('/tareas/{id:\d+}', [TareaController::class, 'show'])->name('tareas.show');
  */
 class Route
 {
     /**
-     * Método HTTP de la ruta (GET, POST, etc.)
-     *
-     * @var string
+     * Captura {nombre} y {nombre:regex}; la regex puede incluir cuantificadores como \d{4}.
      */
-    private string $method;
+    private const PLACEHOLDER = '/\{([A-Za-z_][A-Za-z0-9_]*)(?::((?:[^{}]|\{[^{}]*\})+))?\}/';
 
     /**
-     * Path o patrón de la ruta
+     * Métodos HTTP aceptados (en mayúsculas).
      *
-     * @var string
+     * @var list<string>
      */
-    private string $path;
+    private array $methods;
+
+    private ?string $name = null;
 
     /**
-     * Handler asociado a la ruta (callable, controlador, etc.)
+     * Restricciones regex por parámetro.
      *
-     * @var mixed
+     * @var array<string, string>
      */
-    private mixed $handler;
+    private array $constraints = [];
 
     /**
-     * Middlewares asociados a la ruta
-     *
-     * @var array<int, string|MiddlewareInterface>
+     * Expresión regular compilada (null hasta el primer uso).
      */
-    private array $middleware;
+    private ?string $regex = null;
 
     /**
-     * Parámetros dinámicos extraídos del path
-     *
-     * @var array<string, mixed>
+     * @param list<string> $methods Métodos HTTP
+     * @param string $path Patrón de la ruta, normalizado por el Router
+     * @param mixed $handler Closure, [Clase::class, 'metodo'] o clase invocable
+     * @param list<string|MiddlewareInterface> $middleware Middleware de la ruta
+     * @param string $namePrefix Prefijo de nombre heredado de los grupos ('as')
      */
-    private array $parameters = [];
-
-    /**
-     * Constructor de Route
-     *
-     * @param string $method Método HTTP
-     * @param string $path Path o patrón de la ruta
-     * @param mixed $handler Handler asociado (callable, controlador, etc.)
-     * @param array<int, string|MiddlewareInterface> $middleware Middlewares asociados
-     * @example $route = new Route('GET', '/user/{id}', 'UserController@show');
-     */
-    public function __construct(string $method, string $path, mixed $handler, array $middleware = [])
-    {
-        $this->method = $method;
-        $this->path = $path;
-        $this->handler = $handler;
-        $this->middleware = $middleware;
+    public function __construct(
+        array $methods,
+        private readonly string $path,
+        private readonly mixed $handler,
+        private array $middleware = [],
+        private readonly string $namePrefix = ''
+    ) {
+        $this->methods = array_values(array_unique(array_map('strtoupper', $methods)));
     }
 
     /**
-     * Obtiene el método HTTP de la ruta
+     * Métodos HTTP aceptados.
      *
-     * @return string Método HTTP
+     * @return list<string>
      */
-    public function getMethod(): string
+    public function getMethods(): array
     {
-        return $this->method;
+        return $this->methods;
     }
 
     /**
-     * Obtiene el path o patrón de la ruta
-     *
-     * @return string Path de la ruta
+     * Indica si la ruta acepta el método. HEAD se atiende con las rutas GET.
      */
+    public function allowsMethod(string $method): bool
+    {
+        $method = strtoupper($method);
+
+        return in_array($method, $this->methods, true)
+            || ($method === 'HEAD' && in_array('GET', $this->methods, true));
+    }
+
     public function getPath(): string
     {
         return $this->path;
     }
 
-    /**
-     * Obtiene el handler asociado a la ruta
-     *
-     * @return mixed Handler (callable, controlador, etc.)
-     */
     public function getHandler(): mixed
     {
         return $this->handler;
     }
 
     /**
-     * Obtiene los middlewares asociados a la ruta
-     *
-     * @return array<int, string|MiddlewareInterface> Array de middlewares
+     * @return list<string|MiddlewareInterface>
      */
     public function getMiddleware(): array
     {
         return $this->middleware;
     }
 
-    /**
-     * Obtiene los parámetros dinámicos de la ruta
-     *
-     * @return array<string, mixed> Parámetros extraídos
-     */
-    public function getParameters(): array
+    public function getName(): ?string
     {
-        return $this->parameters;
+        return $this->name;
     }
 
     /**
-     * Asigna los parámetros dinámicos de la ruta
-     *
-     * @param array<string, mixed> $parameters Parámetros a asignar
-     * @return void
-     * @example $route->setParameters(['id' => 5]);
+     * Asigna el nombre de la ruta (se le antepone el prefijo 'as' de los grupos).
      */
-    public function setParameters(array $parameters): void
+    public function name(string $name): self
     {
-        $this->parameters = $parameters;
-    }
-
-    /**
-     * Añade uno o varios middlewares a la ruta
-     *
-     * @param string|array<int, string|MiddlewareInterface> $middleware Middleware(s) a añadir
-     * @return self Instancia modificada
-     * @example $route->middleware('auth');
-     * @example $route->middleware(['auth', 'log']);
-     */
-    public function middleware(string|array $middleware): self
-    {
-        if (is_string($middleware)) {
-            $middleware = [$middleware];
-        }
-
-        $this->middleware = array_merge($this->middleware, $middleware);
+        $this->name = $this->namePrefix . $name;
 
         return $this;
+    }
+
+    /**
+     * Agrega middleware a la ruta (clase, alias o grupo).
+     *
+     * @param string|MiddlewareInterface|list<string|MiddlewareInterface> $middleware
+     */
+    public function middleware(string|MiddlewareInterface|array $middleware): self
+    {
+        $this->middleware = array_merge($this->middleware, is_array($middleware) ? $middleware : [$middleware]);
+
+        return $this;
+    }
+
+    /**
+     * Restringe uno o varios parámetros con expresiones regulares.
+     *
+     * @param string|array<string, string> $parameter Nombre del parámetro o mapa nombre => regex
+     * @param string|null $pattern Regex sin delimitadores, si $parameter es un nombre
+     * @example $route->where('id', '\d+');
+     * @example $route->where(['anio' => '\d{4}', 'slug' => '[a-z0-9-]+']);
+     */
+    public function where(string|array $parameter, ?string $pattern = null): self
+    {
+        $constraints = is_array($parameter) ? $parameter : [$parameter => (string) $pattern];
+
+        foreach ($constraints as $name => $regex) {
+            $this->constraints[$name] = $regex;
+        }
+
+        $this->regex = null;
+
+        return $this;
+    }
+
+    /**
+     * Nombres de los parámetros del patrón, en orden.
+     *
+     * @return list<string>
+     */
+    public function getParameterNames(): array
+    {
+        preg_match_all(self::PLACEHOLDER, $this->path, $matches);
+
+        return $matches[1];
+    }
+
+    /**
+     * Compara la ruta con un path y devuelve sus parámetros, o null si no coincide.
+     *
+     * @param string $path Path normalizado de la petición
+     * @return array<string, string>|null
+     * @throws InvalidArgumentException Si alguna restricción no es una regex válida
+     */
+    public function matches(string $path): ?array
+    {
+        set_error_handler(static fn (): bool => true);
+
+        try {
+            $result = preg_match($this->compile(), $path, $matches);
+        } finally {
+            restore_error_handler();
+        }
+
+        if ($result === false) {
+            throw new InvalidArgumentException("Patrón inválido en la ruta [{$this->path}]: revisa sus restricciones.");
+        }
+
+        if ($result !== 1) {
+            return null;
+        }
+
+        $parameters = [];
+        foreach ($matches as $key => $value) {
+            if (is_string($key)) {
+                $parameters[$key] = rawurldecode($value);
+            }
+        }
+
+        return $parameters;
+    }
+
+    /**
+     * Genera el path de la ruta con los parámetros dados. Los sobrantes se agregan como query string.
+     *
+     * @param array<string, string|int|float|bool|\Stringable> $parameters
+     * @throws InvalidArgumentException Si falta un parámetro o no cumple su restricción
+     */
+    public function url(array $parameters = []): string
+    {
+        $path = (string) preg_replace_callback(
+            self::PLACEHOLDER,
+            function (array $match) use (&$parameters): string {
+                $name = $match[1];
+
+                if (! array_key_exists($name, $parameters)) {
+                    throw new InvalidArgumentException(
+                        "Falta el parámetro [{$name}] para generar la URL de la ruta [{$this->describe()}]."
+                    );
+                }
+
+                $value = $parameters[$name];
+                $value = is_bool($value) ? ($value ? '1' : '0') : (string) $value;
+                unset($parameters[$name]);
+
+                $constraint = $this->constraints[$name] ?? ($match[2] ?? '[^/]+');
+                if (preg_match('#^(?:' . $constraint . ')$#u', $value) !== 1) {
+                    throw new InvalidArgumentException(
+                        "El valor [{$value}] no cumple la restricción del parámetro [{$name}] en [{$this->describe()}]."
+                    );
+                }
+
+                return rawurlencode($value);
+            },
+            $this->path
+        );
+
+        return $parameters === [] ? $path : $path . '?' . http_build_query($parameters);
+    }
+
+    /**
+     * Compila el patrón a regex con grupos nombrados.
+     */
+    private function compile(): string
+    {
+        if ($this->regex !== null) {
+            return $this->regex;
+        }
+
+        preg_match_all(self::PLACEHOLDER, $this->path, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
+
+        $regex = '';
+        $offset = 0;
+
+        foreach ($matches as $match) {
+            [$placeholder, $position] = $match[0];
+            $name = $match[1][0];
+            $inline = isset($match[2]) && $match[2][1] !== -1 ? $match[2][0] : '[^/]+';
+
+            $regex .= preg_quote(substr($this->path, $offset, $position - $offset), '#');
+            $regex .= '(?P<' . $name . '>' . ($this->constraints[$name] ?? $inline) . ')';
+            $offset = $position + strlen($placeholder);
+        }
+
+        $regex .= preg_quote(substr($this->path, $offset), '#');
+
+        return $this->regex = '#^' . $regex . '$#u';
+    }
+
+    private function describe(): string
+    {
+        return $this->name ?? $this->path;
     }
 }
