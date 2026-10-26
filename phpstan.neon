@@ -7,6 +7,7 @@ parameters:
         - framework
         - skeleton/app
         - skeleton/bootstrap
+        - skeleton/config
         - skeleton/routes
         - bin/bootzen-new
     bootstrapFiles:

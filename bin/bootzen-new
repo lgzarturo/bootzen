@@ -20,7 +20,7 @@
 
 declare(strict_types=1);
 
-const BOOTZEN_PLACEHOLDER_EXTENSIONS = ['php', 'json', 'md', 'neon', 'xml'];
+const BOOTZEN_PLACEHOLDER_EXTENSIONS = ['php', 'json', 'md', 'neon', 'xml', 'example'];
 
 /**
  * Escribe un mensaje de error y termina con código 1.
@@ -131,6 +131,14 @@ bootzenReplacePlaceholders($target, [
     '__APP_NAME__' => $name,
     '__APP_SLUG__' => trim($slug, '-'),
 ]);
+
+// .env local con una APP_KEY aleatoria (el archivo está en .gitignore)
+$envExample = $target . '/.env.example';
+if (is_file($envExample)) {
+    $key = 'base64:' . base64_encode(random_bytes(32));
+    $env = (string) preg_replace('/^APP_KEY=.*$/m', 'APP_KEY=' . $key, (string) file_get_contents($envExample));
+    file_put_contents($target . '/.env', $env);
+}
 
 if ($withGit && shell_exec('git --version 2>&1') !== null) {
     exec('git -C ' . escapeshellarg($target) . ' init -q 2>&1', $output, $status);

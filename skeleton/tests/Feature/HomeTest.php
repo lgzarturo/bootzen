@@ -18,8 +18,16 @@ it('responde al health check', function (): void {
         ->and(json_decode($response->getBody(), true))->toBe(['status' => 'ok']);
 });
 
-it('responde 404 en rutas desconocidas', function (): void {
+it('genera las URLs de las rutas con nombre', function (): void {
+    createApp();
+
+    expect(route('home'))->toBe('/')
+        ->and(route('up'))->toBe('/up');
+});
+
+it('muestra la página 404 de la aplicación', function (): void {
     $response = createApp()->run(new Request('GET', '/no-existe'));
 
-    expect($response->getStatusCode())->toBe(404);
+    expect($response->getStatusCode())->toBe(404)
+        ->and($response->getBody())->toContain('Página no encontrada');
 });
