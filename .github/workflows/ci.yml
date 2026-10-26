@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  framework:
+    name: Framework (PHP ${{ matrix.php }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ["8.2", "8.3", "8.4"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring, fileinfo, pdo_sqlite
+          coverage: none
+
+      - name: Instalar dependencias de desarrollo
+        run: composer install --no-interaction --no-progress
+
+      - name: Formato, PHPStan y tests
+        run: composer check
+
+  skeleton:
+    name: Proyecto generado (PHP 8.2)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: mbstring, fileinfo, pdo_sqlite
+          coverage: none
+
+      - name: Crear proyecto con bin/bootzen-new
+        run: |
+          mkdir -p "$RUNNER_TEMP/apps"
+          cd "$RUNNER_TEMP/apps"
+          php "$GITHUB_WORKSPACE/bin/bootzen-new" demo --no-git
+
+      - name: Responde sin Composer en runtime
+        working-directory: ${{ runner.temp }}/apps/demo
+        run: |
+          test ! -d vendor
+          php -S 127.0.0.1:8000 -t public > /dev/null 2>&1 &
+          sleep 1
+          curl -fsS http://127.0.0.1:8000/ | grep -q "Hola"
+          curl -fsS http://127.0.0.1:8000/up | grep -q '"ok"'
+
+      - name: composer check del proyecto generado
+        working-directory: ${{ runner.temp }}/apps/demo
+        run: |
+          composer install --no-interaction --no-progress
+          composer check

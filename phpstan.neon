@@ -1,0 +1,13 @@
+includes:
+    - vendor/phpstan/phpstan/conf/bleedingEdge.neon
+
+parameters:
+    level: 8
+    paths:
+        - framework
+        - skeleton/app
+        - skeleton/bootstrap
+        - skeleton/routes
+        - bin/bootzen-new
+    bootstrapFiles:
+        - framework/bootstrap.php

@@ -1,0 +1,40 @@
+{
+    "name": "lgzarturo/bootzen",
+    "description": "BootZen: boilerplate PHP para MVPs monolíticos con SQLite, Tailwind y componentes",
+    "type": "project",
+    "license": "MIT",
+    "require": {
+        "php": ">=8.2"
+    },
+    "require-dev": {
+        "friendsofphp/php-cs-fixer": "^3.64",
+        "pestphp/pest": "^3.8",
+        "phpstan/phpstan": "^2.1"
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "BootZen\\": "framework/src/",
+            "Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "pest",
+        "lint": "phpstan analyse --memory-limit=512M",
+        "format": "php-cs-fixer fix",
+        "format:check": "php-cs-fixer fix --dry-run --diff",
+        "check": [
+            "@format:check",
+            "@lint",
+            "@test"
+        ]
+    },
+    "config": {
+        "platform": {
+            "php": "8.2.0"
+        },
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    }
+}
