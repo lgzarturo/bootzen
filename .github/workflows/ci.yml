@@ -84,13 +84,39 @@ jobs:
           composer install --no-interaction --no-progress
           composer check
 
+      - name: Crear proyecto con --auth
+        run: |
+          cd "$RUNNER_TEMP/apps"
+          php "$GITHUB_WORKSPACE/bin/bootzen-new" demo-auth --auth --no-git
+
+      - name: composer check del proyecto con --auth
+        working-directory: ${{ runner.temp }}/apps/demo-auth
+        run: |
+          composer install --no-interaction --no-progress
+          composer check
+
+      - name: Registro e inicio de sesión por HTTP con sesiones en archivos
+        working-directory: ${{ runner.temp }}/apps/demo-auth
+        run: |
+          php bin/bootzen migrate
+          php -S 127.0.0.1:8001 -t public > /dev/null 2>&1 &
+          sleep 1
+          token=$(curl -fsS -c jar -b jar http://127.0.0.1:8001/registro | grep -o 'name="_token" value="[a-f0-9]*"' | head -1 | sed 's/.*value="//;s/"//')
+          test -n "$token"
+          # Sin token CSRF la respuesta es 419
+          test "$(curl -sS -o /dev/null -w '%{http_code}' -c jar -b jar -d 'nombre=Ana' http://127.0.0.1:8001/registro)" = "419"
+          curl -fsS -o /dev/null -w '%{redirect_url}' -c jar -b jar --data-urlencode "_token=$token" \
+            -d 'nombre=Ana&email=ana@ejemplo.com&password=secreto-largo&password_confirmation=secreto-largo' \
+            http://127.0.0.1:8001/registro | grep -q '/panel'
+          curl -fsS -c jar -b jar http://127.0.0.1:8001/panel | grep -q 'Hola, Ana'
+
       - name: Tailwind standalone y CSS del skeleton al día
-        working-directory: ${{ runner.temp }}/apps/demo
+        working-directory: ${{ runner.temp }}/apps/demo-auth
         run: |
           php bin/bootzen css:build
-          # El CSS versionado en skeleton/ debe coincidir con lo que genera Tailwind desde sus vistas
+          # El CSS versionado en skeleton/ se genera desde un proyecto con --auth, así cubre también esas vistas
           cmp public/assets/app.css "$GITHUB_WORKSPACE/skeleton/public/assets/app.css" || {
-            echo "skeleton/public/assets/app.css está desactualizado: regenéralo con php bin/bootzen css:build";
+            echo "skeleton/public/assets/app.css está desactualizado: regenéralo con php bin/bootzen css:build en un proyecto creado con --auth";
             exit 1;
           }
           php bin/bootzen view:cache
