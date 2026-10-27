@@ -1,0 +1,17 @@
+# BootZen
+
+> Boilerplate para MVPs monolíticos en PHP 8.2+ (SQLite, Tailwind CSS v4, JavaScript nativo y vistas con componentes <x-*>), pensado para trabajar con IA generativa. El framework se copia como código fuente en cada proyecto; sin dependencias de Composer en producción.
+
+## Repositorio
+
+- [AGENTS.md](AGENTS.md): estructura del repo, comandos, CI, release y convenciones para contribuir.
+- [Arquitectura](docs/ARQUITECTURA.md): componentes del framework.
+- [Plan](plan/04_PLAN-MVP-MONOLITO.md) y [seguimiento](plan/03_SEGUIMIENTO.md).
+- [CHANGELOG](CHANGELOG.md)
+
+## Lo que recibe cada proyecto
+
+- [Guía para agentes del proyecto](skeleton/AGENTS.md)
+- [Referencia de la API](skeleton/docs/ai/reference.md) (generada con `bin/bootzen-reference`)
+- [Recetas](skeleton/docs/ai/recipes/README.md)
+- [Skills](skeleton/.claude/skills/)
