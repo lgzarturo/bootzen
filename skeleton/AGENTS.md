@@ -30,7 +30,11 @@ aplicación monolítica construida con BootZen.
 | `public/assets/js/`        | JS nativo: `app.js`, `components/*.js` y `bootzen.js` (runtime) |
 | `bin/bootzen`              | CLI del proyecto                                              |
 | `storage/`                 | Logs (`storage/logs`) y cachés (escribible, fuera de git)     |
-| `database/`                | Base de datos SQLite local (fuera de git)                     |
+| `app/Models/`              | Modelos (`App\Models`), uno por tabla                         |
+| `config/database.php`      | Conexión: SQLite por defecto, MySQL opcional                  |
+| `database/migrations/`     | Migraciones con SQL directo, en orden de nombre de archivo    |
+| `database/seeds/`          | Datos de ejemplo: `DatabaseSeeder.php` y los que llame        |
+| `database/app.sqlite`      | Base SQLite local (fuera de git)                              |
 | `tests/`                   | Tests con Pest (`Feature/` y `Unit/`)                         |
 | `framework/`               | BootZen. **No editar**: se actualiza desde el repo oficial    |
 
@@ -41,6 +45,12 @@ php bin/bootzen serve             # servidor + Tailwind en modo watch (http://12
 php bin/bootzen css:build         # compila el CSS (necesario antes de desplegar)
 php bin/bootzen view:cache        # precompila las vistas (producción)
 php bin/bootzen view:clear        # borra las vistas compiladas
+php bin/bootzen migrate           # ejecuta las migraciones pendientes
+php bin/bootzen migrate:status    # qué migraciones corrieron
+php bin/bootzen migrate:rollback  # revierte el último lote (--step=N)
+php bin/bootzen db:seed           # datos de ejemplo (--class=Nombre)
+php bin/bootzen db:fresh --seed   # borra todo, migra y siembra (--force en producción)
+php bin/bootzen db:backup         # copia consistente de SQLite en storage/backups
 composer install                  # solo la primera vez, instala herramientas de dev
 composer check                    # formato + PHPStan + tests. Debe pasar siempre
 composer format                   # corrige el formato
@@ -207,6 +217,113 @@ export default function contador(element, { inicio = 0 }) {
   `data-dismissible`.
 - Nada de `<script>` con lógica dentro de las vistas: va en un componente.
 
+### Base de datos
+
+**Migraciones.** Un archivo por cambio en `database/migrations/`, con nombre
+`AAAA_MM_DD_HHMMSS_descripcion.php` (el orden de ejecución es el del nombre).
+Retornan una clase anónima con **SQL directo**:
+
+```php
+<?php
+
+declare(strict_types=1);
+
+use BootZen\Database\Connection;
+use BootZen\Database\Migration;
+
+return new class () extends Migration {
+    public function up(Connection $db): void
+    {
+        $db->exec(<<<'SQL'
+            CREATE TABLE tareas (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                proyecto_id INTEGER REFERENCES proyectos(id) ON DELETE CASCADE,
+                titulo TEXT NOT NULL,
+                hecha INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT,
+                updated_at TEXT
+            )
+            SQL);
+    }
+
+    public function down(Connection $db): void
+    {
+        $db->exec('DROP TABLE tareas');
+    }
+};
+```
+
+- Nunca edites una migración que ya corrió: crea otra nueva.
+- Las tablas de modelos con timestamps llevan `created_at` y `updated_at`.
+- SQL de SQLite por defecto (`INTEGER PRIMARY KEY AUTOINCREMENT`, `TEXT`). Si
+  `DB_CONNECTION=mysql`, escribe SQL de MySQL (`INT AUTO_INCREMENT PRIMARY KEY`).
+
+**Modelos.** Uno por tabla en `app/Models/`, con `@property` para que PHPStan
+conozca las columnas:
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Models;
+
+use BootZen\Database\Model;
+use BootZen\Database\ModelQuery;
+
+/**
+ * @property int $id
+ * @property int|null $proyecto_id
+ * @property string $titulo
+ * @property bool $hecha
+ * @property \DateTimeImmutable|null $created_at
+ */
+final class Tarea extends Model
+{
+    protected static string $table = 'tareas';          // obligatoria
+    protected static array $fillable = ['titulo', 'hecha', 'proyecto_id'];
+    protected static array $casts = ['hecha' => 'bool'];  // int, float, bool, string, array, datetime, date
+    protected static array $hidden = [];                  // columnas que no salen en JSON
+
+    public function proyecto(): ?Proyecto
+    {
+        return $this->belongsTo(Proyecto::class);         // usa proyecto_id
+    }
+}
+```
+
+```php
+$tarea = Tarea::create($request->only(['titulo']));   // solo asigna $fillable
+$tarea = Tarea::findOrFail($id);                       // 404 automático si no existe
+$tarea->update(['hecha' => true]);
+$tarea->delete();
+$pendientes = Tarea::where('hecha', false)->latest()->get();
+$tareas = Tarea::query()->orderBy('titulo')->paginate(15, $request->integer('page', 1));
+$proyecto->tareas()->count();                          // hasMany(Tarea::class) en Proyecto
+```
+
+- En vistas, `<x-pagination :paginator="$tareas" />` dibuja los enlaces.
+- Devolver un modelo o un paginador desde un controlador responde JSON.
+- No hay carga anticipada de relaciones: en listados grandes, evita llamar
+  una relación por cada fila; usa `whereIn` con los ids o un `join`.
+
+**Query builder.** Para consultas que no son de un modelo:
+
+```php
+db()->table('tareas')->select('id', 'titulo')->where('hecha', false)->orderBy('id', 'desc')->limit(10)->get();
+db()->table('tareas')->join('proyectos', 'proyectos.id', '=', 'tareas.proyecto_id')->count();
+db()->table('tareas')->whereRaw('lower(titulo) like ?', ['%pan%'])->get();
+db()->transaction(function ($db): void { /* varias escrituras */ });
+```
+
+- Los valores siempre van como parámetros; para expresiones usa `selectRaw`
+  y `whereRaw` con `?`.
+- `update()` y `delete()` sin `where` fallan a propósito.
+
+**Seeders.** `database/seeds/DatabaseSeeder.php` retorna una clase anónima
+que extiende `BootZen\Database\Seeder`; `$this->call('Otro')` ejecuta
+`database/seeds/Otro.php`.
+
 ### Request
 
 ```php
@@ -283,7 +400,9 @@ Ya existen el alias `cors` y el grupo `api`.
 
 ### Tests
 
-Cada funcionalidad nueva lleva al menos un test de feature:
+Cada funcionalidad nueva lleva al menos un test de feature. `createApp()`
+usa una base SQLite en memoria con todas las migraciones aplicadas, vacía en
+cada llamada:
 
 ```php
 it('lista las tareas', function (): void {
@@ -295,7 +414,8 @@ it('lista las tareas', function (): void {
 it('crea una tarea', function (): void {
     $response = createApp()->run(new Request('POST', '/tareas', [], ['titulo' => 'Comprar pan']));
 
-    expect($response->getStatusCode())->toBe(302);
+    expect($response->getStatusCode())->toBe(302)
+        ->and(Tarea::where('titulo', 'Comprar pan')->exists())->toBeTrue();
 });
 ```
 
@@ -312,7 +432,15 @@ it('crea una tarea', function (): void {
   `withHeaders`, `withCookie`, `withStatus`.
 - **Vistas**: `view()`, `class_list()`; en componentes `$attributes` con
   `merge`, `class`, `only`, `except`, `has`, `get`.
-- **Helpers**: `config()`, `env()`, `route()`, `url()`, `asset()`, `app()`,
+- **Model**: `query`, `all`, `find`, `findOrFail`, `where`, `create`, `fill`,
+  `save`, `update`, `delete`, `refresh`, `toArray`, `getKey`, `isDirty`,
+  `hasMany`, `belongsTo`.
+- **Consultas** (QueryBuilder y ModelQuery): `select`, `selectRaw`, `where`,
+  `orWhere`, `whereIn`, `whereNotIn`, `whereNull`, `whereNotNull`, `whereRaw`,
+  `join`, `leftJoin`, `orderBy`, `latest`, `limit`, `offset`, `get`, `first`,
+  `firstOrFail`, `find`, `value`, `pluck`, `count`, `exists`, `paginate`,
+  `insert`, `update`, `delete`.
+- **Helpers**: `db()`, `config()`, `env()`, `route()`, `url()`, `asset()`, `app()`,
   `logger()`, `cache()`, `base_path()`, `public_path()`, `storage_path()`,
   `e()`, `redirect()`, `abort()`, `json_response()`, `download()`,
   `csrf_token()`, `csrf_field()`, `validate_csrf_token()`, `old()`,
@@ -324,10 +452,11 @@ BootZen está en desarrollo hacia la v2.0. Estas piezas llegan en fases
 posteriores; **no las inventes ni instales librerías para suplirlas** sin
 preguntar:
 
-- Base de datos (Connection, QueryBuilder, Model, migraciones).
 - Sesiones, mensajes flash, validación y autenticación (`@error` y `<x-input>`
   ya muestran errores, pero nada los llena todavía).
-- Comandos de `bin/bootzen` para generadores, migraciones y `config:cache`.
+- Generadores en `bin/bootzen` (`make:model`, `make:migration`, `make:resource`)
+  y `config:cache`: por ahora los archivos se crean a mano siguiendo esta guía.
+- Factories de datos falsos para tests.
 
 ## Reglas
 
@@ -336,6 +465,7 @@ preguntar:
 - No pongas HTML dentro de controladores: va en `resources/views/` con `view()`.
 - Imprime con `{{ }}` (escapa); `{!! !!}` solo para HTML que tú generaste.
 - No edites `public/assets/app.css` ni `public/assets/js/bootzen.js`.
-- Nunca concatenes datos del usuario en SQL.
+- Nunca concatenes datos del usuario en SQL: usa parámetros (`?`).
+- No uses PDO directo: `db()`, el query builder o los modelos.
 - Nada de `exit` ni `die`: retorna un `Response` o usa `abort()`.
 - No leas `env()` fuera de `config/`.

@@ -10,6 +10,7 @@ Aplicación construida con [BootZen](https://github.com/lgzarturo/bootzen).
 ## Desarrollo
 
 ```bash
+php bin/bootzen migrate           # crea database/app.sqlite y aplica las migraciones
 php bin/bootzen serve             # servidor + Tailwind en modo watch: http://127.0.0.1:8000
 composer install                  # herramientas de desarrollo (tests, PHPStan, formato)
 composer check                    # formato, PHPStan y tests
@@ -24,6 +25,7 @@ con el CSS ya compilado.
 ## Despliegue
 
 Antes de subir: `php bin/bootzen css:build` y `php bin/bootzen view:cache`.
+En el servidor, después de cada despliegue: `php bin/bootzen migrate`.
 La aplicación no necesita `vendor/` en producción. Sube el proyecto y apunta
 el document root del servidor a `public/`. Asegúrate de que `storage/` y
 `database/` tengan permisos de escritura.

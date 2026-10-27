@@ -385,6 +385,25 @@ if (! function_exists('class_list')) {
     }
 }
 
+if (! function_exists('db')) {
+    /**
+     * Conexión a la base de datos de la aplicación.
+     *
+     * @example db()->table('tareas')->where('hecha', false)->get();
+     * @example db()->transaction(fn ($db) => ...);
+     */
+    function db(): \BootZen\Database\Connection
+    {
+        $connection = Application::getInstance()->make(\BootZen\Database\Connection::class);
+
+        if (! $connection instanceof \BootZen\Database\Connection) {
+            throw new \LogicException('El servicio Connection debe ser una instancia de ' . \BootZen\Database\Connection::class . '.');
+        }
+
+        return $connection;
+    }
+}
+
 if (! function_exists('cache')) {
     /**
      * Devuelve la caché de archivos de la aplicación.

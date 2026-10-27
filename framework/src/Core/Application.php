@@ -23,6 +23,10 @@ declare(strict_types=1);
 
 namespace BootZen\Core;
 
+use BootZen\Database\Connection;
+use BootZen\Database\Migrator;
+use BootZen\Database\Model;
+use BootZen\Database\SeederRunner;
 use BootZen\View\View;
 use ErrorException;
 use LogicException;
@@ -32,7 +36,8 @@ use Throwable;
  * Clase principal de la aplicación BootZen.
  *
  * Al construirse carga .env y config/, ajusta la zona horaria y registra en el contenedor:
- * Application, Container, Router, Pipeline, Config, Logger, Cache, View y ExceptionHandler.
+ * Application, Container, Router, Pipeline, Config, Logger, Cache, View, ExceptionHandler, Connection
+ * (perezosa), Migrator y SeederRunner.
  *
  * @example
  *   $app = new Application(dirname(__DIR__));
@@ -269,6 +274,22 @@ class Application
         $this->container->instance(Pipeline::class, $this->router->getPipeline());
         $this->container->instance(Config::class, $this->config);
 
+        $this->container->singleton(Connection::class, fn (): Connection => Connection::fromConfig(
+            $this->databaseConfig(),
+            $this->basePath
+        ));
+        $this->container->bind(Migrator::class, fn (Container $container): Migrator => new Migrator(
+            $this->connectionFrom($container),
+            $this->basePath('database/migrations')
+        ));
+        $this->container->bind(SeederRunner::class, fn (Container $container): SeederRunner => new SeederRunner(
+            $this->connectionFrom($container),
+            $this->basePath('database/seeds')
+        ));
+
+        // Los modelos piden la conexión solo cuando se usan: sin consultas no se abre la base de datos
+        Model::setConnectionResolver(fn (): Connection => $this->connectionFrom($this->container));
+
         $this->container->singleton(Logger::class, fn (): Logger => new Logger(
             $this->basePath('storage/logs'),
             (string) $this->config->get('app.log_level', 'debug')
@@ -287,6 +308,39 @@ class Application
             $container->make(View::class),
             $this->isDebug()
         ));
+    }
+
+    /**
+     * Configuración de la conexión por defecto (config/database.php). Sin archivo, SQLite en database/app.sqlite.
+     *
+     * @return array<string, mixed>
+     * @throws LogicException Si la conexión por defecto no está definida
+     */
+    private function databaseConfig(): array
+    {
+        $default = $this->config->get('database.default', 'sqlite');
+        $connections = $this->config->get('database.connections', [
+            'sqlite' => ['driver' => 'sqlite', 'database' => 'database/app.sqlite'],
+        ]);
+        $config = is_array($connections) && is_string($default) ? ($connections[$default] ?? null) : null;
+
+        if (! is_array($config)) {
+            throw new LogicException('La conexión [' . (is_string($default) ? $default : '?') . '] no está definida en config/database.php.');
+        }
+
+        /** @var array<string, mixed> $config */
+        return $config;
+    }
+
+    private function connectionFrom(Container $container): Connection
+    {
+        $connection = $container->make(Connection::class);
+
+        if (! $connection instanceof Connection) {
+            throw new LogicException('El servicio Connection debe ser una instancia de ' . Connection::class . '.');
+        }
+
+        return $connection;
     }
 
     private function exceptionHandler(): ExceptionHandler
