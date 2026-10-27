@@ -140,6 +140,7 @@ it('pide editar las rutas a mano si routes/web.php no tiene la forma esperada', 
 it('genera controlador, modelo, migración, middleware, seeder, test y componentes', function (): void {
     $files = [
         ...$this->generator->controller('factura'),
+        ...$this->generator->controller('ClienteJson', true),
         ...$this->generator->model('Cliente', 'clientes', true),
         ...$this->generator->migration('agregar_telefono_a_clientes'),
         ...$this->generator->migration('create_pagos_table'),
@@ -173,7 +174,10 @@ it('genera controlador, modelo, migración, middleware, seeder, test y component
     expect($migrations)->toHaveCount(3)
         ->and(implode(' ', $migrations))->toContain('crear_clientes')->toContain('agregar_telefono_a_clientes')->toContain('create_pagos_table')
         ->and(($this->read)('app/View/Components/Forms/Select.php'))->toContain('namespace App\View\Components\Forms;')
-        ->and(($this->read)('app/Controllers/FacturaController.php'))->toContain("return view('factura.index');");
+        ->and(($this->read)('app/Controllers/FacturaController.php'))->toContain("return view('factura.index');")
+        ->and(($this->read)('app/Controllers/ClienteJsonController.php'))->toContain('public function index(Request $request): array')
+        ->and($this->project . '/resources/views/cliente-json')->not->toBeDirectory()
+        ->and(($this->read)('resources/views/components/modal.php'))->toContain("@props(['title' => null])");
 
     // Los nombres tienen prefijos distintos y en orden aunque se creen en el mismo segundo
     expect(count(array_unique(array_map(static fn (string $file): string => substr($file, 0, 17), $migrations))))->toBe(3);

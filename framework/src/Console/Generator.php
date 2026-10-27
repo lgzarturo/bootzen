@@ -43,15 +43,22 @@ final class Generator
     }
 
     /**
-     * Controlador con un método index y su vista.
+     * Controlador con un método index y su vista; con $json, sin vista y respondiendo JSON.
      *
      * @return list<string>
      */
-    public function controller(string $name): array
+    public function controller(string $name, bool $json = false): array
     {
         $class = self::className($name, 'Controller');
         $base = substr($class, 0, -strlen('Controller'));
         $view = Str::kebab($base !== '' ? $base : $class);
+
+        if ($json) {
+            return [$this->write("app/Controllers/{$class}.php", $this->render('controller.json', [
+                'Class' => $class,
+                'Description' => "Controlador {$class}.",
+            ]))];
+        }
 
         return [
             $this->write("app/Controllers/{$class}.php", $this->render('controller', [

@@ -52,7 +52,7 @@ final class Console
         'db:fresh' => 'Borra todas las tablas y migra de nuevo (--seed, --force en producción)',
         'db:backup' => 'Copia consistente de la base SQLite en storage/backups',
         'make:resource' => 'CRUD completo: make:resource Task title:string done:bool (--table=nombre)',
-        'make:controller' => 'Controlador con su vista: make:controller Factura',
+        'make:controller' => 'Controlador con su vista: make:controller Factura (--json: sin vista, responde JSON)',
         'make:model' => 'Modelo: make:model Factura (--migration crea su tabla, --table=nombre)',
         'make:migration' => 'Migración: make:migration crear_facturas (trae el CREATE TABLE)',
         'make:middleware' => 'Middleware en app/Middleware',
@@ -128,7 +128,10 @@ final class Console
                     array_slice($arguments, 1),
                     $this->stringOption($options, 'table')
                 ), 'Siguiente: php bin/bootzen migrate y composer check.'),
-                'make:controller' => $this->make(fn (Generator $g): array => $g->controller($this->argument($arguments, 0, 'make:controller Factura'))),
+                'make:controller' => $this->make(fn (Generator $g): array => $g->controller(
+                    $this->argument($arguments, 0, 'make:controller Factura'),
+                    isset($options['json'])
+                )),
                 'make:model' => $this->make(fn (Generator $g): array => $g->model(
                     $this->argument($arguments, 0, 'make:model Factura'),
                     $this->stringOption($options, 'table'),
