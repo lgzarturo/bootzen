@@ -1,0 +1,247 @@
+#!/usr/bin/env php
+<?php
+
+/**
+ * bootzen-reference
+ *
+ * Genera skeleton/docs/ai/reference.md: la API pública de BootZen en formato denso, a partir de las
+ * firmas y los PHPDoc del código. Así la referencia que lee la IA nunca se desincroniza.
+ *
+ * Uso:
+ *   bin/bootzen-reference           # escribe el archivo
+ *   bin/bootzen-reference --check   # termina con 1 si el archivo está desactualizado (CI y tests)
+ *
+ * @package    BootZen
+ * @author     Arturo Lopez <lgzarturo@gmail.com>
+ * @copyright  2025 BootZen
+ * @license    MIT
+ * @since      2.0.0
+ */
+
+declare(strict_types=1);
+
+$repository = dirname(__DIR__);
+require $repository . '/framework/bootstrap.php';
+
+/**
+ * Secciones de la referencia: título => clases. El orden es el de uso habitual en una app.
+ */
+const BOOTZEN_REFERENCE_SECTIONS = [
+    'HTTP' => [
+        BootZen\Core\Request::class,
+        BootZen\Core\Response::class,
+        BootZen\Core\UploadedFile::class,
+        BootZen\Core\Router::class,
+        BootZen\Core\Route::class,
+    ],
+    'Validación' => [
+        BootZen\Validation\Validator::class,
+        BootZen\Validation\ValidationException::class,
+    ],
+    'Base de datos' => [
+        BootZen\Database\Model::class,
+        BootZen\Database\ModelQuery::class,
+        BootZen\Database\QueryBuilder::class,
+        BootZen\Database\Connection::class,
+        BootZen\Database\Paginator::class,
+    ],
+    'Sesión, autenticación y seguridad' => [
+        BootZen\Session\Session::class,
+        BootZen\Auth\Auth::class,
+        BootZen\Auth\Hash::class,
+        BootZen\Auth\PasswordReset::class,
+        BootZen\Security\RateLimiter::class,
+    ],
+    'Vistas, correo, caché y log' => [
+        BootZen\View\ComponentAttributeBag::class,
+        BootZen\View\Component::class,
+        BootZen\Mail\Message::class,
+        BootZen\Mail\ArrayMailer::class,
+        BootZen\Core\Cache::class,
+        BootZen\Core\Logger::class,
+    ],
+    'Tests' => [
+        BootZen\Testing\TestClient::class,
+        BootZen\Testing\TestResponse::class,
+    ],
+];
+
+/**
+ * Primera oración del PHPDoc (sin etiquetas), o '' si no tiene.
+ */
+function bootzenSummary(string|false $doc): string
+{
+    if ($doc === false) {
+        return '';
+    }
+
+    $lines = [];
+    foreach (preg_split('/\R/', $doc) ?: [] as $line) {
+        $line = trim((string) preg_replace('#^\s*(/\*\*|\*/|\*)\s?#', '', $line));
+
+        if (str_starts_with($line, '@')) {
+            break;
+        }
+
+        if ($line === '' && $lines !== []) {
+            break;
+        }
+
+        if ($line !== '') {
+            $lines[] = $line;
+        }
+    }
+
+    return implode(' ', $lines);
+}
+
+function bootzenIsInternal(string|false $doc): bool
+{
+    return $doc !== false && str_contains($doc, '@internal');
+}
+
+function bootzenType(?ReflectionType $type): string
+{
+    if ($type === null) {
+        return 'mixed';
+    }
+
+    $short = static fn (string $name): string => ltrim(substr($name, (int) strrpos('\\' . $name, '\\')), '\\');
+
+    if ($type instanceof ReflectionNamedType) {
+        $name = $type->isBuiltin() ? $type->getName() : $short($type->getName());
+
+        return ($type->allowsNull() && $name !== 'mixed' && $name !== 'null' ? '?' : '') . $name;
+    }
+
+    if ($type instanceof ReflectionUnionType || $type instanceof ReflectionIntersectionType) {
+        $glue = $type instanceof ReflectionUnionType ? '|' : '&';
+
+        return implode($glue, array_map(
+            static fn (ReflectionType $part): string => ltrim(bootzenType($part), '?'),
+            $type->getTypes()
+        ));
+    }
+
+    return (string) $type;
+}
+
+function bootzenParameter(ReflectionParameter $parameter): string
+{
+    $text = bootzenType($parameter->getType()) . ' ' . ($parameter->isVariadic() ? '...' : '') . '$' . $parameter->getName();
+
+    if ($parameter->isDefaultValueAvailable()) {
+        $default = $parameter->isDefaultValueConstant()
+            ? (string) $parameter->getDefaultValueConstantName()
+            : var_export($parameter->getDefaultValue(), true);
+        $text .= ' = ' . match ($default) {
+            'NULL' => 'null',
+            'array (' . "\n" . ')' => '[]',
+            default => str_replace("\n", '', $default),
+        };
+    }
+
+    return $text;
+}
+
+/**
+ * @param ReflectionMethod|ReflectionFunction $function
+ */
+function bootzenSignature(ReflectionFunctionAbstract $function, string $prefix = ''): string
+{
+    $parameters = implode(', ', array_map(bootzenParameter(...), $function->getParameters()));
+    $return = $function->hasReturnType() ? ': ' . bootzenType($function->getReturnType()) : '';
+
+    return $prefix . $function->getName() . '(' . $parameters . ')' . $return;
+}
+
+function bootzenClass(string $class): string
+{
+    $reflection = new ReflectionClass($class);
+    $out = '### ' . $reflection->getShortName() . "\n\n";
+    $summary = bootzenSummary($reflection->getDocComment());
+
+    if ($summary !== '') {
+        $out .= $summary . "\n\n";
+    }
+
+    foreach ($reflection->getMethods(ReflectionMethod::IS_PUBLIC) as $method) {
+        $doc = $method->getDocComment();
+
+        if (str_starts_with($method->getName(), '__') || bootzenIsInternal($doc) || $method->getDeclaringClass()->getName() !== $class) {
+            continue;
+        }
+
+        $line = '- `' . bootzenSignature($method, $method->isStatic() ? '::' : '') . '`';
+        $summary = bootzenSummary($doc);
+        $out .= $line . ($summary === '' ? '' : ': ' . $summary) . "\n";
+    }
+
+    foreach ($reflection->getProperties(ReflectionProperty::IS_PUBLIC) as $property) {
+        if ($property->getDeclaringClass()->getName() === $class) {
+            $out .= '- `$' . $property->getName() . '` (' . bootzenType($property->getType()) . ")\n";
+        }
+    }
+
+    return $out . "\n";
+}
+
+function bootzenHelpers(string $file): string
+{
+    $out = "## Helpers globales\n\n";
+    $functions = get_defined_functions()['user'];
+    sort($functions);
+
+    foreach ($functions as $name) {
+        $function = new ReflectionFunction($name);
+
+        if ($function->getFileName() !== $file || bootzenIsInternal($function->getDocComment())) {
+            continue;
+        }
+
+        $summary = bootzenSummary($function->getDocComment());
+        $out .= '- `' . bootzenSignature($function) . '`' . ($summary === '' ? '' : ': ' . $summary) . "\n";
+    }
+
+    return $out . "\n";
+}
+
+function bootzenReference(string $repository): string
+{
+    $out = "# Referencia de BootZen\n\n"
+        . "> Generada con `bin/bootzen-reference` a partir del código de `framework/`. No la edites a mano.\n"
+        . "> Firmas públicas con la primera línea de su PHPDoc. Para el cómo y el porqué, lee `AGENTS.md`\n"
+        . "> y las recetas de `docs/ai/recipes/`.\n\n";
+
+    $out .= bootzenHelpers(realpath($repository . '/framework/src/Helpers/helpers.php') ?: '');
+
+    foreach (BOOTZEN_REFERENCE_SECTIONS as $title => $classes) {
+        $out .= "## {$title}\n\n";
+
+        foreach ($classes as $class) {
+            $out .= bootzenClass($class);
+        }
+    }
+
+    return rtrim($out) . "\n";
+}
+
+$target = $repository . '/skeleton/docs/ai/reference.md';
+$reference = bootzenReference($repository);
+
+if (in_array('--check', $argv, true)) {
+    if (! is_file($target) || file_get_contents($target) !== $reference) {
+        fwrite(STDERR, "skeleton/docs/ai/reference.md está desactualizado. Regenéralo con: php bin/bootzen-reference\n");
+        exit(1);
+    }
+
+    echo "Referencia al día.\n";
+    exit(0);
+}
+
+if (! is_dir(dirname($target))) {
+    mkdir(dirname($target), 0775, true);
+}
+
+file_put_contents($target, $reference);
+echo "Referencia escrita en skeleton/docs/ai/reference.md\n";

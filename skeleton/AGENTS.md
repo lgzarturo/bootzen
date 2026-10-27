@@ -11,6 +11,16 @@ aplicación monolítica construida con BootZen.
 - Sin dependencias de Composer en producción. Composer solo instala
   herramientas de desarrollo: Pest, PHPStan (nivel 8) y PHP CS Fixer.
 
+## Dónde buscar
+
+- **Recetas** en `docs/ai/recipes/`: crear un CRUD, proteger rutas, endpoint
+  JSON, componente (con un modal), migraciones, subir archivos y enviar
+  correos. Paso a paso, con tests. Úsalas antes de improvisar.
+- **Referencia** en `docs/ai/reference.md`: todas las firmas públicas de
+  BootZen, generadas desde el código. Si dudas de un método, búscalo ahí.
+- **Skills** en `.claude/skills/` (y `.agents/skills/`): `crear-recurso`,
+  `crear-componente` y `revisar-seguridad`.
+
 ## Mapa del proyecto
 
 | Ruta                       | Contenido                                                     |
@@ -41,6 +51,9 @@ aplicación monolítica construida con BootZen.
 | `database/seeds/`          | Datos de ejemplo: `DatabaseSeeder.php` y los que llame        |
 | `database/app.sqlite`      | Base SQLite local (fuera de git)                              |
 | `tests/`                   | Tests con Pest (`Feature/` y `Unit/`)                         |
+| `docs/ai/`                 | Recetas (`recipes/`) y referencia de la API (`reference.md`)  |
+| `public/uploads/`          | Archivos subidos públicos (`storePublic`)                     |
+| `storage/app/`             | Archivos subidos privados (`store`)                           |
 | `framework/`               | BootZen. **No editar**: se actualiza desde el repo oficial    |
 
 ## Comandos
@@ -475,6 +488,7 @@ $request->boolean('activo');          // '1', 'on', 'true', 'yes'
 $request->integer('pagina', 1);
 $request->param('id');                // parámetro de ruta
 $request->wantsJson();                // el cliente pide JSON
+$request->file('foto')?->storePublic('clientes');  // 'uploads/clientes/3f9c...jpg' (ver subir-archivos.md)
 ```
 
 ### Respuestas y errores
@@ -591,7 +605,7 @@ it('solo deja entrar a usuarios', function (): void {
 - **Router**: `get`, `post`, `put`, `patch`, `delete`, `options`, `match`,
   `any`, `resource`, `group(['prefix', 'as', 'middleware'], fn)`; en la ruta:
   `->name()`, `->middleware()`, `->where()`.
-- **Request**: `validate`, `session`, `input`, `all`, `only`, `except`, `has`,
+- **Request**: `validate`, `file`, `session`, `input`, `all`, `only`, `except`, `has`,
   `filled`, `boolean`, `integer`, `param`, `params`, `getRoute`, `getMethod`, `getPath`,
   `getQuery`, `getBody`, `getHeader`, `getFile`, `getCookie`, `wantsJson`,
   `isJson`, `isAjax`, `isSecure`, `getClientIp`.

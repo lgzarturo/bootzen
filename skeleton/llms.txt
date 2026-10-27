@@ -1,0 +1,24 @@
+# __APP_NAME__
+
+> Aplicación monolítica en PHP 8.2+ construida con BootZen: SQLite, Tailwind CSS v4, JavaScript nativo y vistas con componentes <x-*>. Sin dependencias de Composer en producción. `composer check` (formato, PHPStan nivel 8 y tests) debe quedar en verde después de cada cambio.
+
+## Guía
+
+- [AGENTS.md](AGENTS.md): stack, mapa del proyecto, comandos, convenciones y reglas. Léelo primero.
+- [Referencia de la API](docs/ai/reference.md): firmas públicas de BootZen, generadas desde el código.
+
+## Recetas
+
+- [Crear un CRUD](docs/ai/recipes/crear-crud.md)
+- [Proteger rutas](docs/ai/recipes/proteger-rutas.md)
+- [Endpoint JSON](docs/ai/recipes/endpoint-json.md)
+- [Crear un componente](docs/ai/recipes/crear-componente.md)
+- [Migraciones](docs/ai/recipes/migracion.md)
+- [Subir archivos](docs/ai/recipes/subir-archivos.md)
+- [Enviar un correo](docs/ai/recipes/enviar-correo.md)
+
+## Skills
+
+- [crear-recurso](.claude/skills/crear-recurso/SKILL.md)
+- [crear-componente](.claude/skills/crear-componente/SKILL.md)
+- [revisar-seguridad](.claude/skills/revisar-seguridad/SKILL.md)
