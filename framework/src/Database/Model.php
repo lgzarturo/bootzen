@@ -221,7 +221,7 @@ abstract class Model implements JsonSerializable
     }
 
     /**
-     * Asigna valores de $fillable; el resto se ignora (por ejemplo _csrf_token o campos ajenos).
+     * Asigna valores de $fillable; el resto se ignora (por ejemplo _token o campos ajenos).
      *
      * @param array<string, mixed> $attributes
      */

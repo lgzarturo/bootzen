@@ -59,7 +59,7 @@ jobs:
       - name: Empaquetar framework y skeleton
         run: |
           tar -czf "bootzen-${GITHUB_REF_NAME}.tar.gz" \
-            framework skeleton bin init_project.sh VERSION LICENSE README.md
+            framework skeleton stubs bin init_project.sh VERSION LICENSE README.md
 
       - name: Commit and push updated CHANGELOG.md
         run: |

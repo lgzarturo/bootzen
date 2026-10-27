@@ -17,6 +17,8 @@ fricción en hosting compartido, VPS o Docker.
 - **Tailwind CSS v4** con CLI standalone, sin Node
 - **JavaScript nativo** con módulos ES, sin bundler
 - **Plantillas `.php` con componentes `<x-*>`** compiladas y cacheadas
+- **Sesión, CSRF, validación y autenticación** incluidas; registro, login y
+  recuperación de contraseña con `bootzen-new mi-app --auth`
 
 ## Instalación rápida
 
@@ -36,7 +38,7 @@ mi-app/
 ├── app/Controllers/      # Tu código (namespace App\)
 ├── bin/bootzen           # CLI: serve, css:build, view:cache...
 ├── bootstrap/app.php     # Construye la aplicación
-├── routes/web.php        # Rutas
+├── routes/               # web.php (páginas) y api.php (JSON)
 ├── resources/views/      # Vistas y componentes <x-*>
 ├── resources/css/        # Fuente de Tailwind
 ├── public/               # Document root: index.php, CSS compilado y JS

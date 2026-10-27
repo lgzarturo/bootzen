@@ -90,4 +90,5 @@ it('obtiene la IP pública del cliente ignorando rangos privados', function (arr
     'proxy con IP pública' => [['HTTP_X_FORWARDED_FOR' => '198.51.100.4, 10.0.0.1', 'REMOTE_ADDR' => '10.0.0.1'], '198.51.100.4'],
     'solo IP privada' => [['HTTP_X_FORWARDED_FOR' => '192.168.1.5', 'REMOTE_ADDR' => '10.0.0.2'], '10.0.0.2'],
     'remote addr pública' => [['REMOTE_ADDR' => '203.0.113.9'], '203.0.113.9'],
+    'cabecera falsa sin proxy' => [['HTTP_X_FORWARDED_FOR' => '198.51.100.4', 'REMOTE_ADDR' => '203.0.113.9'], '203.0.113.9'],
 ]);

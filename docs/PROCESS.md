@@ -36,18 +36,20 @@ implementar.
 
 - [x] CLI básica (crear proyectos, levantar servidor local, generar
       controladores, correr migraciones).
-- [ ] Migraciones de base de datos con control de versiones.
-- [ ] Query Builder ligero o integración con PDO segura (evitar SQL injection).
+- [x] Migraciones de base de datos con control de versiones.
+- [x] Query Builder ligero o integración con PDO segura (evitar SQL injection).
 - [x] Logger centralizado con niveles (`info`, `error`, `debug`).
 - [x] Soporte para PHPUnit y Pest (tests unitarios).
 
 ### Robustez y seguridad
 
-- [ ] Middleware de seguridad contra CSRF.
-- [ ] Sanitización automática de inputs (para prevenir XSS).
+- [x] Middleware de seguridad contra CSRF.
+- [x] Sanitización automática de inputs (para prevenir XSS): se resuelve al
+      imprimir, `{{ }}` escapa siempre, más la CSP de `SecurityHeaders`.
 - [x] Manejo centralizado de errores y excepciones.
 - [x] Validación de datos de formularios y requests.
-- [ ] Autenticación básica con sesiones.
+- [x] Autenticación básica con sesiones.
+- [x] Cabeceras de seguridad y límite de peticiones (`throttle`).
 - [x] Hash seguro para contraseñas (bcrypt/argon2).
 
 ### Modularidad y extensión

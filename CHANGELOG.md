@@ -5,6 +5,45 @@
 Inicio de la v2.0 según [plan/04_PLAN-MVP-MONOLITO.md](plan/04_PLAN-MVP-MONOLITO.md).
 **Cambios incompatibles con la v1.x.**
 
+### Fase 4: sesión, seguridad y autenticación
+
+#### Agregado
+
+- Sesión propia en archivos (`storage/sessions`) con `StartSession`: flash,
+  `old()`, errores de validación, token CSRF y cookie `HttpOnly`,
+  `SameSite=Lax` y `Secure` en HTTPS. Si la petición no usa la sesión no se
+  crea archivo ni cookie. Driver `array` para tests.
+- `VerifyCsrfToken`: token en `_token` o en la cabecera `X-CSRF-TOKEN`,
+  respuesta 419 con su vista. Rutas excluidas con `session.csrf_except`.
+- `Validator` con reglas `required`, `nullable`, `string`, `integer`,
+  `numeric`, `boolean`, `array`, `email`, `url`, `min`, `max`, `between`,
+  `in`, `confirmed`, `date`, `regex`, `unique`, `exists`, `file`, `image` y
+  `mimes`, comodines (`items.*.precio`), closures y mensajes en español.
+  `Request::validate()` vuelve al formulario con errores e input, o responde
+  422 en JSON.
+- `Response::with()`, `withErrors()` y `withInput()`; helpers `session()`,
+  `back()`, `auth()` y `mailer()`.
+- `Auth` con guard de sesión (`attempt`, `login`, `logout`, `user`,
+  `intended`), `Hash` (Argon2id o bcrypt) y `PasswordReset`.
+- Middleware `auth`, `guest`, `throttle:max,minutos` (`RateLimiter` sobre la
+  caché) y `SecurityHeaders` (nosniff, frame options, referrer policy, HSTS en
+  HTTPS y CSP configurable). Middleware con parámetros
+  (`ParameterizedMiddleware`).
+- `Mailer` con drivers `log` y `array`.
+- `bootzen-new --auth`: registro, login, logout y recuperación de contraseña
+  con vistas, migración, límite de intentos y tests.
+- Skeleton: grupos `web` y `api`, `routes/api.php`, `config/session.php`,
+  `auth.php`, `mail.php`, `cache.php` y `security.php`, vista 419, mensajes
+  flash en el layout y `<x-input>` con `old()`.
+
+#### Cambiado
+
+- El campo CSRF se llama `_token` y los helpers de sesión ya no usan
+  `session_start()`.
+- `Request::getClientIp()` ignora las cabeceras de proxy cuando el cliente se
+  conecta directo con una IP pública, para que no se pueda falsear la IP.
+- `Cache` acepta un directorio `null` para guardar en memoria.
+
 ### Fase 3: datos
 
 #### Agregado

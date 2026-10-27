@@ -20,6 +20,11 @@ declare(strict_types=1);
 
 namespace BootZen\Core;
 
+use BootZen\Session\Session;
+use BootZen\Validation\ValidationException;
+use BootZen\Validation\Validator;
+use LogicException;
+
 /**
  * Clase Request
  *
@@ -106,6 +111,11 @@ class Request
      * Ruta que resolvió la petición (null antes del enrutamiento)
      */
     private ?Route $route = null;
+
+    /**
+     * Sesión de la petición (la asigna el middleware StartSession).
+     */
+    private ?Session $session = null;
 
     /**
      * Métodos que un formulario puede simular con el campo _method
@@ -383,6 +393,53 @@ class Request
     }
 
     /**
+     * Devuelve una copia con la sesión asignada.
+     *
+     * @internal Lo usa StartSession
+     */
+    public function withSession(Session $session): self
+    {
+        $clone = clone $this;
+        $clone->session = $session;
+
+        return $clone;
+    }
+
+    /**
+     * Sesión de la petición.
+     *
+     * @throws LogicException Si la ruta no pasa por el middleware StartSession (grupo web)
+     */
+    public function session(): Session
+    {
+        return $this->session ?? throw new LogicException(
+            'Esta petición no tiene sesión: la ruta necesita el middleware StartSession (grupo web).'
+        );
+    }
+
+    public function hasSession(): bool
+    {
+        return $this->session !== null;
+    }
+
+    /**
+     * Valida la entrada (cuerpo, query string y archivos) y devuelve solo los campos validados.
+     * Si falla lanza ValidationException: en formularios vuelve a la página anterior con los errores
+     * y el input; en peticiones JSON responde 422 con los errores.
+     *
+     * @param array<string, string|list<string|\Closure>> $rules Campo => reglas ('required|email' o lista)
+     * @param array<string, string> $messages Mensajes propios: 'campo.regla' o 'regla' => mensaje
+     * @param array<string, string> $attributes Nombres legibles de los campos
+     * @return array<string, mixed>
+     * @throws ValidationException
+     * @example $datos = $request->validate(['titulo' => 'required|string|max:120']);
+     */
+    public function validate(array $rules, array $messages = [], array $attributes = []): array
+    {
+        return Validator::make(array_replace($this->all(), $this->files), $rules, $messages, $attributes)->validate();
+    }
+
+    /**
      * Ruta que resolvió la petición, o null si aún no se enruta.
      */
     public function getRoute(): ?Route
@@ -567,6 +624,14 @@ class Request
      */
     public function getClientIp(): string
     {
+        $remote = $this->server['REMOTE_ADDR'] ?? null;
+
+        // Si el cliente se conecta directo (IP pública), las cabeceras de proxy no son confiables:
+        // cualquiera puede enviarlas para hacerse pasar por otra IP y saltarse los límites de peticiones
+        if (is_string($remote) && filter_var($remote, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
+            return $remote;
+        }
+
         $ipKeys = [
             'HTTP_X_FORWARDED_FOR',
             'HTTP_X_REAL_IP',

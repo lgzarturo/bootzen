@@ -23,10 +23,20 @@ declare(strict_types=1);
 
 namespace BootZen\Core;
 
+use BootZen\Auth\Auth;
+use BootZen\Auth\PasswordReset;
 use BootZen\Database\Connection;
 use BootZen\Database\Migrator;
 use BootZen\Database\Model;
 use BootZen\Database\SeederRunner;
+use BootZen\Mail\ArrayMailer;
+use BootZen\Mail\LogMailer;
+use BootZen\Mail\Mailer;
+use BootZen\Session\ArraySessionStore;
+use BootZen\Session\FileSessionStore;
+use BootZen\Session\Session;
+use BootZen\Session\SessionStore;
+use BootZen\Validation\Validator;
 use BootZen\View\View;
 use ErrorException;
 use LogicException;
@@ -37,7 +47,7 @@ use Throwable;
  *
  * Al construirse carga .env y config/, ajusta la zona horaria y registra en el contenedor:
  * Application, Container, Router, Pipeline, Config, Logger, Cache, View, ExceptionHandler, Connection
- * (perezosa), Migrator y SeederRunner.
+ * (perezosa), Migrator, SeederRunner, SessionStore, Auth, PasswordReset y Mailer.
  *
  * @example
  *   $app = new Application(dirname(__DIR__));
@@ -289,13 +299,44 @@ class Application
 
         // Los modelos piden la conexión solo cuando se usan: sin consultas no se abre la base de datos
         Model::setConnectionResolver(fn (): Connection => $this->connectionFrom($this->container));
+        Validator::setConnectionResolver(fn (): Connection => $this->connectionFrom($this->container));
 
         $this->container->singleton(Logger::class, fn (): Logger => new Logger(
             $this->basePath('storage/logs'),
             (string) $this->config->get('app.log_level', 'debug')
         ));
 
-        $this->container->singleton(Cache::class, fn (): Cache => new Cache($this->basePath('storage/cache/data')));
+        $this->container->singleton(Cache::class, fn (): Cache => new Cache(
+            $this->config->get('cache.driver', 'file') === 'array' ? null : $this->basePath('storage/cache/data')
+        ));
+
+        $this->container->singleton(SessionStore::class, fn (): SessionStore => match ($this->config->get('session.driver', 'file')) {
+            'array' => new ArraySessionStore(),
+            'file' => new FileSessionStore($this->basePath('storage/sessions'), $this->sessionLifetime()),
+            default => throw new LogicException('Driver de sesión no soportado. Usa file o array en config/session.php.'),
+        });
+
+        $this->container->singleton(Auth::class, function (Container $container): Auth {
+            $model = $this->config->get('auth.model', 'App\\Models\\User');
+
+            return new Auth(static function () use ($container): ?Session {
+                $session = $container->bound(Session::class) ? $container->make(Session::class) : null;
+
+                return $session instanceof Session ? $session : null;
+            }, is_string($model) ? $model : 'App\\Models\\User');
+        });
+
+        $this->container->bind(PasswordReset::class, fn (Container $container): PasswordReset => new PasswordReset(
+            $this->connectionFrom($container),
+            'password_resets',
+            (int) $this->config->get('auth.reset_expire', 60)
+        ));
+
+        $this->container->singleton(Mailer::class, fn (Container $container): Mailer => match ($this->config->get('mail.driver', 'log')) {
+            'array' => new ArrayMailer(),
+            'log' => new LogMailer($container->make(Logger::class)),
+            default => throw new LogicException('Driver de correo no soportado. Usa log o array en config/mail.php (SMTP llega más adelante).'),
+        });
 
         $this->container->singleton(View::class, fn (Container $container): View => new View(
             $this->basePath('resources/views'),
@@ -330,6 +371,16 @@ class Application
 
         /** @var array<string, mixed> $config */
         return $config;
+    }
+
+    /**
+     * Duración de las sesiones en segundos (config session.lifetime está en minutos).
+     */
+    private function sessionLifetime(): int
+    {
+        $minutes = $this->config->get('session.lifetime', 120);
+
+        return (is_numeric($minutes) ? (int) $minutes : 120) * 60;
     }
 
     private function connectionFrom(Container $container): Connection

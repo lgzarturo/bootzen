@@ -19,7 +19,8 @@ aplicación monolítica construida con BootZen.
 | `bootstrap/app.php`        | Construye la `Application`: middleware (alias, grupos) y rutas |
 | `config/`                  | Archivos PHP que retornan arrays: `config('app.name')`        |
 | `.env`                     | Variables locales (fuera de git). Plantilla: `.env.example`   |
-| `routes/web.php`           | Rutas; retorna un closure que recibe el `Router`              |
+| `routes/web.php`           | Páginas (grupo `web`: sesión y CSRF); retorna un closure      |
+| `routes/api.php`           | API JSON con prefijo `/api` (grupo `api`: CORS y límite)      |
 | `resources/views/`         | Vistas `.php` con directivas y componentes `<x-*>`            |
 | `resources/views/components/` | Componentes: `card.php` es `<x-card>`, `layouts/app.php` es `<x-layouts.app>` |
 | `resources/views/errors/`  | Páginas de error: `{codigo}.php` o `default.php`              |
@@ -29,7 +30,11 @@ aplicación monolítica construida con BootZen.
 | `public/assets/app.css`    | CSS compilado (se genera, no se edita a mano)                 |
 | `public/assets/js/`        | JS nativo: `app.js`, `components/*.js` y `bootzen.js` (runtime) |
 | `bin/bootzen`              | CLI del proyecto                                              |
-| `storage/`                 | Logs (`storage/logs`) y cachés (escribible, fuera de git)     |
+| `storage/`                 | Logs, sesiones, cachés y backups (escribible, fuera de git)   |
+| `config/session.php`       | Sesión (archivos en `storage/sessions`), cookie y CSRF        |
+| `config/auth.php`          | Modelo de usuario y página de inicio tras el login            |
+| `config/security.php`      | Content-Security-Policy y HSTS                                |
+| `config/mail.php`          | Correo: driver `log` (en `storage/logs`) o `array` (tests)    |
 | `app/Models/`              | Modelos (`App\Models`), uno por tabla                         |
 | `config/database.php`      | Conexión: SQLite por defecto, MySQL opcional                  |
 | `database/migrations/`     | Migraciones con SQL directo, en orden de nombre de archivo    |
@@ -79,13 +84,20 @@ return static function (Router $router): void {
     // Restricción en línea: solo números
     $router->get('/facturas/{id:\d+}', [FacturaController::class, 'show'])->name('facturas.show');
 
+    // Solo usuarios con sesión iniciada; los invitados van a la ruta 'login'
     $router->group(['prefix' => '/admin', 'as' => 'admin.', 'middleware' => 'auth'], function (Router $router): void {
         $router->get('/', [AdminController::class, 'index'])->name('index'); // admin.index
     });
 
-    $router->group(['prefix' => '/api', 'as' => 'api.', 'middleware' => 'api'], function (Router $router): void {
-        $router->get('/tareas', [TareaApiController::class, 'index'])->name('tareas.index');
-    });
+    // Límite por IP: 10 peticiones por minuto
+    $router->post('/contacto', [ContactoController::class, 'store'])->name('contacto.store')->middleware('throttle:10,1');
+};
+```
+
+```php
+// routes/api.php: todo lleva /api, nombres api.* y el grupo api (sin sesión ni CSRF)
+return static function (Router $router): void {
+    $router->get('/tareas', [TareaApiController::class, 'index'])->name('tareas.index'); // GET /api/tareas
 };
 ```
 
@@ -98,21 +110,30 @@ return static function (Router $router): void {
   existe, 404. No hace falta programarlo.
 - Los formularios HTML envían PUT, PATCH o DELETE con un POST y el campo
   oculto `_method`.
+- Middleware disponibles: `auth` (solo usuarios), `guest` (solo invitados),
+  `throttle:max,minutos` y `cors`. Grupos: `web` (todas las rutas de
+  `web.php`) y `api` (todas las de `api.php`).
 
 ### Controladores
 
 ```php
 final class TareaController
 {
-    public function __construct(private readonly TareaService $tareas)
-    {
-    }
-
     public function show(int $id): Response
     {
-        $tarea = $this->tareas->find($id) ?? abort(404, 'Tarea no encontrada');
+        return view('tareas.show', ['tarea' => Tarea::findOrFail($id)]);
+    }
 
-        return view('tareas.show', ['tarea' => $tarea]);
+    public function store(Request $request): Response
+    {
+        $datos = $request->validate([
+            'titulo' => 'required|string|max:120',
+            'prioridad' => 'nullable|in:alta,media,baja',
+        ]);
+
+        $tarea = Tarea::create($datos);
+
+        return redirect(route('tareas.show', ['id' => $tarea->id]))->with('status', 'Tarea creada.');
     }
 }
 ```
@@ -181,6 +202,88 @@ Un componente es una vista en `resources/views/components/`:
   nombre y sus propiedades públicas y `data()` llegan a la vista.
 - Disponibles: `<x-layouts.app>`, `<x-navigation>`, `<x-card>`, `<x-button>`,
   `<x-alert>`, `<x-form>`, `<x-input>`. Úsalos antes de crear otros.
+
+### Formularios y validación
+
+```php
+<x-form :action="route('tareas.store')">          {{-- agrega @csrf solo --}}
+    <x-input name="titulo" label="Título" required />  {{-- muestra el error y old('titulo') --}}
+    <x-button type="submit">Guardar</x-button>
+</x-form>
+```
+
+- `$request->validate([...])` devuelve solo los campos validados. Si falla,
+  vuelve solo a la página anterior con los errores y el input (formularios) o
+  responde 422 con `{"errors": {...}}` (peticiones JSON). No hace falta
+  `try/catch`.
+- Reglas: `required`, `nullable`, `string`, `integer`, `numeric`, `boolean`,
+  `array`, `email`, `url`, `min:n`, `max:n`, `between:a,b`, `in:a,b`,
+  `confirmed` (busca `campo_confirmation`), `date`, `regex:/patrón/`,
+  `unique:tabla,columna,idIgnorado`, `exists:tabla,columna`, `file`, `image`,
+  `mimes:pdf,jpg`. `min`/`max` miden caracteres, valor (con `numeric` o
+  `integer`), elementos (arrays) o KB (archivos). Listas con comodín:
+  `'items.*.precio' => 'required|numeric'`.
+- Sin `required`, un campo vacío se acepta y queda como `null`. Cada campo
+  muestra solo su primer error. Mensajes en español; propios con el segundo
+  argumento: `['titulo.required' => 'Ponle un título.']`.
+- Reglas propias con un closure: `fn (mixed $valor, string $campo): ?string`
+  que devuelve el mensaje de error o `null`.
+- Errores a mano: `throw ValidationException::withMessages(['email' => '...'])`.
+- En vistas: `@error('campo') {{ $message }} @enderror`, `$errors` (campo =>
+  mensajes) y `old('campo')`. `<x-input>` ya hace las tres cosas.
+- Si usas una regla con `|` dentro (regex), pasa las reglas como lista:
+  `['required', 'regex:/^(a|b)$/']`.
+
+### Sesión y mensajes flash
+
+```php
+return redirect(route('tareas.index'))->with('status', 'Tarea borrada.'); // el layout lo muestra
+return back()->withErrors(['archivo' => 'No se pudo leer.'])->withInput($request->except(['password']));
+session('status');                 // leer
+session()->put('carrito', [3, 7]); // guardar (solo escalares y arrays)
+session()->forget('carrito');
+```
+
+- La sesión existe en las rutas de `web.php`. En `api.php` no hay sesión.
+- `with()` guarda datos solo para la siguiente petición (flash).
+
+### Autenticación
+
+Con `bootzen-new mi-app --auth` el proyecto trae registro, login, logout y
+recuperación de contraseña listos (`app/Controllers/Auth`, `app/Models/User.php`,
+`routes/auth.php`, vistas en `resources/views/auth`, tests en
+`tests/Feature/AuthTest.php`). Sin `--auth`, crea esos archivos siguiendo los
+mismos patrones.
+
+```php
+auth()->user();                           // usuario actual o null
+auth()->id();                             // id sin consultar la base
+auth()->check();                          // true si hay sesión iniciada
+auth()->attempt(['email' => $email, 'password' => $password]); // true si coincide e inicia sesión
+auth()->login($usuario);                  // inicia sesión (cambia el id de sesión)
+auth()->logout();
+redirect(auth()->intended(route('dashboard'))); // vuelve a donde iba antes del login
+$usuario->password = Hash::make($password);     // BootZen\Auth\Hash: Argon2id o bcrypt
+```
+
+- Protege rutas con `->middleware('auth')`; las de login y registro con
+  `'guest'`.
+- Login con límite de intentos: `BootZen\Security\RateLimiter` (`hit`,
+  `tooManyAttempts`, `availableIn`, `clear`), ver `LoginController`.
+- Correo: `mailer()->send(new Message($email, 'Asunto', $texto))`. Con
+  `MAIL_DRIVER=log` se escribe en `storage/logs`; SMTP llega más adelante.
+
+### Seguridad que ya viene puesta
+
+- CSRF en todas las rutas de `web.php`: los formularios llevan `@csrf` (o
+  usan `<x-form>`) y `bootzen.js` manda la cabecera `X-CSRF-TOKEN`. Un token
+  inválido responde 419. Para webhooks usa `csrf_except` en
+  `config/session.php`.
+- Cabeceras de seguridad en todas las respuestas (`SecurityHeaders`) con una
+  CSP que solo permite recursos del propio dominio. Si cargas algo externo
+  (fuentes, analytics), agrégalo en `config/security.php`.
+- Cookies de sesión `HttpOnly`, `SameSite=Lax` y `Secure` en HTTPS. El id de
+  sesión cambia al iniciar y cerrar sesión.
 
 ### CSS (Tailwind v4)
 
@@ -402,7 +505,11 @@ Ya existen el alias `cors` y el grupo `api`.
 
 Cada funcionalidad nueva lleva al menos un test de feature. `createApp()`
 usa una base SQLite en memoria con todas las migraciones aplicadas, vacía en
-cada llamada:
+cada llamada. En tests (`APP_ENV=testing`) no se verifica el CSRF y la
+sesión, la caché y el correo viven en memoria (`ArrayMailer::sent()` devuelve
+los correos enviados). Para varias peticiones con la misma sesión, reenvía la
+cookie de la respuesta (ver `AuthTestBrowser` en `tests/Feature/AuthTest.php`
+de un proyecto `--auth`):
 
 ```php
 it('lista las tareas', function (): void {
@@ -424,12 +531,17 @@ it('crea una tarea', function (): void {
 - **Router**: `get`, `post`, `put`, `patch`, `delete`, `options`, `match`,
   `any`, `resource`, `group(['prefix', 'as', 'middleware'], fn)`; en la ruta:
   `->name()`, `->middleware()`, `->where()`.
-- **Request**: `input`, `all`, `only`, `except`, `has`, `filled`, `boolean`,
-  `integer`, `param`, `params`, `getRoute`, `getMethod`, `getPath`,
+- **Request**: `validate`, `session`, `input`, `all`, `only`, `except`, `has`,
+  `filled`, `boolean`, `integer`, `param`, `params`, `getRoute`, `getMethod`, `getPath`,
   `getQuery`, `getBody`, `getHeader`, `getFile`, `getCookie`, `wantsJson`,
   `isJson`, `isAjax`, `isSecure`, `getClientIp`.
-- **Response**: `html`, `json`, `redirect`, `noContent`, `withHeader`,
-  `withHeaders`, `withCookie`, `withStatus`.
+- **Response**: `html`, `json`, `redirect`, `noContent`, `with`,
+  `withErrors`, `withInput`, `withHeader`, `withHeaders`, `withCookie`,
+  `withStatus`.
+- **Sesión** (`session()`): `get`, `put`, `has`, `forget`, `pull`, `flash`,
+  `all`, `token`.
+- **Auth** (`auth()`): `user`, `id`, `check`, `guest`, `attempt`, `validate`,
+  `login`, `logout`, `intended`. `Hash::make`, `Hash::check`.
 - **Vistas**: `view()`, `class_list()`; en componentes `$attributes` con
   `merge`, `class`, `only`, `except`, `has`, `get`.
 - **Model**: `query`, `all`, `find`, `findOrFail`, `where`, `create`, `fill`,
@@ -440,11 +552,11 @@ it('crea una tarea', function (): void {
   `join`, `leftJoin`, `orderBy`, `latest`, `limit`, `offset`, `get`, `first`,
   `firstOrFail`, `find`, `value`, `pluck`, `count`, `exists`, `paginate`,
   `insert`, `update`, `delete`.
-- **Helpers**: `db()`, `config()`, `env()`, `route()`, `url()`, `asset()`, `app()`,
-  `logger()`, `cache()`, `base_path()`, `public_path()`, `storage_path()`,
-  `e()`, `redirect()`, `abort()`, `json_response()`, `download()`,
-  `csrf_token()`, `csrf_field()`, `validate_csrf_token()`, `old()`,
-  `slugify()`, `str_random()`.
+- **Helpers**: `db()`, `auth()`, `session()`, `old()`, `back()`, `mailer()`,
+  `config()`, `env()`, `route()`, `url()`, `asset()`, `app()`, `logger()`,
+  `cache()`, `base_path()`, `public_path()`, `storage_path()`, `e()`,
+  `redirect()`, `abort()`, `json_response()`, `download()`, `csrf_token()`,
+  `csrf_field()`, `validate_csrf_token()`, `slugify()`, `str_random()`.
 
 ## Lo que todavía NO existe
 
@@ -452,11 +564,11 @@ BootZen está en desarrollo hacia la v2.0. Estas piezas llegan en fases
 posteriores; **no las inventes ni instales librerías para suplirlas** sin
 preguntar:
 
-- Sesiones, mensajes flash, validación y autenticación (`@error` y `<x-input>`
-  ya muestran errores, pero nada los llena todavía).
 - Generadores en `bin/bootzen` (`make:model`, `make:migration`, `make:resource`)
   y `config:cache`: por ahora los archivos se crean a mano siguiendo esta guía.
-- Factories de datos falsos para tests.
+- Factories de datos falsos y un `TestCase` con helpers HTTP para tests.
+- Envío de correo por SMTP (solo drivers `log` y `array`).
+- "Recordarme", verificación de correo, roles y permisos.
 
 ## Reglas
 
@@ -466,6 +578,9 @@ preguntar:
 - Imprime con `{{ }}` (escapa); `{!! !!}` solo para HTML que tú generaste.
 - No edites `public/assets/app.css` ni `public/assets/js/bootzen.js`.
 - Nunca concatenes datos del usuario en SQL: usa parámetros (`?`).
+- Valida toda entrada con `$request->validate()` antes de usarla.
+- Contraseñas siempre con `Hash::make()`; nunca en texto plano ni en logs.
+- No desactives el CSRF ni quites `@csrf` de un formulario.
 - No uses PDO directo: `db()`, el query builder o los modelos.
 - Nada de `exit` ni `die`: retorna un `Response` o usa `abort()`.
 - No leas `env()` fuera de `config/`.

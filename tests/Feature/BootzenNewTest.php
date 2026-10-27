@@ -59,3 +59,37 @@ it('rechaza nombres inválidos y proyectos existentes', function (): void {
     [$status, $output] = runCommand($bin . ' existe --no-git', $this->workspace);
     expect($status)->toBe(1)->and($output)->toContain('Ya existe');
 });
+
+it('agrega el scaffold de autenticación con --auth', function (): void {
+    $bin = escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg(dirname(__DIR__, 2) . '/bin/bootzen-new');
+    [$status] = runCommand($bin . ' con-auth --auth --no-git', $this->workspace);
+    $project = $this->workspace . '/con-auth';
+
+    expect($status)->toBe(0)
+        ->and($project . '/app/Models/User.php')->toBeFile()
+        ->and($project . '/app/Controllers/Auth/LoginController.php')->toBeFile()
+        ->and($project . '/routes/auth.php')->toBeFile()
+        ->and($project . '/tests/Feature/AuthTest.php')->toBeFile()
+        ->and(file_get_contents($project . '/routes/web.php'))->toContain("require __DIR__ . '/auth.php'")
+        ->and(file_get_contents($project . '/config/auth.php'))->toContain("'home' => '/panel'");
+
+    // Migra una base temporal y renderiza el login, que usa la sesión y el layout con el menú de usuario
+    $script = 'putenv("DB_DATABASE=" . sys_get_temp_dir() . "/bootzen-auth-" . getmypid() . ".sqlite");'
+        . ' require "framework/bootstrap.php"; $app = require "bootstrap/app.php";'
+        . ' $app->make(BootZen\Database\Migrator::class)->run();'
+        . ' echo $app->run(new BootZen\Core\Request("GET", "/login"))->getBody();'
+        . ' unlink(getenv("DB_DATABASE"));';
+    [$status, $output] = runCommand(escapeshellarg(PHP_BINARY) . ' -r ' . escapeshellarg($script), $project);
+
+    expect($status)->toBe(0)
+        ->and($output)->toContain('Iniciar sesión')
+        ->and($output)->toContain('name="_token"')
+        ->and($output)->toContain('Crear cuenta');
+});
+
+it('muestra la ayuda con las opciones', function (): void {
+    [$status, $output] = runCommand(escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg(dirname(__DIR__, 2) . '/bin/bootzen-new') . ' --help', $this->workspace);
+
+    expect($status)->toBe(0)
+        ->and($output)->toContain('--auth');
+});

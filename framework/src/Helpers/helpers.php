@@ -18,11 +18,14 @@
 
 declare(strict_types=1);
 
+use BootZen\Auth\Auth;
 use BootZen\Core\Application;
 use BootZen\Core\Cache;
 use BootZen\Core\HttpException;
 use BootZen\Core\Logger;
 use BootZen\Core\Response;
+use BootZen\Mail\Mailer;
+use BootZen\Session\Session;
 use BootZen\View\View;
 
 if (! function_exists('dd')) {
@@ -176,82 +179,135 @@ if (! function_exists('e')) {
     }
 }
 
+if (! function_exists('active_session')) {
+    /**
+     * Sesión de la petición actual, o null si la ruta no pasa por StartSession (grupo web).
+     */
+    function active_session(): ?Session
+    {
+        if (! Application::hasInstance()) {
+            return null;
+        }
+
+        $container = Application::getInstance()->getContainer();
+        $session = $container->bound(Session::class) ? $container->make(Session::class) : null;
+
+        return $session instanceof Session ? $session : null;
+    }
+}
+
+if (! function_exists('session')) {
+    /**
+     * Sin argumentos devuelve la sesión; con una clave, su valor (o el valor por defecto si no hay sesión).
+     *
+     * @throws LogicException Sin argumentos y sin sesión activa
+     * @example session('status')
+     * @example session()->put('carrito', $ids);
+     */
+    function session(?string $key = null, mixed $default = null): mixed
+    {
+        $session = active_session();
+
+        if ($key !== null) {
+            return $session?->get($key, $default) ?? $default;
+        }
+
+        return $session ?? throw new LogicException('No hay sesión activa: la ruta necesita el grupo de middleware web.');
+    }
+}
+
 if (! function_exists('csrf_token')) {
     /**
-     * Obtiene el token CSRF de la sesión actual, generándolo si no existe.
+     * Token CSRF de la sesión actual ('' si la ruta no tiene sesión).
      *
-     * @return string Token CSRF
-     * @example $token = csrf_token();
+     * @example <meta name="csrf-token" content="{{ csrf_token() }}">
      */
     function csrf_token(): string
     {
-        if (session_status() === PHP_SESSION_NONE) {
-            session_start();
-        }
-
-        if (empty($_SESSION['_csrf_token']) || ! is_string($_SESSION['_csrf_token'])) {
-            $_SESSION['_csrf_token'] = bin2hex(random_bytes(32));
-        }
-
-        return $_SESSION['_csrf_token'];
+        return active_session()?->token() ?? '';
     }
 }
 
 if (! function_exists('csrf_field')) {
     /**
-     * Genera el campo oculto HTML para el token CSRF.
-     *
-     * @return string Campo input HTML
-     * @example echo csrf_field();
+     * Campo oculto con el token CSRF (lo genera @csrf).
      */
     function csrf_field(): string
     {
-        return '<input type="hidden" name="_csrf_token" value="' . e(csrf_token()) . '"/>';
+        return '<input type="hidden" name="_token" value="' . e(csrf_token()) . '">';
     }
 }
 
 if (! function_exists('validate_csrf_token')) {
     /**
-     * Valida el token CSRF recibido contra el almacenado en sesión.
-     *
-     * @param string|null $token Token recibido
-     * @return bool True si es válido, false si no
-     * @example validate_csrf_token($request->getBody('_csrf_token'))
+     * Compara un token con el de la sesión. VerifyCsrfToken ya lo hace en el grupo web.
      */
     function validate_csrf_token(?string $token): bool
     {
-        if (session_status() === PHP_SESSION_NONE) {
-            session_start();
-        }
+        $session = active_session();
 
-        $stored = $_SESSION['_csrf_token'] ?? null;
-
-        if ($token === null || $token === '' || ! is_string($stored) || $stored === '') {
-            return false;
-        }
-
-        return hash_equals($stored, $token);
+        return $session !== null && $token !== null && $token !== '' && hash_equals($session->token(), $token);
     }
 }
 
 if (! function_exists('old')) {
     /**
-     * Recupera el valor anterior de un campo de formulario desde la sesión.
+     * Valor que el usuario envió en el formulario anterior (tras un error de validación).
+     * Admite notación de puntos: old('items.0.precio').
      *
-     * @param string $key Nombre del campo
-     * @param mixed $default Valor por defecto si no existe
-     * @return mixed Valor anterior o por defecto
-     * @example old('email')
+     * @example <input name="email" value="{{ old('email') }}">
      */
     function old(string $key, mixed $default = ''): mixed
     {
-        if (session_status() === PHP_SESSION_NONE) {
-            session_start();
+        return active_session()?->getOldInput($key, $default) ?? $default;
+    }
+}
+
+if (! function_exists('back')) {
+    /**
+     * Redirige a la última página vista (o a '/' si no hay una). Debe retornarse desde el handler.
+     *
+     * @example return back()->withErrors(['email' => 'No encontramos ese correo.']);
+     */
+    function back(int $status = 302): Response
+    {
+        return Response::redirect(active_session()?->previousUrl() ?? '/', $status);
+    }
+}
+
+if (! function_exists('auth')) {
+    /**
+     * Autenticación con sesión: user(), id(), check(), attempt(), login(), logout().
+     *
+     * @example auth()->user()
+     */
+    function auth(): Auth
+    {
+        $auth = app(Auth::class);
+
+        if (! $auth instanceof Auth) {
+            throw new LogicException('El servicio Auth debe ser una instancia de ' . Auth::class . '.');
         }
 
-        $old = $_SESSION['_old_input'] ?? [];
+        return $auth;
+    }
+}
 
-        return is_array($old) && array_key_exists($key, $old) ? $old[$key] : $default;
+if (! function_exists('mailer')) {
+    /**
+     * Servicio de correo configurado en config/mail.php.
+     *
+     * @example mailer()->send(new Message($usuario->email, 'Bienvenida', $texto));
+     */
+    function mailer(): Mailer
+    {
+        $mailer = app(Mailer::class);
+
+        if (! $mailer instanceof Mailer) {
+            throw new LogicException('El servicio Mailer debe implementar ' . Mailer::class . '.');
+        }
+
+        return $mailer;
     }
 }
 

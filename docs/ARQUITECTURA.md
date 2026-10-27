@@ -114,6 +114,21 @@ mi-app/
   validados, `Paginator`, `Model` (Active Record ligero con casts, timestamps,
   `hasMany` y `belongsTo`), migraciones con SQL directo (`Migrator`) y seeders.
   La conexión se abre solo cuando se usa.
+- **Session**: sesión propia guardada en `storage/sessions` (no usa
+  `session_start()`), con flash, `old()`, errores de validación y token CSRF.
+  La abre el middleware `StartSession` y escribe la cookie en el `Response`;
+  si la petición no la usa, no crea archivo ni cookie.
+- **Validation**: `Validator` con una lista cerrada de reglas y mensajes en
+  español; `Request::validate()` y `ValidationException` (redirección con
+  errores en formularios, 422 en JSON).
+- **Auth**: guard de sesión (`auth()`), `Hash` (Argon2id o bcrypt) y
+  `PasswordReset` (tokens guardados como hash). Scaffold opcional con
+  `bootzen-new --auth` desde `stubs/auth`.
+- **Security / Mail**: `RateLimiter` sobre la caché y `Mailer` con drivers
+  `log` y `array`.
+- **Middleware**: `StartSession` y `VerifyCsrfToken` (grupo `web`),
+  `SecurityHeaders` (global), `RateLimit` (`throttle:max,minutos`),
+  `Authenticate` (`auth`), `RedirectIfAuthenticated` (`guest`) y CORS.
 - **Console**: `bin/bootzen` (serve, css:*, view:*, migrate, migrate:rollback,
   migrate:status, db:seed, db:fresh, db:backup).
 - **bootzen.js** (en el skeleton, `public/assets/js`): runtime de JS nativo

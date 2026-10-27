@@ -25,6 +25,7 @@ use InvalidArgumentException;
  *
  * @example $pipeline->alias('cors', CorsMiddleware::class);
  * @example $pipeline->group('api', ['cors']);
+ * @example ->middleware('throttle:60,1') pasa ['60', '1'] a un ParameterizedMiddleware
  */
 final class Pipeline
 {
@@ -97,6 +98,14 @@ final class Pipeline
         $expanded = [];
 
         foreach ($middleware as $entry) {
+            if (is_string($entry) && str_contains($entry, ':')) {
+                // 'alias:param1,param2': se resuelve el alias y se conservan los parámetros
+                [$name, $parameters] = explode(':', $entry, 2);
+                $expanded[] = ($this->aliases[$name] ?? $name) . ':' . $parameters;
+
+                continue;
+            }
+
             if (is_string($entry) && isset($this->groups[$entry])) {
                 if (in_array($entry, $visiting, true)) {
                     throw new InvalidArgumentException("El grupo de middleware [{$entry}] se incluye a sí mismo.");
@@ -122,6 +131,11 @@ final class Pipeline
             return $entry;
         }
 
+        $parameters = null;
+        if (str_contains($entry, ':')) {
+            [$entry, $parameters] = explode(':', $entry, 2);
+        }
+
         if (! class_exists($entry)) {
             throw new InvalidArgumentException(
                 "Middleware [{$entry}] desconocido: no es una clase, un alias ni un grupo registrado."
@@ -134,6 +148,14 @@ final class Pipeline
             throw new InvalidArgumentException("El middleware [{$entry}] debe implementar MiddlewareInterface.");
         }
 
-        return $instance;
+        if ($parameters === null) {
+            return $instance;
+        }
+
+        if (! $instance instanceof ParameterizedMiddleware) {
+            throw new InvalidArgumentException("El middleware [{$entry}] no acepta parámetros.");
+        }
+
+        return $instance->withParameters(explode(',', $parameters));
     }
 }
