@@ -86,3 +86,15 @@ function memoryDb(bool $withTasks = true): BootZen\Database\Connection
 
     return $db;
 }
+
+/**
+ * Todo lo que se escribió en un stream de salida (para probar comandos de consola).
+ *
+ * @param resource $stream
+ */
+function consoleOutput($stream): string
+{
+    rewind($stream);
+
+    return (string) stream_get_contents($stream);
+}

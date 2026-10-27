@@ -120,9 +120,33 @@ Notas de cierre:
 
 ## Fase 5: CLI y generadores
 
-- [ ] `bin/bootzen` con todos los comandos
-- [ ] `make:resource` con tests generados
-- [ ] `TestCase` de proyecto
+- [x] `bin/bootzen` con todos los comandos
+- [x] `make:resource` con tests generados
+- [x] `TestCase` de proyecto
+
+Notas de cierre:
+
+- Criterio cumplido: en CI, `make:resource Task title:string done:bool` en un
+  proyecto recién creado pasa `composer check` sin tocar nada (y también
+  `php bin/bootzen check`, `migrate`, `route:list` y `doctor`).
+- Comandos nuevos: `make:resource`, `make:controller`, `make:model`,
+  `make:migration`, `make:middleware`, `make:seeder`, `make:test`,
+  `make:component`, `route:list`, `config:cache`, `config:clear`,
+  `key:generate`, `doctor` y `check`.
+- Plurales con reglas del inglés y `--table` para el resto (decisión del
+  usuario). `--table` también nombra rutas y vistas.
+- `route:cache` queda fuera (decisión del usuario): las rutas con closure no
+  se pueden cachear y el router ya es rápido.
+- En lugar de `$this->get()` (como decía el plan) los tests usan
+  `client()->get()`: Pest tipa `$this` como `PHPUnit\Framework\TestCase` y
+  PHPStan nivel 8 rechazaría `$this->get()` en los proyectos. Un objeto
+  explícito también se sigue mejor con "ir a definición".
+- `deploy:build` y `framework:update` se movieron a la fase 7, donde el plan
+  los pone de nuevo junto a la guía de despliegue.
+- Bugs encontrados al probar el generador por HTTP: la vista de edición no
+  traía los valores, `back()` y la redirección por error de validación no
+  usaban el `Referer` (ahora sí, solo si es del mismo sitio) y dos
+  migraciones creadas en el mismo segundo podían compartir timestamp.
 
 ## Fase 6: Capa IA
 

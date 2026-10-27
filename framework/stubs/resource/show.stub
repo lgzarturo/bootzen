@@ -1,0 +1,16 @@
+<x-layouts.app title="[[Heading]] #{{ $[[singular]]->id }}">
+    <x-card title="[[Heading]] #{{ $[[singular]]->id }}" class="mx-auto max-w-2xl">
+        <dl class="divide-y divide-gray-100">
+[[details]]
+        </dl>
+        <x-slot:footer>
+            <div class="flex flex-wrap items-center gap-3">
+                <x-button :href="route('[[route]].edit', ['id' => $[[singular]]->id])">Editar</x-button>
+                <x-form :action="route('[[route]].destroy', ['id' => $[[singular]]->id])" method="DELETE" data-confirm="¿Borrar este registro? No se puede deshacer.">
+                    <x-button type="submit" variant="danger">Borrar</x-button>
+                </x-form>
+                <x-button :href="route('[[route]].index')" variant="ghost">Volver</x-button>
+            </div>
+        </x-slot:footer>
+    </x-card>
+</x-layouts.app>

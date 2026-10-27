@@ -1,0 +1,18 @@
+<?php
+
+declare(strict_types=1);
+
+use BootZen\Database\Connection;
+use BootZen\Database\Migration;
+
+return new class () extends Migration {
+    public function up(Connection $db): void
+    {
+        // $db->exec('ALTER TABLE tareas ADD COLUMN prioridad TEXT');
+    }
+
+    public function down(Connection $db): void
+    {
+        // Lo contrario de up(). Si no se puede revertir, borra este método.
+    }
+};

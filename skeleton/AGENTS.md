@@ -56,8 +56,15 @@ php bin/bootzen migrate:rollback  # revierte el último lote (--step=N)
 php bin/bootzen db:seed           # datos de ejemplo (--class=Nombre)
 php bin/bootzen db:fresh --seed   # borra todo, migra y siembra (--force en producción)
 php bin/bootzen db:backup         # copia consistente de SQLite en storage/backups
+php bin/bootzen make:resource Tarea titulo:string hecha:bool  # CRUD completo (ver abajo)
+php bin/bootzen make:model Cliente --migration   # también: make:controller, make:migration,
+                                  # make:middleware, make:seeder, make:test, make:component
+php bin/bootzen route:list        # rutas con nombre, middleware y acción
+php bin/bootzen doctor            # revisa PHP, extensiones, permisos, .env y base de datos
+php bin/bootzen config:cache      # configuración en un archivo (producción; config:clear la borra)
+php bin/bootzen key:generate      # APP_KEY en .env
 composer install                  # solo la primera vez, instala herramientas de dev
-composer check                    # formato + PHPStan + tests. Debe pasar siempre
+composer check                    # formato + PHPStan + tests. Debe pasar siempre (o php bin/bootzen check)
 composer format                   # corrige el formato
 composer test                     # solo tests
 ```
@@ -69,6 +76,31 @@ Tailwind en `storage/bin/` y verifica su SHA-256. No hace falta Node.
 en verde.**
 
 ## Cómo se hacen las cosas
+
+### Crear un CRUD: empieza siempre por make:resource
+
+```bash
+php bin/bootzen make:resource Tarea titulo:string notas:text:nullable hecha:bool vence:date:nullable
+php bin/bootzen migrate
+composer check
+```
+
+Crea la migración, el modelo, el controlador con validación, la ruta
+`resource` en `routes/web.php`, las vistas `index`, `create`, `edit` y `show`
+con componentes, y `tests/Feature/TareaTest.php`. El resultado pasa
+`composer check` sin tocar nada; después ajústalo a lo que pide la tarea.
+
+- Tipos: `string`, `text`, `email`, `int`, `float`, `bool`, `date` y
+  `datetime`. Agrega `:nullable` para campos opcionales.
+- La tabla, las rutas y las vistas usan el plural **en inglés** del modelo
+  (`Task` → `tasks`, `Category` → `categories`; `Tarea` → `tareas` también
+  funciona). Si el plural no sale bien (`Ciudad` → `ciudads`), usa `--table=`:
+  `make:resource Ciudad nombre:string --table=ciudades` nombra la tabla, las
+  rutas, las vistas y la variable en plural como `ciudades`.
+- Nunca sobrescribe archivos: si algo ya existe, se detiene antes de escribir.
+- Para lo demás: `make:model` (`--migration`, `--table=`), `make:controller`,
+  `make:migration crear_facturas` (trae el `CREATE TABLE`), `make:middleware`,
+  `make:seeder`, `make:test` (`--unit`) y `make:component modal` (`--class`).
 
 ### Rutas
 
@@ -201,7 +233,8 @@ Un componente es una vista en `resources/views/components/`:
   (`extends BootZen\View\Component`): su constructor recibe los atributos por
   nombre y sus propiedades públicas y `data()` llegan a la vista.
 - Disponibles: `<x-layouts.app>`, `<x-navigation>`, `<x-card>`, `<x-button>`,
-  `<x-alert>`, `<x-form>`, `<x-input>`. Úsalos antes de crear otros.
+  `<x-alert>`, `<x-form>`, `<x-input>`, `<x-textarea>`, `<x-checkbox>` y
+  `<x-pagination>`. Úsalos antes de crear otros.
 
 ### Formularios y validación
 
@@ -230,7 +263,9 @@ Un componente es una vista en `resources/views/components/`:
   que devuelve el mensaje de error o `null`.
 - Errores a mano: `throw ValidationException::withMessages(['email' => '...'])`.
 - En vistas: `@error('campo') {{ $message }} @enderror`, `$errors` (campo =>
-  mensajes) y `old('campo')`. `<x-input>` ya hace las tres cosas.
+  mensajes) y `old('campo')`. `<x-input>`, `<x-textarea>` y `<x-checkbox>` ya
+  hacen las tres cosas. `<x-checkbox>` envía `0` si no está marcada, así la
+  regla `boolean` siempre recibe un valor.
 - Si usas una regla con `|` dentro (regex), pasa las reglas como lista:
   `['required', 'regex:/^(a|b)$/']`.
 
@@ -499,32 +534,57 @@ Regístralo en `bootstrap/app.php`:
 - Grupo: `$app->middlewareGroup('api', ['cors'])`.
 
 En rutas: `->middleware('auth')` o `'middleware' => 'auth'` en un `group`.
-Ya existen el alias `cors` y el grupo `api`.
+Ya existen los alias `auth`, `guest`, `throttle` y `cors`, y los grupos `web`
+y `api`. `make:middleware Nombre` crea la clase en `app/Middleware`.
 
 ### Tests
 
-Cada funcionalidad nueva lleva al menos un test de feature. `createApp()`
-usa una base SQLite en memoria con todas las migraciones aplicadas, vacía en
-cada llamada. En tests (`APP_ENV=testing`) no se verifica el CSRF y la
-sesión, la caché y el correo viven en memoria (`ArrayMailer::sent()` devuelve
-los correos enviados). Para varias peticiones con la misma sesión, reenvía la
-cookie de la respuesta (ver `AuthTestBrowser` en `tests/Feature/AuthTest.php`
-de un proyecto `--auth`):
+Cada funcionalidad nueva lleva al menos un test de feature. `client()` crea
+una aplicación con una base SQLite en memoria (todas las migraciones
+aplicadas, vacía en cada llamada) y un cliente HTTP que conserva la cookie de
+sesión entre peticiones, como un navegador. En tests (`APP_ENV=testing`) no
+se verifica el CSRF y la sesión, la caché y el correo viven en memoria.
 
 ```php
-it('lista las tareas', function (): void {
-    $response = createApp()->run(new Request('GET', '/tareas'));
+it('crea una tarea', function (): void {
+    $client = client();                       // primero el cliente: crea la base de datos
 
-    expect($response->getStatusCode())->toBe(200);
+    $client->post('/tareas', ['titulo' => 'Comprar pan'])
+        ->assertRedirect('/tareas/1')
+        ->assertSessionHas('status', 'Tarea creada.');
+
+    $client->assertDatabaseHas('tareas', ['titulo' => 'Comprar pan']);
 });
 
-it('crea una tarea', function (): void {
-    $response = createApp()->run(new Request('POST', '/tareas', [], ['titulo' => 'Comprar pan']));
+it('valida el título', function (): void {
+    client()->from('/tareas/create')->post('/tareas', [])
+        ->assertRedirect('/tareas/create')
+        ->assertSessionHasErrors(['titulo']);
+});
 
-    expect($response->getStatusCode())->toBe(302)
-        ->and(Tarea::where('titulo', 'Comprar pan')->exists())->toBeTrue();
+it('solo deja entrar a usuarios', function (): void {
+    $client = client();
+    $usuario = User::create([...]);           // los modelos van después de client()
+
+    $client->get('/panel')->assertRedirect('/login');
+    $client->actingAs($usuario)->get('/panel')->assertOk()->assertSee('Hola');
 });
 ```
+
+- Peticiones: `get`, `post`, `put`, `patch`, `delete`, `getJson`,
+  `postJson`, `putJson`, `deleteJson`; `from('/pagina')` (de dónde viene el
+  formulario), `actingAs($usuario)`, `withHeaders([...])`,
+  `followingRedirects()`.
+- Respuesta: `assertOk`, `assertStatus`, `assertCreated`, `assertNoContent`,
+  `assertNotFound`, `assertForbidden`, `assertUnauthorized`,
+  `assertUnprocessable`, `assertRedirect('/ruta')`, `assertSee` (escapa como
+  `{{ }}`), `assertDontSee`, `assertJson([...])`, `assertJsonPath('data.0.id', 1)`,
+  `assertJsonCount`, `assertHeader`, `assertSessionHas`,
+  `assertSessionMissing`, `assertSessionHasErrors([...])`,
+  `assertSessionHasNoErrors`; `json()`, `body()`, `status()`.
+- Cliente: `assertDatabaseHas`, `assertDatabaseMissing`,
+  `assertDatabaseCount`, `assertAuthenticated`, `assertGuest`. Los correos
+  enviados: `$client->app->make(Mailer::class)` es un `ArrayMailer` con `sent()`.
 
 ## API disponible del framework
 
@@ -564,14 +624,17 @@ BootZen está en desarrollo hacia la v2.0. Estas piezas llegan en fases
 posteriores; **no las inventes ni instales librerías para suplirlas** sin
 preguntar:
 
-- Generadores en `bin/bootzen` (`make:model`, `make:migration`, `make:resource`)
-  y `config:cache`: por ahora los archivos se crean a mano siguiendo esta guía.
-- Factories de datos falsos y un `TestCase` con helpers HTTP para tests.
+- Factories de datos falsos (en los tests se crean los registros con
+  `Modelo::create()`).
+- `route:cache`: el router compila las rutas en cada petición y es rápido
+  igual.
+- `deploy:build` y `framework:update` (llegan con la guía de despliegue).
 - Envío de correo por SMTP (solo drivers `log` y `array`).
 - "Recordarme", verificación de correo, roles y permisos.
 
 ## Reglas
 
+- Para un CRUD nuevo usa `make:resource`; no lo escribas a mano desde cero.
 - No agregues dependencias de Composer en `require`. Solo `require-dev`.
 - No edites `framework/`. Si algo del framework falla, repórtalo.
 - No pongas HTML dentro de controladores: va en `resources/views/` con `view()`.

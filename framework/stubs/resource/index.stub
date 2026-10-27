@@ -1,0 +1,33 @@
+<x-layouts.app title="[[Title]]">
+    <div class="mb-6 flex items-center justify-between">
+        <h1 class="text-2xl font-bold">[[Title]]</h1>
+        <x-button :href="route('[[route]].create')">Nuevo</x-button>
+    </div>
+
+    <div class="overflow-x-auto rounded-xl bg-white shadow-sm ring-1 ring-gray-200">
+        <table class="min-w-full divide-y divide-gray-200 text-sm">
+            <thead class="bg-gray-50 text-left text-gray-600">
+                <tr>
+[[headers]]
+                    <th class="px-4 py-3"></th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+            @foreach ($[[plural]] as $[[singular]])
+                <tr>
+[[cells]]
+                    <td class="px-4 py-3 text-right">
+                        <x-button :href="route('[[route]].edit', ['id' => $[[singular]]->id])" variant="ghost" size="sm">Editar</x-button>
+                    </td>
+                </tr>
+            @empty
+                <tr>
+                    <td colspan="[[colspan]]" class="px-4 py-8 text-center text-gray-500">Todavía no hay registros.</td>
+                </tr>
+            @endforeach
+            </tbody>
+        </table>
+    </div>
+
+    <x-pagination :paginator="$[[plural]]" />
+</x-layouts.app>

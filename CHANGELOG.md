@@ -5,6 +5,37 @@
 Inicio de la v2.0 según [plan/04_PLAN-MVP-MONOLITO.md](plan/04_PLAN-MVP-MONOLITO.md).
 **Cambios incompatibles con la v1.x.**
 
+### Fase 5: CLI y generadores
+
+#### Agregado
+
+- `make:resource Modelo campo:tipo[:nullable] ... [--table=]`: migración,
+  modelo, controlador con validación, ruta `resource`, vistas index, create,
+  edit y show con componentes, y tests de feature que pasan `composer check`
+  sin tocar nada. Tipos: `string`, `text`, `email`, `int`, `float`, `bool`,
+  `date` y `datetime`. Plurales en inglés; `--table` nombra tabla, rutas y
+  vistas. Genera SQL de SQLite o MySQL según la conexión.
+- `make:controller`, `make:model` (`--migration`, `--table`),
+  `make:migration` (con `CREATE TABLE` si se llama `crear_x`),
+  `make:middleware`, `make:seeder`, `make:test` (`--unit`) y
+  `make:component` (`--class`), desde plantillas en `framework/stubs`.
+  Ningún generador sobrescribe archivos.
+- `route:list`, `config:cache`, `config:clear`, `key:generate`, `doctor`
+  (PHP, extensiones, permisos, `.env`, `APP_DEBUG` en producción, base de
+  datos, migraciones pendientes y CSS) y `check` (formato, PHPStan y tests).
+- `BootZen\Testing\TestClient` y `TestResponse` con `client()` en los
+  proyectos: peticiones con cookies de sesión, `actingAs`, `from`,
+  `followingRedirects` y aserciones de estado, HTML, JSON, cabeceras, sesión,
+  errores de validación y base de datos.
+- Componentes `<x-textarea>` y `<x-checkbox>`.
+
+#### Cambiado
+
+- `back()` y la redirección por error de validación vuelven a la página del
+  `Referer` si es del mismo sitio.
+- En `APP_ENV=testing` se ignora la caché de configuración.
+- Los tests del skeleton y del scaffold `--auth` usan `client()`.
+
 ### Fase 4: sesión, seguridad y autenticación
 
 #### Agregado

@@ -11,3 +11,6 @@
 /* Archivos donde Tailwind busca clases */
 @source "../views";
 @source "../../public/assets/js";
+/* Plantillas de make:resource: sus vistas se ven bien aunque todavía no recompiles el CSS */
+@source "../../framework/stubs";
+@source "../../framework/src/Console/ResourceField.php";

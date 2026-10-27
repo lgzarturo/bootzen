@@ -1,0 +1,71 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Controllers;
+
+use App\Models\[[Model]];
+use BootZen\Core\Request;
+use BootZen\Core\Response;
+
+/**
+ * CRUD de [[Model]]. Rutas: $router->resource('[[route]]', [[Model]]Controller::class) en routes/web.php.
+ */
+final class [[Model]]Controller
+{
+    public function index(Request $request): Response
+    {
+        $[[plural]] = [[Model]]::query()->orderBy('id', 'desc')->paginate(15, $request->integer('page', 1));
+
+        return view('[[view]].index', ['[[plural]]' => $[[plural]]]);
+    }
+
+    public function create(): Response
+    {
+        return view('[[view]].create');
+    }
+
+    public function store(Request $request): Response
+    {
+        $[[singular]] = [[Model]]::create($request->validate($this->rules()));
+
+        return redirect(route('[[route]].show', ['id' => $[[singular]]->id]))->with('status', 'Registro creado.');
+    }
+
+    public function show(int $id): Response
+    {
+        return view('[[view]].show', ['[[singular]]' => [[Model]]::findOrFail($id)]);
+    }
+
+    public function edit(int $id): Response
+    {
+        return view('[[view]].edit', ['[[singular]]' => [[Model]]::findOrFail($id)]);
+    }
+
+    public function update(Request $request, int $id): Response
+    {
+        $[[singular]] = [[Model]]::findOrFail($id);
+        $[[singular]]->update($request->validate($this->rules()));
+
+        return redirect(route('[[route]].show', ['id' => $[[singular]]->id]))->with('status', 'Registro actualizado.');
+    }
+
+    public function destroy(int $id): Response
+    {
+        [[Model]]::findOrFail($id)->delete();
+
+        return redirect(route('[[route]].index'))->with('status', 'Registro borrado.');
+    }
+
+    /**
+     * Reglas de validación para crear y actualizar.
+     *
+     * @return array<string, string>
+     */
+    private function rules(): array
+    {
+        return [
+[[rules]]
+        ];
+    }
+}

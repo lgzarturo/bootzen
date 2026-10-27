@@ -14,6 +14,7 @@ php bin/bootzen migrate           # crea database/app.sqlite y aplica las migrac
 php bin/bootzen serve             # servidor + Tailwind en modo watch: http://127.0.0.1:8000
 composer install                  # herramientas de desarrollo (tests, PHPStan, formato)
 composer check                    # formato, PHPStan y tests
+php bin/bootzen make:resource Tarea titulo:string hecha:bool   # CRUD con tests
 php bin/bootzen help              # todos los comandos
 ```
 
@@ -28,7 +29,9 @@ con el CSS ya compilado.
 
 ## Despliegue
 
-Antes de subir: `php bin/bootzen css:build` y `php bin/bootzen view:cache`.
+Antes de subir: `php bin/bootzen css:build`, `php bin/bootzen view:cache` y
+`php bin/bootzen doctor` (revisa PHP, extensiones, permisos y `.env`). En el
+servidor, `php bin/bootzen config:cache` deja la configuración en un archivo.
 En el servidor, después de cada despliegue: `php bin/bootzen migrate`.
 La aplicación no necesita `vendor/` en producción. Sube el proyecto y apunta
 el document root del servidor a `public/` y sirve el sitio con HTTPS (las
