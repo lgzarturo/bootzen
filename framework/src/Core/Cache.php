@@ -24,15 +24,23 @@ use RuntimeException;
  * Caché clave/valor persistida en archivos.
  *
  * Los valores se serializan con serialize(), así que admite escalares, arrays y objetos serializables.
+ * Sin directorio (null) guarda en memoria: es el driver 'array' que usan los tests.
  *
  * @example $stats = $cache->remember('dashboard.stats', 600, fn () => $service->stats());
  */
 final class Cache
 {
     /**
-     * @param string $directory Directorio donde se guardan los archivos de caché
+     * Entradas en memoria cuando no hay directorio.
+     *
+     * @var array<string, string>
      */
-    public function __construct(private readonly string $directory)
+    private array $memory = [];
+
+    /**
+     * @param string|null $directory Directorio de los archivos de caché; null para guardar en memoria
+     */
+    public function __construct(private readonly ?string $directory)
     {
     }
 
@@ -54,13 +62,18 @@ final class Cache
      */
     public function set(string $key, mixed $value, ?int $ttl = 3600): void
     {
-        $this->ensureDirectory();
-
         $payload = serialize([
             'expires' => $ttl === null ? null : time() + $ttl,
             'value' => $value,
         ]);
 
+        if ($this->directory === null) {
+            $this->memory[$key] = $payload;
+
+            return;
+        }
+
+        $this->ensureDirectory($this->directory);
         $file = $this->path($key);
         $temporary = $file . '.' . bin2hex(random_bytes(4)) . '.tmp';
 
@@ -84,6 +97,12 @@ final class Cache
      */
     public function forget(string $key): void
     {
+        if ($this->directory === null) {
+            unset($this->memory[$key]);
+
+            return;
+        }
+
         $file = $this->path($key);
 
         if (is_file($file)) {
@@ -133,6 +152,12 @@ final class Cache
      */
     public function flush(): void
     {
+        $this->memory = [];
+
+        if ($this->directory === null) {
+            return;
+        }
+
         foreach (glob($this->directory . '/*.cache') ?: [] as $file) {
             @unlink($file);
         }
@@ -145,23 +170,28 @@ final class Cache
      */
     private function read(string $key): ?array
     {
-        $file = $this->path($key);
-        if (! is_file($file)) {
+        if ($this->directory === null) {
+            $contents = $this->memory[$key] ?? null;
+        } else {
+            $file = $this->path($key);
+            $contents = is_file($file) ? @file_get_contents($file) : null;
+        }
+
+        if ($contents === null) {
             return null;
         }
 
-        $contents = @file_get_contents($file);
         $entry = $contents === false ? false : self::unserializeQuietly($contents);
 
         if (! is_array($entry) || ! array_key_exists('value', $entry) || ! array_key_exists('expires', $entry)) {
-            @unlink($file);
+            $this->forget($key);
 
             return null;
         }
 
         $expires = is_int($entry['expires']) ? $entry['expires'] : null;
         if ($expires !== null && $expires <= time()) {
-            @unlink($file);
+            $this->forget($key);
 
             return null;
         }
@@ -191,10 +221,10 @@ final class Cache
     /**
      * @throws RuntimeException Si el directorio no existe y no se puede crear
      */
-    private function ensureDirectory(): void
+    private function ensureDirectory(string $directory): void
     {
-        if (! is_dir($this->directory) && ! @mkdir($this->directory, 0775, true) && ! is_dir($this->directory)) {
-            throw new RuntimeException("No se pudo crear el directorio de caché {$this->directory}.");
+        if (! is_dir($directory) && ! @mkdir($directory, 0775, true) && ! is_dir($directory)) {
+            throw new RuntimeException("No se pudo crear el directorio de caché {$directory}.");
         }
     }
 }
