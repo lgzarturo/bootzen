@@ -1,20 +1,28 @@
-<!doctype html>
-<html lang="es">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title><?= e(config('app.name')) ?></title>
-    <style>
-        body { margin: 0; min-height: 100vh; display: grid; place-items: center; font-family: system-ui, sans-serif; background: #f8fafc; color: #0f172a; }
-        main { text-align: center; padding: 2rem; }
-        h1 { font-size: 2.5rem; margin: 0 0 .5rem; }
-        p { color: #475569; margin: 0; }
-    </style>
-</head>
-<body>
-    <main>
-        <h1>Hola desde <?= e(config('app.name')) ?></h1>
-        <p>Proyecto creado con BootZen. Empieza por <code>routes/web.php</code>.</p>
-    </main>
-</body>
-</html>
+<x-layouts.app title="Inicio">
+    <section class="py-10 text-center">
+        <h1 class="text-4xl font-bold tracking-tight">Hola desde {{ config('app.name') }}</h1>
+        <p class="mt-3 text-lg text-gray-600">Proyecto creado con BootZen. Empieza por <code class="rounded bg-gray-100 px-1">routes/web.php</code>.</p>
+    </section>
+
+    <div class="grid gap-6 md:grid-cols-3">
+        <x-card title="Rutas" subtitle="routes/web.php">
+            Define páginas con <code>$router->get()</code> o un CRUD completo con <code>$router->resource()</code>.
+        </x-card>
+        <x-card title="Vistas" subtitle="resources/views">
+            Plantillas <code>.php</code> con componentes <code>&lt;x-card&gt;</code>, slots y directivas.
+        </x-card>
+        <x-card title="Interactividad" subtitle="public/assets/js">
+            Componentes JS nativos con <code>data-component</code>, sin bundler.
+            <x-slot:footer>
+                <div data-component="counter" data-props='{"start": 0}' class="flex items-center gap-3">
+                    <x-button size="sm" data-counter-increment>Sumar</x-button>
+                    <span>Clics: <strong data-counter-value>0</strong></span>
+                </div>
+            </x-slot:footer>
+        </x-card>
+    </div>
+
+    <x-alert type="info" title="Siguiente paso" class="mt-8">
+        Lee <code>AGENTS.md</code>: ahí están las convenciones del proyecto para personas y agentes de IA.
+    </x-alert>
+</x-layouts.app>
