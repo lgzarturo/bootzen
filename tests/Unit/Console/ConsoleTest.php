@@ -42,13 +42,6 @@ afterEach(function (): void {
     removeDir($this->project);
 });
 
-function consoleOutput($stream): string
-{
-    rewind($stream);
-
-    return (string) stream_get_contents($stream);
-}
-
 it('lista los comandos y rechaza los desconocidos', function (): void {
     expect(($this->console)()->run(['bootzen']))->toBe(0)
         ->and(consoleOutput($this->output))->toContain('css:build')

@@ -87,7 +87,10 @@ class Application
         $this->router = new Router($this->container);
 
         Env::load($this->basePath('.env'));
-        $this->config = Config::load($this->basePath('config'), $this->basePath('storage/cache/config.php'));
+        // En tests se ignora la caché de config: phpunit.xml cambia variables (base en memoria, sesión array)
+        $this->config = env('APP_ENV') === 'testing'
+            ? Config::fromDirectory($this->basePath('config'))
+            : Config::load($this->basePath('config'), $this->basePath('storage/cache/config.php'));
         $this->configureTimezone();
         $this->registerCoreBindings();
 
