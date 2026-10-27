@@ -59,3 +59,30 @@ function forgetEnv(string ...$keys): void
         putenv($key);
     }
 }
+
+/**
+ * Conexión SQLite en memoria con una tabla de tareas de ejemplo.
+ */
+function memoryDb(bool $withTasks = true): BootZen\Database\Connection
+{
+    $db = BootZen\Database\Connection::fromConfig(['driver' => 'sqlite', 'database' => ':memory:'], sys_get_temp_dir());
+
+    if ($withTasks) {
+        $db->exec(<<<'SQL'
+            CREATE TABLE proyectos (id INTEGER PRIMARY KEY AUTOINCREMENT, nombre TEXT NOT NULL);
+            CREATE TABLE tareas (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                proyecto_id INTEGER REFERENCES proyectos(id) ON DELETE CASCADE,
+                titulo TEXT NOT NULL,
+                hecha INTEGER NOT NULL DEFAULT 0,
+                prioridad INTEGER,
+                meta TEXT,
+                vence_en TEXT,
+                created_at TEXT,
+                updated_at TEXT
+            );
+            SQL);
+    }
+
+    return $db;
+}
