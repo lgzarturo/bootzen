@@ -41,6 +41,17 @@ Inicio de la v2.0 según [plan/04_PLAN-MVP-MONOLITO.md](plan/04_PLAN-MVP-MONOLIT
 - El router lanza `HttpException` 404/405 en vez de devolver respuestas.
 - `Response::json()` no escapa barras ni caracteres Unicode y acepta listas.
 
+#### Corregido
+
+- `Request::fromGlobals()` no incluía `Content-Type` ni `Content-Length` en
+  las cabeceras (en `$_SERVER` llegan sin el prefijo `HTTP_`), así que
+  `isJson()` siempre era falso en peticiones reales. Un cuerpo JSON que no es
+  objeto ya no rompe el tipo del cuerpo.
+- Un prefijo de grupo generaba paths con doble barra y `//ruta` se
+  interpretaba como host.
+- El router respondía todo `OPTIONS` con cabeceras CORS abiertas aunque no se
+  registrara el middleware.
+
 #### Eliminado
 
 - Handlers `'Clase@metodo'`: usa `[Clase::class, 'metodo']`.
