@@ -150,18 +150,25 @@ if (! function_exists('storage_path')) {
 
 if (! function_exists('asset')) {
     /**
-     * Genera la URL de un recurso público con versión basada en la fecha de modificación.
+     * Path de un recurso público con versión según su fecha de modificación: '/assets/app.css?v=...'.
+     *
+     * Es relativo al dominio (sin host), así funciona igual en localhost, en otro puerto o detrás de un
+     * proxy, y la CSP 'self' no lo bloquea. Si APP_URL tiene un subdirectorio (/mi-app), lo antepone.
      *
      * @param string $path Ruta relativa del recurso dentro de public
-     * @return string URL absoluta, con ?v= si el archivo existe
-     * @example asset('assets/app.css')
+     * @example asset('assets/app.css') // '/assets/app.css?v=1730000000'
      */
     function asset(string $path): string
     {
+        $appUrl = Application::hasInstance()
+            ? Application::getInstance()->config()->get('app.url', env('APP_URL', ''))
+            : env('APP_URL', '');
+        $base = is_string($appUrl) ? rtrim((string) parse_url($appUrl, PHP_URL_PATH), '/') : '';
         $file = public_path($path);
         $version = is_file($file) ? filemtime($file) : false;
+        $url = $base . '/' . ltrim($path, '/');
 
-        return $version === false ? url($path) : url($path) . '?v=' . $version;
+        return $version === false ? $url : $url . '?v=' . $version;
     }
 }
 
