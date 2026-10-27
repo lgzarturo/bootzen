@@ -62,6 +62,13 @@ class Response
     private array $cookies;
 
     /**
+     * Datos flash que StartSession guarda en la sesión: with(), withErrors() y withInput().
+     *
+     * @var array<string, mixed>
+     */
+    private array $flash = [];
+
+    /**
      * Mapa de códigos de estado HTTP a textos descriptivos
      *
      * @var array<int, string>
@@ -348,6 +355,72 @@ class Response
         $new->body = $body;
 
         return $new;
+    }
+
+    /**
+     * Agrega datos flash: estarán en session() solo en la siguiente petición.
+     * Necesita el middleware StartSession (grupo web).
+     *
+     * @param string|array<string, mixed> $key Clave o array clave => valor
+     * @example return redirect(route('tareas.index'))->with('status', 'Tarea creada');
+     */
+    public function with(string|array $key, mixed $value = null): self
+    {
+        $new = clone $this;
+        foreach (is_array($key) ? $key : [$key => $value] as $name => $item) {
+            $new->flash[$name] = $item;
+        }
+
+        return $new;
+    }
+
+    /**
+     * Agrega errores de validación para la siguiente petición (los lee @error y $errors).
+     *
+     * @param array<string, string|list<string>> $errors Campo => mensaje o mensajes
+     * @example return back()->withErrors(['email' => 'Credenciales incorrectas.']);
+     */
+    public function withErrors(array $errors): self
+    {
+        $normalized = [];
+        foreach ($errors as $field => $messages) {
+            $normalized[$field] = is_array($messages) ? $messages : [$messages];
+        }
+
+        $current = $this->flash['_errors'] ?? [];
+
+        return $this->with('_errors', array_merge(is_array($current) ? $current : [], $normalized));
+    }
+
+    /**
+     * Guarda el input para que old() lo devuelva en la siguiente petición.
+     *
+     * @param array<string, mixed> $input
+     * @example return back()->withInput($request->except(['password']));
+     */
+    public function withInput(array $input): self
+    {
+        return $this->with('_old_input', $input);
+    }
+
+    /**
+     * Datos flash pendientes de guardar en la sesión.
+     *
+     * @return array<string, mixed>
+     */
+    public function getFlash(): array
+    {
+        return $this->flash;
+    }
+
+    /**
+     * Cookies de la respuesta: nombre => [value, expires, path, domain, secure, httponly, samesite].
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    public function getCookies(): array
+    {
+        return $this->cookies;
     }
 
     /**

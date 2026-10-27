@@ -21,6 +21,7 @@ declare(strict_types=1);
 
 namespace BootZen\Core;
 
+use BootZen\Validation\ValidationException;
 use BootZen\View\View;
 use BootZen\View\ViewException;
 use Throwable;
@@ -97,6 +98,10 @@ class ExceptionHandler
     private function jsonPayload(Throwable $e, int $status, string $title, string $message): array
     {
         $payload = ['error' => $title, 'message' => $message, 'status' => $status];
+
+        if ($e instanceof ValidationException) {
+            $payload['errors'] = $e->errors();
+        }
 
         if ($this->debug && $status >= 500) {
             $payload['exception'] = $e::class;
