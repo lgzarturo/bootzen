@@ -552,7 +552,9 @@ final class Console
         $this->line("Artefacto: {$result['files']} archivos y {$result['views']} vistas precompiladas.");
         $this->line('  Carpeta: ' . substr($result['dir'], $base));
         $this->line('  Archivo: ' . ($result['archive'] === null ? 'sin comprimir (PHP no trae zip ni phar), sube la carpeta' : substr($result['archive'], $base)));
-        $this->line('En el servidor: crea .env (desde .env.example), php bin/bootzen migrate, php bin/bootzen config:cache y php bin/bootzen doctor.');
+        $this->line('En el servidor: crea .env desde .env.example (APP_ENV=production, APP_DEBUG=false y tu APP_KEY) y ejecuta');
+        $this->line('php bin/bootzen migrate, config:cache y doctor. Sin terminal: INSTALL_ENABLED=true y abre /_bootzen/instalar.');
+        $this->line('Guías: docs/deploy/.');
 
         return 0;
     }

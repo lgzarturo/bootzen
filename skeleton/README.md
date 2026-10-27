@@ -29,14 +29,28 @@ con el CSS ya compilado.
 
 ## Despliegue
 
-Antes de subir: `php bin/bootzen css:build`, `php bin/bootzen view:cache` y
-`php bin/bootzen doctor` (revisa PHP, extensiones, permisos y `.env`). En el
-servidor, `php bin/bootzen config:cache` deja la configuración en un archivo.
-En el servidor, después de cada despliegue: `php bin/bootzen migrate`.
-La aplicación no necesita `vendor/` en producción. Sube el proyecto y apunta
-el document root del servidor a `public/` y sirve el sitio con HTTPS (las
-cookies de sesión se marcan como seguras solas). Asegúrate de que `storage/` y
-`database/` tengan permisos de escritura.
+```bash
+php bin/bootzen deploy:build --version=1.0.0   # build/<app>-1.0.0.zip, listo para subir
+```
+
+Guías probadas paso a paso en [docs/deploy/](docs/deploy/README.md):
+
+- [Hosting compartido](docs/deploy/hosting-compartido.md): subes el `.zip` y
+  migras desde el navegador, sin terminal.
+- [VPS](docs/deploy/vps.md): `deploy/deploy.sh` con Nginx o Caddy, sin cortes y
+  con vuelta atrás.
+- [Docker](docs/deploy/docker.md): `docker compose up -d --build`.
+
+En cualquier servidor, `php bin/bootzen doctor` te dice qué falta. La aplicación
+no necesita `vendor/` en producción.
+
+## Actualizar BootZen
+
+```bash
+php bin/bootzen framework:update   # copia framework/ desde ~/.bootzen y deja respaldo
+```
+
+Antes, actualiza tu instalación local de BootZen con `updater.sh`.
 
 ## Guía para IA
 

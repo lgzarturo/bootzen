@@ -1,0 +1,23 @@
+# Lo que nunca entra a la imagen: secretos, datos locales y herramientas de desarrollo
+.env
+.git
+.idea
+.vscode
+node_modules
+vendor
+build
+tests
+database/*.sqlite*
+storage/bin/*
+storage/cache/*/*
+storage/cache/config.php
+storage/logs/*.log
+storage/sessions/*
+storage/app/*
+storage/backups/*
+public/uploads/*
+!storage/**/.gitignore
+!public/uploads/.gitignore
+!public/uploads/.htaccess
+.phpunit.cache
+.php-cs-fixer.cache

@@ -70,16 +70,24 @@ final class Doctor
 
     private function checkEnvironment(): void
     {
-        is_file($this->app->basePath('.env'))
-            ? $this->ok('.env presente')
-            : $this->warning('No hay .env: copia .env.example a .env (o define las variables en el servidor).');
-
-        $key = $this->app->config()->get('app.key');
-        is_string($key) && $key !== ''
-            ? $this->ok('APP_KEY definida')
-            : $this->warning('APP_KEY vacía: ejecuta php bin/bootzen key:generate.');
+        if (is_file($this->app->basePath('.env'))) {
+            $this->ok('.env presente');
+        } elseif (getenv('APP_KEY') !== false) {
+            $this->ok('Sin .env: se usan las variables del servidor (Docker, panel del hosting)');
+        } else {
+            $this->warning('No hay .env: copia .env.example a .env (o define las variables en el servidor).');
+        }
 
         $production = $this->app->config()->get('app.env') === 'production';
+        $key = $this->app->config()->get('app.key');
+
+        if (is_string($key) && $key !== '') {
+            $this->ok('APP_KEY definida');
+        } elseif ($production) {
+            $this->error('APP_KEY vacía en producción: genérala con php bin/bootzen key:generate y guárdala en .env.');
+        } else {
+            $this->warning('APP_KEY vacía: ejecuta php bin/bootzen key:generate.');
+        }
 
         if ($production && $this->app->isDebug()) {
             $this->error('APP_DEBUG=true en producción: muestra el código y la traza de los errores. Ponlo en false.');
@@ -100,14 +108,15 @@ final class Doctor
     {
         $directories = ['storage', 'storage/logs', 'storage/cache', 'storage/sessions'];
 
-        if ($this->driver() === 'sqlite') {
-            $directories[] = 'database';
+        $database = $this->sqliteDirectory();
+        if ($database !== null) {
+            $directories[] = $database;
         }
 
         $problems = [];
         foreach ($directories as $directory) {
             // Si la carpeta no existe todavía, basta con poder crearla en la primera carpeta que sí existe
-            $path = $this->app->basePath($directory);
+            $path = str_starts_with($directory, '/') ? $directory : $this->app->basePath($directory);
             while (! is_dir($path) && dirname($path) !== $path) {
                 $path = dirname($path);
             }
@@ -156,6 +165,29 @@ final class Doctor
         is_file($this->app->basePath('public/assets/app.css'))
             ? $this->ok('CSS compilado en public/assets/app.css')
             : $this->error('Falta public/assets/app.css: ejecuta php bin/bootzen css:build.');
+    }
+
+    /**
+     * Carpeta de la base SQLite (relativa al proyecto si está dentro), o null si no es SQLite en archivo.
+     */
+    private function sqliteDirectory(): ?string
+    {
+        if ($this->driver() !== 'sqlite') {
+            return null;
+        }
+
+        $default = $this->app->config()->get('database.default', 'sqlite');
+        $file = $this->app->config()->get('database.connections.' . (is_string($default) ? $default : 'sqlite') . '.database', 'database/app.sqlite');
+        $file = is_string($file) && $file !== '' ? $file : 'database/app.sqlite';
+
+        if ($file === ':memory:') {
+            return null;
+        }
+
+        $directory = dirname($file);
+        $base = rtrim($this->app->basePath(), '/') . '/';
+
+        return str_starts_with($directory . '/', $base) ? substr($directory, strlen($base)) : $directory;
     }
 
     private function driver(): string

@@ -121,6 +121,7 @@ it('marca APP_DEBUG en producción y migraciones pendientes', function (): void 
     expect(($this->run)('doctor'))->toBe(1);
 
     expect(consoleOutput($this->output))->toContain('✗ APP_DEBUG=true en producción')
+        ->toContain('✗ APP_KEY vacía en producción')
         ->toContain('! Hay 1 migración(es) pendiente(s)')
         ->toContain('config:cache');
 });
@@ -131,6 +132,26 @@ it('termina sin errores cuando todo está listo', function (): void {
 
     expect(($this->run)('doctor'))->toBe(0)
         ->and(consoleOutput($this->output))->toContain('Todo listo.');
+});
+
+it('revisa la carpeta real de la base y acepta variables del servidor sin .env', function (): void {
+    $data = makeTempDir('bootzen-datos');
+    writeFile($this->project . '/config/database.php', "<?php return ['default' => 'sqlite', 'connections' => ['sqlite' => ['driver' => 'sqlite', 'database' => '{$data}/app.sqlite']]];");
+    putenv('APP_KEY=base64:del-servidor');
+
+    try {
+        ($this->run)('doctor');
+    } finally {
+        removeDir($data);
+    }
+
+    expect(consoleOutput($this->output))->toContain('✓ Permisos de escritura: storage, storage/logs, storage/cache, storage/sessions, ' . $data)
+        ->toContain('✓ Sin .env: se usan las variables del servidor');
+
+    writeFile($this->project . '/config/database.php', "<?php return ['default' => 'sqlite', 'connections' => ['sqlite' => ['driver' => 'sqlite', 'database' => 'storage/database/app.sqlite']]];");
+    ($this->run)('doctor');
+
+    expect(consoleOutput($this->output))->toContain('storage/sessions, storage/database');
 });
 
 it('recuerda apagar la instalación web', function (): void {
