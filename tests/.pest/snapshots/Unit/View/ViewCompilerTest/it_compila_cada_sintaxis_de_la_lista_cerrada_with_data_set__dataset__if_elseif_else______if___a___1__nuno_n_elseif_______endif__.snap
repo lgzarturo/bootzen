@@ -1,0 +1,7 @@
+<?php if ($a > 1): ?>
+uno
+<?php elseif ($b): ?>
+dos
+<?php else: ?>
+tres
+<?php endif; ?>

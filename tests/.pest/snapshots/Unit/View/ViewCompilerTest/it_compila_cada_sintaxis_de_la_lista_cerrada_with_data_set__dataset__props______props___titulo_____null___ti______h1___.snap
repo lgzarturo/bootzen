@@ -1,0 +1,2 @@
+<?php [$__props, $attributes] = $__env->resolveProps($attributes ?? null, ['titulo' => null, 'tipo']); extract($__props); unset($__props); ?>
+<h1><?php echo $__env->escape($titulo); ?></h1>

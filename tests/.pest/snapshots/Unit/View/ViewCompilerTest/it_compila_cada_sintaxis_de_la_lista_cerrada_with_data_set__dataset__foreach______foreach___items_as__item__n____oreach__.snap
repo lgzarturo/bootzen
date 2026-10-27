@@ -1,0 +1,3 @@
+<?php $__empty_1 = true; foreach ($items as $item): $__empty_1 = false; ?>
+<?php echo $__env->escape($item) . "\n"; ?>
+<?php endforeach; ?>

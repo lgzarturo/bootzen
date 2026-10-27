@@ -14,9 +14,9 @@ fricción en hosting compartido, VPS o Docker.
 
 - **PHP 8.2+** sin dependencias de Composer en producción
 - **SQLite** como base de datos por defecto *(fase 3)*
-- **Tailwind CSS v4** con CLI standalone, sin Node en el servidor *(fase 2)*
-- **JavaScript nativo** con módulos ES, sin bundler *(fase 2)*
-- **Plantillas `.php` con componentes `<x-*>`** compiladas y cacheadas *(fase 2)*
+- **Tailwind CSS v4** con CLI standalone, sin Node
+- **JavaScript nativo** con módulos ES, sin bundler
+- **Plantillas `.php` con componentes `<x-*>`** compiladas y cacheadas
 
 ## Instalación rápida
 
@@ -34,10 +34,12 @@ Más opciones (manual, Windows, actualización) en [INSTALL.md](INSTALL.md).
 ```
 mi-app/
 ├── app/Controllers/      # Tu código (namespace App\)
+├── bin/bootzen           # CLI: serve, css:build, view:cache...
 ├── bootstrap/app.php     # Construye la aplicación
 ├── routes/web.php        # Rutas
-├── resources/views/      # Vistas
-├── public/               # Document root (index.php, .htaccess)
+├── resources/views/      # Vistas y componentes <x-*>
+├── resources/css/        # Fuente de Tailwind
+├── public/               # Document root: index.php, CSS compilado y JS
 ├── storage/              # Logs y cachés
 ├── database/             # SQLite local
 ├── tests/                # Pest
@@ -57,6 +59,7 @@ git clone https://github.com/lgzarturo/bootzen
 cd bootzen
 composer install
 composer check                      # formato, PHPStan nivel 8 y tests
+npm ci && npm run test:js           # tests del runtime JS (solo desarrollo del repo)
 php bin/bootzen-new demo --no-git   # genera un proyecto de prueba
 ```
 

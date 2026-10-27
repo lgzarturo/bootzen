@@ -102,8 +102,18 @@ mi-app/
 - **MiddlewareInterface**: contrato `process(Request, callable $next)`.
 - **Helpers**: funciones globales (`env`, `base_path`, `e`, `redirect`,
   `abort`, `logger`, etc.). Ninguna termina la ejecución con `exit`.
-- **Component** y `Components/`: componentes como clases PHP. Se reemplazan
-  por componentes de vista `<x-*>` en la fase 2.
+- **View / ViewCompiler**: vistas `.php` con una lista cerrada de directivas
+  y componentes `<x-*>` (slots, `@props`, `$attributes`), compiladas a
+  `storage/cache/views` con la misma numeración de líneas que el original.
+- **View\Component**: base opcional para componentes con lógica
+  (`app/View/Components`).
+- **Frontend\Tailwind**: descarga verificada (SHA-256) del CLI standalone de
+  Tailwind v4 y comandos de compilación.
+- **Console**: `bin/bootzen` (serve, css:install, css:build, css:watch,
+  view:cache, view:clear).
+- **bootzen.js** (en el skeleton, `public/assets/js`): runtime de JS nativo
+  con componentes `data-component`, `request()`, `toast()` y atributos
+  declarativos.
 
 ---
 

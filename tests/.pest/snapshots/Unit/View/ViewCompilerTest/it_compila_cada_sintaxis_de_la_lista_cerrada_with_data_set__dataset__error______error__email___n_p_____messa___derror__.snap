@@ -1,0 +1,3 @@
+<?php if ($__env->hasError('email')): $message = $__env->firstError('email'); ?>
+<p><?php echo $__env->escape($message); ?></p>
+<?php unset($message); endif; ?>

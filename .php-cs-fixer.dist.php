@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 $finder = PhpCsFixer\Finder::create()
     ->in([__DIR__ . '/framework', __DIR__ . '/skeleton', __DIR__ . '/tests'])
-    ->append([__DIR__ . '/bin/bootzen-new'])
-    ->exclude(['vendor', 'storage'])
+    ->append([__DIR__ . '/bin/bootzen-new', __DIR__ . '/skeleton/bin/bootzen'])
+    ->exclude(['vendor', 'storage', 'resources/views'])
     ->name('*.php')
     ->ignoreDotFiles(false)
     ->ignoreVCS(true);

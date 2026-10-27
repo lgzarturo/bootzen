@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
-use BootZen\Core\Request;
 use BootZen\Core\Response;
 
 /**
@@ -13,14 +12,10 @@ use BootZen\Core\Response;
 class HomeController
 {
     /**
-     * Muestra la página de bienvenida.
+     * Muestra la página de bienvenida (resources/views/welcome.php).
      */
-    public function index(Request $request): Response
+    public function index(): Response
     {
-        // Temporal hasta que llegue el motor de vistas (fase 2): incluye la vista con output buffering
-        ob_start();
-        require base_path('resources/views/welcome.php');
-
-        return Response::html((string) ob_get_clean());
+        return view('welcome');
     }
 }

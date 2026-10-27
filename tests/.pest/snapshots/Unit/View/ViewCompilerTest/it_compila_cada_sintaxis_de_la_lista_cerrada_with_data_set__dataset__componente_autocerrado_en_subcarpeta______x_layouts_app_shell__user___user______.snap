@@ -1,0 +1,1 @@
+<?php $__env->startComponent('layouts.app-shell', ['user' => $user]); echo $__env->renderComponent(); ?>

@@ -1,0 +1,3 @@
+<?php $__env->startComponent('card', []); ?>
+<?php $__env->startSlot('footer'); ?>pie<?php $__env->endSlot(); ?>
+<?php echo $__env->renderComponent(); ?>

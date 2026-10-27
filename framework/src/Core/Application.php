@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 namespace BootZen\Core;
 
+use BootZen\View\View;
 use ErrorException;
 use LogicException;
 use Throwable;
@@ -31,7 +32,7 @@ use Throwable;
  * Clase principal de la aplicación BootZen.
  *
  * Al construirse carga .env y config/, ajusta la zona horaria y registra en el contenedor:
- * Application, Container, Router, Pipeline, Config, Logger, Cache y ExceptionHandler.
+ * Application, Container, Router, Pipeline, Config, Logger, Cache, View y ExceptionHandler.
  *
  * @example
  *   $app = new Application(dirname(__DIR__));
@@ -275,9 +276,15 @@ class Application
 
         $this->container->singleton(Cache::class, fn (): Cache => new Cache($this->basePath('storage/cache/data')));
 
+        $this->container->singleton(View::class, fn (Container $container): View => new View(
+            $this->basePath('resources/views'),
+            $this->basePath('storage/cache/views'),
+            $container
+        ));
+
         $this->container->singleton(ExceptionHandler::class, fn (Container $container): ExceptionHandler => new ExceptionHandler(
             $container->make(Logger::class),
-            $this->basePath('resources/views'),
+            $container->make(View::class),
             $this->isDebug()
         ));
     }

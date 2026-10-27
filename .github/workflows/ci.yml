@@ -83,3 +83,30 @@ jobs:
         run: |
           composer install --no-interaction --no-progress
           composer check
+
+      - name: Tailwind standalone y CSS del skeleton al día
+        working-directory: ${{ runner.temp }}/apps/demo
+        run: |
+          php bin/bootzen css:build
+          # El CSS versionado en skeleton/ debe coincidir con lo que genera Tailwind desde sus vistas
+          cmp public/assets/app.css "$GITHUB_WORKSPACE/skeleton/public/assets/app.css" || {
+            echo "skeleton/public/assets/app.css está desactualizado: regenéralo con php bin/bootzen css:build";
+            exit 1;
+          }
+          php bin/bootzen view:cache
+
+  js:
+    name: Runtime JS (Node 22)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Tests de bootzen.js
+        run: |
+          npm ci --no-audit --no-fund
+          npm run test:js

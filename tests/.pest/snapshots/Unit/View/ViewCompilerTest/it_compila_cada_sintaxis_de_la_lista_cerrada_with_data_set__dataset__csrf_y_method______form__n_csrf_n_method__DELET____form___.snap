@@ -1,0 +1,4 @@
+<form>
+<?php echo csrf_field(); ?>
+<?php echo $__env->methodField('DELETE'); ?>
+</form>

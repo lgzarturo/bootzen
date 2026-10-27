@@ -15,10 +15,5 @@
         <include>
             <directory suffix=".php">./framework</directory>
         </include>
-        <exclude>
-            <!-- Componentes legacy: se migran a componentes de vista en la fase 2 -->
-            <directory>./framework/src/Components</directory>
-            <file>./framework/src/Core/Component.php</file>
-        </exclude>
     </source>
 </phpunit>

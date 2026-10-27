@@ -1,0 +1,18 @@
+#!/usr/bin/env php
+<?php
+
+/**
+ * CLI del proyecto. Uso: php bin/bootzen <comando> (php bin/bootzen help para la lista).
+ */
+
+declare(strict_types=1);
+
+use BootZen\Console\Console;
+use BootZen\Frontend\Tailwind;
+
+require __DIR__ . '/../framework/bootstrap.php';
+
+/** @var \BootZen\Core\Application $app */
+$app = require __DIR__ . '/../bootstrap/app.php';
+
+exit((new Console($app, Tailwind::forCurrentPlatform($app->basePath())))->run($argv));

@@ -55,10 +55,26 @@ Notas de cierre:
 
 ## Fase 2: Vistas, componentes y frontend
 
-- [ ] Compilador de vistas y componentes `<x-*>`
-- [ ] Migrar los 7 componentes actuales a vistas
-- [ ] Tailwind v4 standalone (`css:build`, `css:watch`)
-- [ ] Runtime `bootzen.js`
+- [x] Compilador de vistas y componentes `<x-*>` (lista cerrada de
+      directivas, slots, `@props`, componentes con clase, snapshots)
+- [x] Migrar los 7 componentes actuales a vistas
+- [x] Tailwind v4 standalone (`css:build`, `css:watch`)
+- [x] Runtime `bootzen.js`
+
+Notas de cierre:
+
+- El JS vive directamente en `public/assets/js/` (sin copia desde
+  `resources/js`): lo que se escribe es lo que se sirve, también por FTP.
+- `bootzen.js` pesa ~9 KB sin minificar porque está documentado; la meta de
+  ~3 KB del plan aplica al código efectivo. Se puede minificar en el
+  `deploy:build` de la fase 7.
+- Se agregó el helper `class_list()` en lugar de una directiva `@class`, para
+  no ampliar la lista cerrada.
+- `bin/bootzen` ya existe con los comandos de esta fase; la fase 5 lo amplía.
+- CI compila el CSS con el binario real y falla si
+  `skeleton/public/assets/app.css` quedó desactualizado.
+- Verificado en Chromium: CSS aplicado, componente `data-component`, menú
+  móvil y página 404.
 
 ## Fase 3: Datos
 

@@ -20,9 +20,15 @@ aplicación monolítica construida con BootZen.
 | `config/`                  | Archivos PHP que retornan arrays: `config('app.name')`        |
 | `.env`                     | Variables locales (fuera de git). Plantilla: `.env.example`   |
 | `routes/web.php`           | Rutas; retorna un closure que recibe el `Router`              |
-| `resources/views/`         | Vistas `.php`                                                 |
+| `resources/views/`         | Vistas `.php` con directivas y componentes `<x-*>`            |
+| `resources/views/components/` | Componentes: `card.php` es `<x-card>`, `layouts/app.php` es `<x-layouts.app>` |
 | `resources/views/errors/`  | Páginas de error: `{codigo}.php` o `default.php`              |
-| `public/`                  | Document root. Solo `index.php`, `.htaccess` y assets         |
+| `resources/css/app.css`    | Fuente de Tailwind CSS v4                                     |
+| `app/View/Components/`     | Clases opcionales de componentes con lógica                   |
+| `public/`                  | Document root: `index.php`, `.htaccess` y `assets/`           |
+| `public/assets/app.css`    | CSS compilado (se genera, no se edita a mano)                 |
+| `public/assets/js/`        | JS nativo: `app.js`, `components/*.js` y `bootzen.js` (runtime) |
+| `bin/bootzen`              | CLI del proyecto                                              |
 | `storage/`                 | Logs (`storage/logs`) y cachés (escribible, fuera de git)     |
 | `database/`                | Base de datos SQLite local (fuera de git)                     |
 | `tests/`                   | Tests con Pest (`Feature/` y `Unit/`)                         |
@@ -31,12 +37,18 @@ aplicación monolítica construida con BootZen.
 ## Comandos
 
 ```bash
-php -S localhost:8000 -t public   # servidor de desarrollo (o: composer serve)
+php bin/bootzen serve             # servidor + Tailwind en modo watch (http://127.0.0.1:8000)
+php bin/bootzen css:build         # compila el CSS (necesario antes de desplegar)
+php bin/bootzen view:cache        # precompila las vistas (producción)
+php bin/bootzen view:clear        # borra las vistas compiladas
 composer install                  # solo la primera vez, instala herramientas de dev
 composer check                    # formato + PHPStan + tests. Debe pasar siempre
 composer format                   # corrige el formato
 composer test                     # solo tests
 ```
+
+La primera vez que se compila el CSS, `bin/bootzen` descarga el binario de
+Tailwind en `storage/bin/` y verifica su SHA-256. No hace falta Node.
 
 **Antes de dar una tarea por terminada, ejecuta `composer check` y deja todo
 en verde.**
@@ -86,11 +98,11 @@ final class TareaController
     {
     }
 
-    public function show(Request $request, int $id): Response
+    public function show(int $id): Response
     {
         $tarea = $this->tareas->find($id) ?? abort(404, 'Tarea no encontrada');
 
-        return Response::json($tarea);
+        return view('tareas.show', ['tarea' => $tarea]);
     }
 }
 ```
@@ -100,7 +112,100 @@ final class TareaController
   `int $id`, convertido al tipo declarado). El `Request` y cualquier clase se
   inyectan por tipo; el orden no importa.
 - Las dependencias van por constructor (el contenedor las resuelve solo).
-- Retornar un `array` responde JSON; un `string`, HTML; `null`, 204.
+- Para HTML retorna `view('nombre', [...])`. Retornar un `array` responde
+  JSON; un `string`, HTML; `null`, 204.
+
+### Vistas
+
+`view('tareas.index', ['tareas' => $tareas])` renderiza
+`resources/views/tareas/index.php`. Las vistas son PHP con una **lista cerrada**
+de extensiones; cualquier otra cosa se escribe en PHP plano:
+
+| Sintaxis                                   | Uso                                              |
+| ------------------------------------------ | ------------------------------------------------ |
+| `{{ $valor }}`                             | Imprime escapado (úsalo siempre)                 |
+| `{!! $html !!}`                            | Imprime sin escapar (solo HTML confiable)        |
+| `{{-- comentario --}}`                     | Comentario que no llega al HTML                  |
+| `@{{ texto }}`                             | Imprime `{{ texto }}` literal (para JS)          |
+| `@if (...)` `@elseif (...)` `@else` `@endif` | Condicionales                                  |
+| `@foreach (...)` `@empty` `@endforeach`    | Bucles, con rama para lista vacía                |
+| `@csrf` `@method('PUT')`                   | Campos ocultos de formulario                     |
+| `@error('campo')` ... `@enderror`          | Mensaje de validación en `$message`              |
+| `@props([...])`                            | Props de un componente                           |
+| `<x-nombre attr="texto" :attr="$expr">`    | Componente                                       |
+| `<x-slot:nombre>` ... `</x-slot:nombre>`   | Slot con nombre                                  |
+
+- Una directiva no puede ir pegada a una letra o número (`texto@if` no es
+  directiva, así los correos no se confunden); pon un espacio o salto antes.
+- Para clases condicionales usa `class="{{ class_list(['px-2', 'font-bold' => $activo]) }}"`.
+- Las vistas se compilan solas a `storage/cache/views` cuando cambian.
+- Los errores en una vista indican el archivo y la línea de la vista original.
+
+### Componentes
+
+Un componente es una vista en `resources/views/components/`:
+
+```php
+{{-- resources/views/components/badge.php --}}
+@props(['color' => 'gray'])
+<span {{ $attributes->class(['rounded px-2 text-xs', 'bg-green-100' => $color === 'green']) }}>
+    {{ $slot }}
+</span>
+```
+
+```php
+<x-badge color="green" title="Activo">Activa</x-badge>
+<x-card :title="$tarea->titulo">
+    {{ $tarea->descripcion }}
+    <x-slot:footer><x-button :href="route('tareas.edit', ['id' => $tarea->id])">Editar</x-button></x-slot:footer>
+</x-card>
+```
+
+- `@props` declara las props (con valor por defecto o, si solo es el nombre,
+  obligatorias). El resto de atributos queda en `$attributes`.
+- `attr="texto"` pasa un string (admite `{{ }}` dentro); `:attr="$expr"` pasa
+  una expresión PHP; `attr` solo pasa `true`.
+- `{{ $slot }}` es el contenido; los slots con nombre llegan como variables.
+- Si un componente necesita lógica, crea `app/View/Components/Badge.php`
+  (`extends BootZen\View\Component`): su constructor recibe los atributos por
+  nombre y sus propiedades públicas y `data()` llegan a la vista.
+- Disponibles: `<x-layouts.app>`, `<x-navigation>`, `<x-card>`, `<x-button>`,
+  `<x-alert>`, `<x-form>`, `<x-input>`. Úsalos antes de crear otros.
+
+### CSS (Tailwind v4)
+
+- Usa clases de Tailwind directamente en las vistas y en `public/assets/js`.
+- `php bin/bootzen serve` recompila el CSS al guardar; antes de desplegar,
+  `php bin/bootzen css:build`.
+- Estilos propios o configuración de Tailwind: `resources/css/app.css`.
+
+### JavaScript
+
+JS nativo con módulos ES, sin bundler ni `node_modules`. Para interactividad
+crea un componente en `public/assets/js/components/<nombre>.js`:
+
+```js
+// public/assets/js/components/contador.js
+export default function contador(element, { inicio = 0 }) {
+  let valor = inicio;
+  element.querySelector('button').addEventListener('click', () => {
+    element.querySelector('output').textContent = ++valor;
+  });
+}
+```
+
+```html
+<div data-component="contador" data-props='{"inicio": 3}'>
+  <button>Sumar</button> <output>3</output>
+</div>
+```
+
+- `bootzen.js` es el runtime (no lo edites). Exporta `request()` (fetch con
+  JSON y CSRF), `toast()` y `mount()`: `import { request } from '../bootzen.js';`
+- Atributos listos: `data-confirm="¿Seguro?"`, `data-remote` (envía un
+  formulario con fetch), `data-no-disable`, `data-dismiss` dentro de
+  `data-dismissible`.
+- Nada de `<script>` con lógica dentro de las vistas: va en un componente.
 
 ### Request
 
@@ -205,6 +310,8 @@ it('crea una tarea', function (): void {
   `isJson`, `isAjax`, `isSecure`, `getClientIp`.
 - **Response**: `html`, `json`, `redirect`, `noContent`, `withHeader`,
   `withHeaders`, `withCookie`, `withStatus`.
+- **Vistas**: `view()`, `class_list()`; en componentes `$attributes` con
+  `merge`, `class`, `only`, `except`, `has`, `get`.
 - **Helpers**: `config()`, `env()`, `route()`, `url()`, `asset()`, `app()`,
   `logger()`, `cache()`, `base_path()`, `public_path()`, `storage_path()`,
   `e()`, `redirect()`, `abort()`, `json_response()`, `download()`,
@@ -217,19 +324,18 @@ BootZen está en desarrollo hacia la v2.0. Estas piezas llegan en fases
 posteriores; **no las inventes ni instales librerías para suplirlas** sin
 preguntar:
 
-- Motor de vistas con componentes `<x-*>` (por ahora: vistas `.php` incluidas
-  con `ob_start()`, ver `HomeController`).
 - Base de datos (Connection, QueryBuilder, Model, migraciones).
-- Sesiones, mensajes flash, validación y autenticación.
-- CLI `bin/bootzen` (generadores, migraciones, cachés).
-- Tailwind y JavaScript del lado del cliente.
+- Sesiones, mensajes flash, validación y autenticación (`@error` y `<x-input>`
+  ya muestran errores, pero nada los llena todavía).
+- Comandos de `bin/bootzen` para generadores, migraciones y `config:cache`.
 
 ## Reglas
 
 - No agregues dependencias de Composer en `require`. Solo `require-dev`.
 - No edites `framework/`. Si algo del framework falla, repórtalo.
-- No pongas HTML largo dentro de controladores: va en `resources/views/`.
-- Escapa toda salida con `e()`.
+- No pongas HTML dentro de controladores: va en `resources/views/` con `view()`.
+- Imprime con `{{ }}` (escapa); `{!! !!}` solo para HTML que tú generaste.
+- No edites `public/assets/app.css` ni `public/assets/js/bootzen.js`.
 - Nunca concatenes datos del usuario en SQL.
 - Nada de `exit` ni `die`: retorna un `Response` o usa `abort()`.
 - No leas `env()` fuera de `config/`.
