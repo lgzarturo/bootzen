@@ -36,7 +36,7 @@ Más opciones (manual, Windows, actualización) en [INSTALL.md](INSTALL.md).
 ```
 mi-app/
 ├── app/Controllers/      # Tu código (namespace App\)
-├── bin/bootzen           # CLI: serve, css:build, view:cache...
+├── bin/bootzen           # CLI: serve, make:resource, migrate, doctor...
 ├── bootstrap/app.php     # Construye la aplicación
 ├── routes/               # web.php (páginas) y api.php (JSON)
 ├── resources/views/      # Vistas y componentes <x-*>

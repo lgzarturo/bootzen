@@ -130,7 +130,16 @@ mi-app/
   `SecurityHeaders` (global), `RateLimit` (`throttle:max,minutos`),
   `Authenticate` (`auth`), `RedirectIfAuthenticated` (`guest`) y CORS.
 - **Console**: `bin/bootzen` (serve, css:*, view:*, migrate, migrate:rollback,
-  migrate:status, db:seed, db:fresh, db:backup).
+  migrate:status, db:seed, db:fresh, db:backup, make:*, route:list,
+  config:cache, config:clear, key:generate, doctor y check). `Generator` crea
+  archivos desde las plantillas de `framework/stubs` (nunca sobrescribe) y
+  `make:resource` arma la rebanada completa con tests; `Doctor` revisa el
+  entorno antes de desplegar.
+- **Testing**: `TestClient` y `TestResponse` para tests de feature en los
+  proyectos (`client()->get('/')->assertOk()`), con cookies de sesión,
+  `actingAs()` y aserciones de base de datos.
+- **Support\Str**: conversión de nombres y plurales en inglés para los
+  generadores.
 - **bootzen.js** (en el skeleton, `public/assets/js`): runtime de JS nativo
   con componentes `data-component`, `request()`, `toast()` y atributos
   declarativos.
