@@ -93,3 +93,33 @@ it('muestra la ayuda con las opciones', function (): void {
     expect($status)->toBe(0)
         ->and($output)->toContain('--auth');
 });
+
+it('crea la app de demostración con --demo (incluye --auth)', function (): void {
+    $bin = escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg(dirname(__DIR__, 2) . '/bin/bootzen-new');
+    [$status, $output] = runCommand($bin . ' con-demo --demo --no-git', $this->workspace);
+    $project = $this->workspace . '/con-demo';
+
+    expect($status)->toBe(0)
+        ->and($output)->toContain('db:seed')
+        ->and($project . '/app/Controllers/Auth/LoginController.php')->toBeFile()
+        ->and($project . '/app/Controllers/TareaController.php')->toBeFile()
+        ->and($project . '/resources/views/components/modal.php')->toBeFile()
+        ->and($project . '/public/assets/js/components/modal.js')->toBeFile()
+        ->and($project . '/tests/Feature/TareaTest.php')->toBeFile()
+        ->and((string) file_get_contents($project . '/llms.txt'))->toStartWith('# con-demo')
+        ->and(file_get_contents($project . '/config/auth.php'))->toContain("'home' => '/tareas'");
+
+    // Migra, siembra y pide las tareas de Ana en JSON, sin servidor ni Composer
+    $script = 'putenv("DB_DATABASE=" . sys_get_temp_dir() . "/bootzen-demo-" . getmypid() . ".sqlite");'
+        . ' putenv("SESSION_DRIVER=array");'
+        . ' require "framework/bootstrap.php"; $app = require "bootstrap/app.php";'
+        . ' $app->make(BootZen\Database\Migrator::class)->run();'
+        . ' $app->make(BootZen\Database\SeederRunner::class)->run();'
+        . ' $client = new BootZen\Testing\TestClient($app);'
+        . ' echo $client->actingAs(App\Models\User::where("email", "ana@ejemplo.com")->firstOrFail())->getJson("/tareas")->body();'
+        . ' unlink(getenv("DB_DATABASE"));';
+    [$status, $output] = runCommand(escapeshellarg(PHP_BINARY) . ' -r ' . escapeshellarg($script), $project);
+
+    expect($status)->toBe(0, $output)
+        ->and(json_decode($output, true)['total'] ?? null)->toBe(3);
+});
