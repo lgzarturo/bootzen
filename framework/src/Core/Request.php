@@ -173,10 +173,11 @@ class Request
     /**
      * Crea una instancia de Request a partir de las variables globales PHP.
      *
+     * @param string|null $rawBody Cuerpo crudo de la petición; por defecto se lee php://input
      * @return self Instancia de Request
      * @example $request = Request::fromGlobals();
      */
-    public static function fromGlobals(): self
+    public static function fromGlobals(?string $rawBody = null): self
     {
         $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
         $uri = $_SERVER['REQUEST_URI'] ?? '/';
@@ -190,12 +191,20 @@ class Request
             }
         }
 
+        // CONTENT_TYPE y CONTENT_LENGTH llegan en $_SERVER sin el prefijo HTTP_
+        foreach (['CONTENT_TYPE' => 'Content-Type', 'CONTENT_LENGTH' => 'Content-Length'] as $key => $header) {
+            if (isset($_SERVER[$key]) && is_string($_SERVER[$key]) && $_SERVER[$key] !== '') {
+                $headers[$header] = $_SERVER[$key];
+            }
+        }
+
         // Obtener body según content-type
         $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
 
-        if (str_contains($contentType, 'application/json')) {
-            $input = file_get_contents('php://input');
-            $body = json_decode($input === false ? '' : $input, true) ?? [];
+        if (is_string($contentType) && str_contains($contentType, 'application/json')) {
+            $input = $rawBody ?? file_get_contents('php://input');
+            $decoded = json_decode($input === false ? '' : $input, true);
+            $body = is_array($decoded) ? $decoded : [];
         } else {
             $body = $_POST;
         }
