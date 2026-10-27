@@ -96,7 +96,27 @@ class Request
     private array $cookies;
 
     /**
+     * Atributos de la petición; el Router guarda aquí los parámetros de ruta
+     *
+     * @var array<string, mixed>
+     */
+    private array $attributes = [];
+
+    /**
+     * Ruta que resolvió la petición (null antes del enrutamiento)
+     */
+    private ?Route $route = null;
+
+    /**
+     * Métodos que un formulario puede simular con el campo _method
+     */
+    private const SPOOFABLE_METHODS = ['PUT', 'PATCH', 'DELETE'];
+
+    /**
      * Constructor de Request
+     *
+     * Un POST con el campo `_method` (o la cabecera X-HTTP-Method-Override) igual a PUT, PATCH o DELETE
+     * se trata como ese método, para que los formularios HTML puedan usar esas rutas.
      *
      * @param string $method Método HTTP (GET, POST, etc.)
      * @param string $uri URI completa de la solicitud
@@ -119,11 +139,12 @@ class Request
     ) {
         $this->method = strtoupper($method);
         $this->uri = $uri;
-        $parsedPath = parse_url($uri, PHP_URL_PATH);
+        // '//ruta' se interpretaría como host; se colapsan las barras iniciales antes de analizar
+        $parsedPath = parse_url((string) preg_replace('#^/{2,}#', '/', $uri), PHP_URL_PATH);
         $this->path = is_string($parsedPath) ? $parsedPath : '/';
         $this->query = [];
 
-        if ($queryString = parse_url($uri, PHP_URL_QUERY)) {
+        if ($queryString = parse_url((string) preg_replace('#^/{2,}#', '/', $uri), PHP_URL_QUERY)) {
             $parsedQuery = [];
             parse_str($queryString, $parsedQuery);
             // Asegura que las claves sean strings
@@ -140,15 +161,23 @@ class Request
         $this->files = $files;
         $this->server = $server;
         $this->cookies = $cookies;
+
+        if ($this->method === 'POST') {
+            $override = $body['_method'] ?? $this->getHeader('x-http-method-override');
+            if (is_string($override) && in_array(strtoupper($override), self::SPOOFABLE_METHODS, true)) {
+                $this->method = strtoupper($override);
+            }
+        }
     }
 
     /**
      * Crea una instancia de Request a partir de las variables globales PHP.
      *
+     * @param string|null $rawBody Cuerpo crudo de la petición; por defecto se lee php://input
      * @return self Instancia de Request
      * @example $request = Request::fromGlobals();
      */
-    public static function fromGlobals(): self
+    public static function fromGlobals(?string $rawBody = null): self
     {
         $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
         $uri = $_SERVER['REQUEST_URI'] ?? '/';
@@ -162,12 +191,20 @@ class Request
             }
         }
 
+        // CONTENT_TYPE y CONTENT_LENGTH llegan en $_SERVER sin el prefijo HTTP_
+        foreach (['CONTENT_TYPE' => 'Content-Type', 'CONTENT_LENGTH' => 'Content-Length'] as $key => $header) {
+            if (isset($_SERVER[$key]) && is_string($_SERVER[$key]) && $_SERVER[$key] !== '') {
+                $headers[$header] = $_SERVER[$key];
+            }
+        }
+
         // Obtener body según content-type
         $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
 
-        if (str_contains($contentType, 'application/json')) {
-            $input = file_get_contents('php://input');
-            $body = json_decode($input === false ? '' : $input, true) ?? [];
+        if (is_string($contentType) && str_contains($contentType, 'application/json')) {
+            $input = $rawBody ?? file_get_contents('php://input');
+            $decoded = json_decode($input === false ? '' : $input, true);
+            $body = is_array($decoded) ? $decoded : [];
         } else {
             $body = $_POST;
         }
@@ -319,6 +356,173 @@ class Request
     public function getCookie(string $name, mixed $default = null): mixed
     {
         return $this->cookies[$name] ?? $default;
+    }
+
+    /**
+     * Devuelve una copia con atributos agregados (los parámetros de ruta, por ejemplo).
+     *
+     * @param array<string, mixed> $attributes
+     */
+    public function withAttributes(array $attributes): self
+    {
+        $clone = clone $this;
+        $clone->attributes = array_merge($this->attributes, $attributes);
+
+        return $clone;
+    }
+
+    /**
+     * Devuelve una copia asociada a la ruta que la resolvió.
+     */
+    public function withRoute(Route $route): self
+    {
+        $clone = clone $this;
+        $clone->route = $route;
+
+        return $clone;
+    }
+
+    /**
+     * Ruta que resolvió la petición, o null si aún no se enruta.
+     */
+    public function getRoute(): ?Route
+    {
+        return $this->route;
+    }
+
+    /**
+     * Obtiene un parámetro de ruta.
+     *
+     * @example $request->param('id'); // para /tareas/{id}
+     */
+    public function param(string $name, mixed $default = null): mixed
+    {
+        return $this->attributes[$name] ?? $default;
+    }
+
+    /**
+     * Todos los parámetros de ruta.
+     *
+     * @return array<string, mixed>
+     */
+    public function params(): array
+    {
+        return $this->attributes;
+    }
+
+    /**
+     * Obtiene un dato de entrada: cuerpo o query string (el cuerpo tiene prioridad).
+     * Acepta notación de puntos para arrays anidados: 'items.0.precio'.
+     *
+     * @param string|null $key Clave o null para todos los datos
+     */
+    public function input(?string $key = null, mixed $default = null): mixed
+    {
+        $input = $this->all();
+
+        if ($key === null) {
+            return $input;
+        }
+
+        $value = $input;
+        foreach (explode('.', $key) as $segment) {
+            if (! is_array($value) || ! array_key_exists($segment, $value)) {
+                return $default;
+            }
+
+            $value = $value[$segment];
+        }
+
+        return $value;
+    }
+
+    /**
+     * Todos los datos de entrada (query string + cuerpo), sin el campo interno _method.
+     *
+     * @return array<string, mixed>
+     */
+    public function all(): array
+    {
+        $input = array_replace($this->query, $this->body);
+        unset($input['_method']);
+
+        return $input;
+    }
+
+    /**
+     * Solo las claves indicadas que estén presentes.
+     *
+     * @param list<string> $keys
+     * @return array<string, mixed>
+     */
+    public function only(array $keys): array
+    {
+        return array_intersect_key($this->all(), array_flip($keys));
+    }
+
+    /**
+     * Todos los datos de entrada excepto las claves indicadas.
+     *
+     * @param list<string> $keys
+     * @return array<string, mixed>
+     */
+    public function except(array $keys): array
+    {
+        return array_diff_key($this->all(), array_flip($keys));
+    }
+
+    /**
+     * Indica si la clave está presente en la entrada (aunque esté vacía).
+     */
+    public function has(string $key): bool
+    {
+        $missing = new \stdClass();
+
+        return $this->input($key, $missing) !== $missing;
+    }
+
+    /**
+     * Indica si la clave está presente y no está vacía.
+     */
+    public function filled(string $key): bool
+    {
+        $value = $this->input($key);
+
+        return is_array($value) ? $value !== [] : trim((string) (is_scalar($value) ? $value : '')) !== '';
+    }
+
+    /**
+     * Interpreta un dato como booleano ('1', 'true', 'on', 'yes' son true).
+     */
+    public function boolean(string $key, bool $default = false): bool
+    {
+        $value = $this->input($key);
+
+        if ($value === null) {
+            return $default;
+        }
+
+        return filter_var($value, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE) ?? $default;
+    }
+
+    /**
+     * Interpreta un dato como entero; devuelve el valor por defecto si no es numérico.
+     */
+    public function integer(string $key, int $default = 0): int
+    {
+        $value = $this->input($key);
+
+        return is_numeric($value) ? (int) $value : $default;
+    }
+
+    /**
+     * Indica si el cliente espera una respuesta JSON (Accept o Content-Type JSON).
+     */
+    public function wantsJson(): bool
+    {
+        $accept = strtolower($this->getHeader('accept') ?? '');
+
+        return str_contains($accept, '/json') || str_contains($accept, '+json') || $this->isJson();
     }
 
     /**

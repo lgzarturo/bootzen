@@ -18,7 +18,10 @@
 
 declare(strict_types=1);
 
+use BootZen\Core\Application;
+use BootZen\Core\Cache;
 use BootZen\Core\HttpException;
+use BootZen\Core\Logger;
 use BootZen\Core\Response;
 
 if (! function_exists('dd')) {
@@ -41,20 +44,33 @@ if (! function_exists('env')) {
     /**
      * Obtiene el valor de una variable de entorno.
      *
+     * Los textos 'true', 'false', 'null' y 'empty' (con o sin paréntesis) se convierten a
+     * true, false, null y '' respectivamente.
+     *
      * @param string $key Nombre de la variable de entorno
      * @param mixed $default Valor por defecto si no existe
      * @return mixed Valor de la variable o valor por defecto
-     * @example $db = env('DB_DATABASE', 'database/app.sqlite');
+     * @example $debug = env('APP_DEBUG', false);
      */
     function env(string $key, mixed $default = null): mixed
     {
-        if (array_key_exists($key, $_ENV)) {
-            return $_ENV[$key];
+        $value = array_key_exists($key, $_ENV) ? $_ENV[$key] : getenv($key);
+
+        if ($value === false) {
+            return $default;
         }
 
-        $value = getenv($key);
+        if (! is_string($value)) {
+            return $value;
+        }
 
-        return $value === false ? $default : $value;
+        return match (strtolower($value)) {
+            'true', '(true)' => true,
+            'false', '(false)' => false,
+            'null', '(null)' => null,
+            'empty', '(empty)' => '',
+            default => $value,
+        };
     }
 }
 
@@ -62,7 +78,8 @@ if (! function_exists('base_path')) {
     /**
      * Obtiene la ruta absoluta a la raíz del proyecto.
      *
-     * La define framework/bootstrap.php mediante la constante BOOTZEN_BASE_PATH.
+     * Usa la raíz de la Application actual o, si aún no existe, la constante BOOTZEN_BASE_PATH
+     * que define framework/bootstrap.php.
      *
      * @param string $path Ruta relativa dentro del proyecto
      * @return string Ruta absoluta
@@ -70,6 +87,10 @@ if (! function_exists('base_path')) {
      */
     function base_path(string $path = ''): string
     {
+        if (Application::hasInstance()) {
+            return Application::getInstance()->basePath($path);
+        }
+
         $base = defined('BOOTZEN_BASE_PATH') ? (string) constant('BOOTZEN_BASE_PATH') : dirname(__DIR__, 3);
 
         return $path === '' ? $base : $base . '/' . ltrim($path, '/');
@@ -78,7 +99,7 @@ if (! function_exists('base_path')) {
 
 if (! function_exists('url')) {
     /**
-     * Genera una URL absoluta basada en la variable de entorno APP_URL.
+     * Genera una URL absoluta basada en config('app.url') o, en su defecto, APP_URL.
      *
      * @param string $path Ruta relativa a concatenar
      * @return string URL absoluta
@@ -86,7 +107,10 @@ if (! function_exists('url')) {
      */
     function url(string $path = ''): string
     {
-        $baseUrl = rtrim((string) env('APP_URL', 'http://localhost'), '/');
+        $appUrl = Application::hasInstance()
+            ? Application::getInstance()->config()->get('app.url', env('APP_URL', 'http://localhost'))
+            : env('APP_URL', 'http://localhost');
+        $baseUrl = rtrim(is_scalar($appUrl) ? (string) $appUrl : 'http://localhost', '/');
 
         return $baseUrl . '/' . ltrim($path, '/');
     }
@@ -263,21 +287,84 @@ if (! function_exists('abort')) {
 
 if (! function_exists('logger')) {
     /**
-     * Registra un mensaje en el archivo de logs diario de storage/logs.
+     * Registra un mensaje en el log de la aplicación (storage/logs/app-AAAA-MM-DD.log).
      *
-     * @param string $message Mensaje a registrar
-     * @param string $level Nivel de log (info, error, etc.)
-     * @example logger('Usuario creado', 'info');
+     * @param string $message Mensaje; admite marcadores {clave} que se reemplazan con el contexto
+     * @param string $level Nivel PSR-3: debug, info, notice, warning, error, critical, alert, emergency
+     * @param array<string, mixed> $context Datos adicionales
+     * @example logger('Usuario {id} creado', 'info', ['id' => $user->id]);
      */
-    function logger(string $message, string $level = 'info'): void
+    function logger(string $message, string $level = 'info', array $context = []): void
     {
-        $directory = storage_path('logs');
-        if (! is_dir($directory)) {
-            mkdir($directory, 0775, true);
+        $logger = Application::hasInstance()
+            ? Application::getInstance()->make(Logger::class)
+            : new Logger(storage_path('logs'));
+
+        if ($logger instanceof Logger) {
+            $logger->log($level, $message, $context);
+        }
+    }
+}
+
+if (! function_exists('app')) {
+    /**
+     * Devuelve la Application actual o resuelve un servicio del contenedor.
+     *
+     * @param string|null $abstract Servicio a resolver; null para la Application
+     * @example $router = app(Router::class);
+     */
+    function app(?string $abstract = null): mixed
+    {
+        $app = Application::getInstance();
+
+        return $abstract === null ? $app : $app->make($abstract);
+    }
+}
+
+if (! function_exists('config')) {
+    /**
+     * Obtiene un valor de configuración con notación de puntos.
+     *
+     * @param string $key Clave, por ejemplo 'app.name'
+     * @param mixed $default Valor si la clave no existe
+     * @example config('app.timezone', 'UTC')
+     */
+    function config(string $key, mixed $default = null): mixed
+    {
+        return Application::getInstance()->config()->get($key, $default);
+    }
+}
+
+if (! function_exists('route')) {
+    /**
+     * Genera el path de una ruta con nombre. Los parámetros sobrantes se agregan como query string.
+     *
+     * @param string $name Nombre de la ruta
+     * @param array<string, string|int|float|bool|\Stringable> $parameters Parámetros de la ruta
+     * @return string Path relativo, por ejemplo '/tareas/5'; usa url(route(...)) para una URL absoluta
+     * @example route('tareas.show', ['id' => 5])
+     */
+    function route(string $name, array $parameters = []): string
+    {
+        return Application::getInstance()->getRouter()->url($name, $parameters);
+    }
+}
+
+if (! function_exists('cache')) {
+    /**
+     * Devuelve la caché de archivos de la aplicación.
+     *
+     * @example cache()->remember('stats', 600, fn () => calcularStats());
+     */
+    function cache(): Cache
+    {
+        $cache = Application::getInstance()->make(Cache::class);
+
+        if (! $cache instanceof Cache) {
+            throw new \LogicException('El servicio Cache debe ser una instancia de ' . Cache::class . '.');
         }
 
-        $line = sprintf('[%s] [%s] %s%s', date('Y-m-d H:i:s'), $level, $message, PHP_EOL);
-        file_put_contents($directory . '/' . date('Y-m-d') . '.log', $line, FILE_APPEND | LOCK_EX);
+        return $cache;
     }
 }
 

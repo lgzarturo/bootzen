@@ -34,7 +34,9 @@ it('crea un proyecto que responde sin Composer', function (): void {
         ->and($project . '/AGENTS.md')->toBeFile()
         ->and($project . '/vendor')->not->toBeDirectory()
         ->and(file_get_contents($project . '/composer.json'))->toContain('"app/demo-app"')
-        ->and(file_get_contents($project . '/composer.json'))->not->toContain('__APP_');
+        ->and(file_get_contents($project . '/composer.json'))->not->toContain('__APP_')
+        ->and(file_get_contents($project . '/.env'))->toContain('APP_NAME="demo-app"')
+        ->and(file_get_contents($project . '/.env'))->toMatch('/^APP_KEY=base64:[A-Za-z0-9+\/=]{44}$/m');
 
     $script = 'require "framework/bootstrap.php"; $app = require "bootstrap/app.php";'
         . ' echo $app->run(new BootZen\Core\Request("GET", "/"))->getBody();';

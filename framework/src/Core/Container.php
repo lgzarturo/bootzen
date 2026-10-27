@@ -269,6 +269,120 @@ class Container
     }
 
     /**
+     * Ejecuta un callable resolviendo sus parámetros.
+     *
+     * Orden de resolución de cada parámetro:
+     * 1. Por nombre en $parameters (los valores string se convierten a int, float o bool según el tipo).
+     * 2. Por tipo entre los objetos de $instances (por ejemplo, el Request actual).
+     * 3. Por tipo desde el contenedor (autowiring).
+     * 4. Valor por defecto o null si el parámetro lo permite.
+     *
+     * @param callable|array{0: object|string, 1: string}|string $callable Closure, [Clase, 'metodo'] o clase invocable
+     * @param array<string, mixed> $parameters Valores por nombre de parámetro
+     * @param array<int, object> $instances Objetos disponibles por tipo
+     * @return mixed Resultado del callable
+     * @throws InvalidArgumentException Si un parámetro no se puede resolver o el callable no es válido
+     * @example $container->call([TaskController::class, 'show'], ['id' => '42'], [$request]);
+     */
+    public function call(callable|array|string $callable, array $parameters = [], array $instances = []): mixed
+    {
+        if (is_string($callable) && ! is_callable($callable)) {
+            $callable = [$callable, '__invoke'];
+        }
+
+        if (is_array($callable)) {
+            [$target, $method] = $callable;
+            $object = is_string($target) ? $this->make($target) : $target;
+
+            if (! is_object($object) || ! method_exists($object, $method)) {
+                $class = is_object($object) ? $object::class : (string) $target;
+
+                throw new InvalidArgumentException("El método [{$class}::{$method}] no existe.");
+            }
+
+            $reflection = new \ReflectionMethod($object, $method);
+
+            return $reflection->invokeArgs($object, $this->resolveCallParameters($reflection, $parameters, $instances));
+        }
+
+        $reflection = new \ReflectionFunction(Closure::fromCallable($callable));
+
+        return $reflection->invokeArgs($this->resolveCallParameters($reflection, $parameters, $instances));
+    }
+
+    /**
+     * Resuelve los argumentos de una función o método para call().
+     *
+     * @param array<string, mixed> $parameters
+     * @param array<int, object> $instances
+     * @return array<int, mixed>
+     */
+    private function resolveCallParameters(
+        \ReflectionFunctionAbstract $function,
+        array $parameters,
+        array $instances
+    ): array {
+        $arguments = [];
+
+        foreach ($function->getParameters() as $parameter) {
+            $name = $parameter->getName();
+            $type = $parameter->getType();
+            $typeName = $type instanceof \ReflectionNamedType ? $type->getName() : null;
+            $isClass = $type instanceof \ReflectionNamedType && ! $type->isBuiltin();
+
+            if (array_key_exists($name, $parameters)) {
+                $arguments[] = $this->coerce($parameters[$name], $type);
+
+                continue;
+            }
+
+            if ($isClass && $typeName !== null) {
+                foreach ($instances as $instance) {
+                    if ($instance instanceof $typeName) {
+                        $arguments[] = $instance;
+
+                        continue 2;
+                    }
+                }
+
+                $arguments[] = $this->resolveDependency($parameter);
+
+                continue;
+            }
+
+            if ($parameter->isDefaultValueAvailable()) {
+                $arguments[] = $parameter->getDefaultValue();
+            } elseif ($parameter->allowsNull()) {
+                $arguments[] = null;
+            } else {
+                throw new InvalidArgumentException(
+                    "No se puede resolver el parámetro [\${$name}] de [{$function->getName()}]. "
+                    . 'Los parámetros de ruta se inyectan por nombre: usa el mismo nombre que en {placeholder}.'
+                );
+            }
+        }
+
+        return $arguments;
+    }
+
+    /**
+     * Convierte valores string (como los parámetros de ruta) al tipo escalar declarado.
+     */
+    private function coerce(mixed $value, ?\ReflectionType $type): mixed
+    {
+        if (! is_string($value) || ! $type instanceof \ReflectionNamedType || ! $type->isBuiltin()) {
+            return $value;
+        }
+
+        return match ($type->getName()) {
+            'int' => preg_match('/^-?\d+$/', $value) === 1 ? (int) $value : $value,
+            'float' => is_numeric($value) ? (float) $value : $value,
+            'bool' => filter_var($value, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE) ?? $value,
+            default => $value,
+        };
+    }
+
+    /**
      * Verifica si un servicio está registrado en el contenedor.
      *
      * @param string $id Identificador del servicio

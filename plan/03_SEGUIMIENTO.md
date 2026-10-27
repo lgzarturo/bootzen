@@ -31,11 +31,27 @@ Notas de cierre:
 
 ## Fase 1: Núcleo HTTP sólido
 
-- [ ] `Env`, `Config`, `Logger` y `Cache` de archivo
-- [ ] Router reescrito (compilación, nombres, 405, grupos, `resource`)
-- [ ] Request y Response ampliados
-- [ ] `HttpException` y `ExceptionHandler` con vistas de error
-- [ ] Pipeline de middleware con alias y grupos
+- [x] `Env`, `Config`, `Logger` y `Cache` de archivo
+- [x] Router reescrito (compilación, nombres, 405, grupos, `resource`)
+- [x] Request y Response ampliados
+- [x] `HttpException` y `ExceptionHandler` con vistas de error
+- [x] Pipeline de middleware con alias y grupos
+- [x] Cobertura de 90% en piezas críticas: Container 97.3%, Router 92.4%,
+      Request 99.1%, Response 100% (total 90.7%). CI falla si el total baja
+      de 80% (`pest --coverage --min=80`)
+
+Notas de cierre:
+
+- Los parámetros de ruta se inyectan por nombre y tipo con
+  `Container::call()`; el formato `'Clase@metodo'` y el `__call` mágico de
+  `Application` se eliminaron.
+- El `OPTIONS` automático pasa por el middleware de la ruta, así `cors`
+  funciona también como middleware de ruta.
+- La caché de rutas se pospone a la fase 7 (`deploy:build`): las rutas con
+  closures no se pueden serializar y el router ya compila cada patrón una
+  sola vez. La caché de configuración existe (`Config::writeCache()`); su
+  comando llega con la CLI en la fase 5.
+- La caché es solo de archivos; APCu queda como mejora opcional.
 
 ## Fase 2: Vistas, componentes y frontend
 
