@@ -1,0 +1,15 @@
+{
+  "name": "bootzen-dev",
+  "private": true,
+  "description": "Herramientas de desarrollo del repo BootZen (tests del runtime JS). Los proyectos generados no usan Node.",
+  "type": "module",
+  "scripts": {
+    "test:js": "node --test \"tests/js/**/*.test.js\""
+  },
+  "devDependencies": {
+    "jsdom": "^29.0.0"
+  },
+  "engines": {
+    "node": ">=20.19"
+  }
+}

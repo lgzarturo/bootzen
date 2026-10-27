@@ -8,6 +8,7 @@ Thumbs.db
 
 # Dependencias y cachés de desarrollo
 /vendor/
+/node_modules/
 .php-cs-fixer.cache
 .phpunit.cache/
 .phpunit.result.cache
