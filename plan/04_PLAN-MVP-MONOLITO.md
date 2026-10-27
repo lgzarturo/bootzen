@@ -291,15 +291,15 @@ dentro del skeleton. `Component.php` y `CacheTenant.php` se eliminan.
 - Tailwind v4 con configuración en CSS (`@import "tailwindcss"; @source
   "../views";`) y los plugins oficiales de forms y typography.
 - `bin/bootzen css:watch` y `css:build` descargan y usan el binario standalone
-  en `storage/bin/` (sin Node). Si el proyecto tiene `package.json`, se usa
+  en `storage/bin/` (sin Node), verificando su SHA-256 contra el release. Si el proyecto tiene `package.json`, se usa
   `npx` en su lugar.
 - El CSS compilado se genera en `public/assets/app.css` y se incluye en el
   artefacto de despliegue, así que el servidor nunca compila nada.
 
 **JavaScript**
 
-- Módulos ES nativos en `resources/js/`, servidos tal cual desde
-  `public/assets/js/` (copia o symlink, sin transformación).
+- Módulos ES nativos directamente en `public/assets/js/` (sin copia ni
+  transformación: lo que se escribe es lo que se sirve).
 - Runtime propio `bootzen.js` (meta: ~3 KB) con:
   - `data-component="dropdown"`: monta automáticamente
     `components/dropdown.js` (islas de interactividad).

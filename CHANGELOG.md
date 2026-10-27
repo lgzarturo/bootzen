@@ -5,6 +5,39 @@
 Inicio de la v2.0 según [plan/04_PLAN-MVP-MONOLITO.md](plan/04_PLAN-MVP-MONOLITO.md).
 **Cambios incompatibles con la v1.x.**
 
+### Fase 2: vistas, componentes y frontend
+
+#### Agregado
+
+- Motor de vistas (`BootZen\View`): vistas `.php` con una lista cerrada de
+  directivas (`{{ }}`, `{!! !!}`, `{{-- --}}`, `@{{ }}`, `@if`, `@foreach`
+  con `@empty`, `@csrf`, `@method`, `@error`, `@props`) y componentes
+  `<x-*>` con slots con nombre, `$attributes` (`merge`, `class`) y clases
+  opcionales en `app/View/Components`. Compila a `storage/cache/views`,
+  conserva la numeración de líneas y los errores apuntan a la vista original.
+- Helpers `view()` y `class_list()`; `ExceptionHandler` renderiza
+  `errors/{codigo}` con el motor y la página de depuración muestra la línea de
+  la vista original.
+- Skeleton: componentes `<x-layouts.app>`, `<x-navigation>`, `<x-card>`,
+  `<x-button>`, `<x-alert>`, `<x-form>` y `<x-input>`; bienvenida y páginas de
+  error con el layout.
+- Tailwind CSS v4 con el CLI standalone: `bin/bootzen` lo descarga en
+  `storage/bin/` y verifica su SHA-256 contra el release (v4.3.3). CSS
+  precompilado en `skeleton/public/assets/app.css`.
+- `bin/bootzen` en el skeleton: `serve` (con Tailwind en modo watch),
+  `css:install`, `css:build`, `css:watch`, `view:cache`, `view:clear`.
+- Runtime `public/assets/js/bootzen.js`: componentes `data-component` con
+  limpieza al quitarlos del DOM, `request()` con JSON y CSRF, `toast()`,
+  `data-confirm`, `data-remote`, `data-dismiss` y botones deshabilitados al
+  enviar. Componentes de ejemplo `counter` y `menu`.
+- Tests del runtime JS con `node --test` y jsdom; CI compila el CSS con el
+  binario real y falla si el CSS del skeleton quedó desactualizado.
+
+#### Eliminado
+
+- `BootZen\Core\Component` y los componentes como clases PHP
+  (`framework/src/Components`): ahora son vistas `<x-*>` del skeleton.
+
 ### Fase 1: núcleo HTTP
 
 #### Agregado
