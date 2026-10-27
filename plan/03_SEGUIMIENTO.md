@@ -150,9 +150,32 @@ Notas de cierre:
 
 ## Fase 6: Capa IA
 
-- [ ] `AGENTS.md`, recetas, referencia compacta y skills
-- [ ] App de demostración
-- [ ] Prueba de aceptación con agente (sección 5.3 del plan)
+- [x] `AGENTS.md`, recetas, referencia compacta y skills
+- [x] App de demostración
+- [x] Prueba de aceptación con agente (sección 5.3 del plan)
+
+Notas de cierre:
+
+- Prueba de aceptación hecha con un subagente aislado (decisión del usuario):
+  un proyecto recién creado con `--auth` (el pedido 2 necesita login) y solo
+  la documentación del proyecto como contexto. Completó los cuatro pedidos
+  con `composer check` en verde al primer intento en cada uno (36 tests), sin
+  leer ni tocar `framework/`. Verificado aparte en su proyecto.
+- Sus siete fricciones se corrigieron: `make:controller --json` sin vista,
+  props en inglés en `make:component`, aviso sobre clases nuevas de Tailwind
+  y la red en la primera compilación, dónde van los helpers de test, cómo
+  probar una ruta a mano, reemplazar `data-confirm` por el modal y un
+  `--table` de más en la receta del CRUD.
+- La referencia (`docs/ai/reference.md`) se genera desde los PHPDoc con
+  `bin/bootzen-reference` y un test falla si queda vieja.
+- Subida de archivos adelantada de la fase 8 en versión mínima
+  (`UploadedFile`: `store`/`storePublic`), decisión del usuario, para que la
+  receta no use `move_uploaded_file` a mano.
+- Bug encontrado probando la demo en un navegador real: `asset()` armaba URLs
+  con el host de `APP_URL`; en otro host o puerto la CSP bloqueaba el CSS y
+  el JS. Ahora devuelve rutas relativas al dominio.
+- App de demostración con `--demo` (auth + tareas por usuario, modal de
+  borrado con `<dialog>`, JSON paginado y seeder), probada en Chromium.
 
 ## Fase 7: Despliegue y release v2.0.0
 
