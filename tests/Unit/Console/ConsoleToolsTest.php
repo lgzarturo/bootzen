@@ -17,7 +17,7 @@ final class ConsoleToolsTestController
 
 beforeEach(function (): void {
     $this->project = makeTempDir('bootzen-tools');
-    writeFile($this->project . '/config/app.php', "<?php return ['name' => 'Tienda', 'env' => env('BZ_TOOLS_ENV', 'local'), 'debug' => env('BZ_TOOLS_DEBUG', false), 'key' => env('APP_KEY')];");
+    writeFile($this->project . '/config/app.php', "<?php return ['name' => 'Tienda', 'env' => env('BZ_TOOLS_ENV', 'local'), 'debug' => env('BZ_TOOLS_DEBUG', false), 'key' => env('APP_KEY'), 'installer' => env('BZ_TOOLS_INSTALLER', false)];");
     writeFile($this->project . '/config/database.php', "<?php return ['default' => 'sqlite', 'connections' => ['sqlite' => ['driver' => 'sqlite', 'database' => 'database/app.sqlite']]];");
     writeFile($this->project . '/routes/web.php', (string) file_get_contents(dirname(__DIR__, 3) . '/skeleton/routes/web.php'));
     $this->output = fopen('php://memory', 'w+');
@@ -45,7 +45,7 @@ beforeEach(function (): void {
 });
 
 afterEach(function (): void {
-    forgetEnv('BZ_TOOLS_ENV', 'BZ_TOOLS_DEBUG', 'APP_KEY', 'APP_NAME');
+    forgetEnv('BZ_TOOLS_ENV', 'BZ_TOOLS_DEBUG', 'BZ_TOOLS_INSTALLER', 'APP_KEY', 'APP_NAME');
     removeDir($this->project);
 });
 
@@ -61,7 +61,7 @@ it('lista las rutas en columnas', function (): void {
 
 it('guarda y borra la caché de configuración', function (): void {
     expect(($this->run)('config:cache'))->toBe(0)
-        ->and(require $this->project . '/storage/cache/config.php')->toMatchArray(['app' => ['name' => 'Tienda', 'env' => 'local', 'debug' => false, 'key' => null]]);
+        ->and(require $this->project . '/storage/cache/config.php')->toMatchArray(['app' => ['name' => 'Tienda', 'env' => 'local', 'debug' => false, 'key' => null, 'installer' => false]]);
 
     // Con la caché, un cambio en config/ no se ve hasta regenerarla
     writeFile($this->project . '/config/app.php', "<?php return ['name' => 'Otra'];");
@@ -131,6 +131,14 @@ it('termina sin errores cuando todo está listo', function (): void {
 
     expect(($this->run)('doctor'))->toBe(0)
         ->and(consoleOutput($this->output))->toContain('Todo listo.');
+});
+
+it('recuerda apagar la instalación web', function (): void {
+    putenv('BZ_TOOLS_INSTALLER=true');
+
+    ($this->run)('doctor');
+
+    expect(consoleOutput($this->output))->toContain('! INSTALL_ENABLED=true: la instalación web está activa');
 });
 
 it('reporta si no puede conectar a la base de datos', function (): void {

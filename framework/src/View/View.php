@@ -399,7 +399,8 @@ final class View
      */
     private function compileFile(string $file): string
     {
-        $compiled = $this->cachePath . '/' . sha1($file) . '.php';
+        // Nombre según la ruta relativa al proyecto: las vistas precompiladas en deploy:build sirven en el servidor
+        $compiled = $this->cachePath . '/' . sha1($this->relative($file)) . '.php';
 
         if (is_file($compiled) && filemtime($compiled) > filemtime($file)) {
             return $compiled;

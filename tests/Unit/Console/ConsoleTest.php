@@ -161,3 +161,57 @@ it('rechaza db:backup en bases que no son SQLite', function (): void {
     expect(($this->console)()->run(['bootzen', 'db:backup']))->toBe(1)
         ->and(consoleOutput($this->output))->toContain('mysqldump');
 });
+
+it('arma el artefacto de despliegue compilando antes el CSS', function (): void {
+    writeFile($this->project . '/config/app.php', "<?php return ['name' => 'Mi Tienda'];");
+    writeFile($this->project . '/public/index.php', '<?php');
+    writeFile($this->project . '/.env', 'APP_KEY=secreta');
+    $this->app = new Application($this->project);
+
+    expect(($this->console)()->run(['bootzen', 'deploy:build', '--version=1.2.0']))->toBe(0)
+        ->and($this->commands[0])->toContain('--minify')
+        ->and(consoleOutput($this->output))->toContain('vistas precompiladas')
+        ->toContain('Carpeta: build/mi-tienda-1.2.0')
+        ->toContain('Archivo: build/mi-tienda-1.2.0.zip')
+        ->toContain('php bin/bootzen migrate')
+        ->and($this->project . '/build/mi-tienda-1.2.0/public/index.php')->toBeFile()
+        ->and($this->project . '/build/mi-tienda-1.2.0/.env')->not->toBeFile();
+});
+
+it('arma el artefacto sin CSS y con una versión por fecha', function (): void {
+    expect(($this->console)()->run(['bootzen', 'deploy:build', '--no-css']))->toBe(0)
+        ->and($this->commands)->toBe([])
+        ->and(consoleOutput($this->output))->toMatch('#Carpeta: build/[a-z0-9-]+-\d{14}#');
+});
+
+it('no arma el artefacto si falla el CSS', function (): void {
+    $console = new Console($this->app, new Tailwind($this->project, 'Linux', 'x86_64', false, static function (string $url, string $destination): void {
+        file_put_contents($destination, str_ends_with($url, '.txt') ? hash('sha256', 'bin') . "  ./tailwindcss-linux-x64\n" : 'bin');
+    }), $this->output, static fn (array $command): int => 1);
+
+    expect($console->run(['bootzen', 'deploy:build']))->toBe(1)
+        ->and(consoleOutput($this->output))->toContain('Usa --no-css')
+        ->and($this->project . '/build')->not->toBeDirectory();
+});
+
+it('actualiza framework/ desde la instalación local', function (): void {
+    $home = makeTempDir('bootzen-home');
+    writeFile($home . '/VERSION', "2.1.0\n");
+    writeFile($home . '/framework/bootstrap.php', '<?php // 2.1.0');
+    writeFile($this->project . '/framework/bootstrap.php', '<?php // 2.0.0');
+    writeFile($this->project . '/framework/VERSION', "2.0.0\n");
+    BootZen\Deploy\FrameworkUpdater::writeManifest($this->project . '/framework', '2.0.0');
+    putenv('BOOTZEN_HOME=' . $home);
+
+    try {
+        expect(($this->console)()->run(['bootzen', 'framework:update']))->toBe(0)
+            ->and(consoleOutput($this->output))->toContain('framework/ actualizado de 2.0.0 a 2.1.0. Respaldo en storage/backups/framework-2.0.0-')
+            ->and(($this->console)()->run(['bootzen', 'framework:update', '--from=' . $home]))->toBe(0)
+            ->and(consoleOutput($this->output))->toContain('ya está en la versión 2.1.0')
+            ->and(($this->console)()->run(['bootzen', 'framework:update', '--from=' . $home . '/nada']))->toBe(1)
+            ->and(consoleOutput($this->output))->toContain('No hay una instalación de BootZen');
+    } finally {
+        putenv('BOOTZEN_HOME');
+        removeDir($home);
+    }
+});

@@ -87,6 +87,10 @@ final class Doctor
             $this->ok('APP_DEBUG desactivado en producción');
         }
 
+        if (filter_var($this->app->config()->get('app.installer', false), FILTER_VALIDATE_BOOL)) {
+            $this->warning('INSTALL_ENABLED=true: la instalación web está activa. Ponla en false cuando termines.');
+        }
+
         if ($production && ! is_file($this->app->basePath('storage/cache/config.php'))) {
             $this->warning('En producción conviene php bin/bootzen config:cache (y view:cache).');
         }
