@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 $finder = PhpCsFixer\Finder::create()
     ->in(__DIR__)
-    ->exclude(['framework', 'vendor', 'storage', 'node_modules'])
+    ->exclude(['framework', 'vendor', 'storage', 'node_modules', 'resources/views'])
     ->name('*.php')
     ->ignoreDotFiles(false)
-    ->ignoreVCS(true);
+    ->ignoreVCS(true)
+    ->append([__DIR__ . '/bin/bootzen']);
 
 return (new PhpCsFixer\Config())
     ->setRules([

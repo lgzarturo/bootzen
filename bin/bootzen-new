@@ -60,6 +60,12 @@ function bootzenCopyDirectory(string $source, string $destination): void
         if (! copy($item->getPathname(), $target)) {
             bootzenFail("No se pudo copiar {$item->getPathname()}");
         }
+
+        // copy() no conserva los permisos: bin/bootzen debe seguir siendo ejecutable
+        $permissions = fileperms($item->getPathname());
+        if ($permissions !== false) {
+            chmod($target, $permissions & 0777);
+        }
     }
 }
 

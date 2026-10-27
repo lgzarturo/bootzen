@@ -1,0 +1,13 @@
+/*
+ * Estilos de la aplicación (Tailwind CSS v4).
+ * Compila con: php bin/bootzen css:build  (o css:watch / serve en desarrollo)
+ * Salida: public/assets/app.css
+ */
+@import "tailwindcss" source(none);
+
+@plugin "@tailwindcss/forms";
+@plugin "@tailwindcss/typography";
+
+/* Archivos donde Tailwind busca clases */
+@source "../views";
+@source "../../public/assets/js";
