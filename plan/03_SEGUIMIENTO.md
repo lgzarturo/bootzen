@@ -97,9 +97,26 @@ Notas de cierre:
 
 ## Fase 4: Sesión, seguridad y auth
 
-- [ ] Session, flash, `old()` y CSRF
-- [ ] Validator
-- [ ] Auth, SecurityHeaders y RateLimit
+- [x] Session, flash, `old()` y CSRF
+- [x] Validator
+- [x] Auth, SecurityHeaders y RateLimit
+
+Notas de cierre:
+
+- Criterio cumplido: registro, login, logout y formularios con errores de
+  validación de punta a punta en `tests/Feature/AuthFlowTest.php` (framework)
+  y `tests/Feature/AuthTest.php` (proyecto `--auth`), más un registro por HTTP
+  real con sesiones en archivos en el job del skeleton.
+- Sesión propia en lugar de `session_start()`: así la cookie viaja en el
+  `Response` y los tests no necesitan trucos. Decisión tomada con el usuario.
+- Recuperación de contraseña con un `Mailer` mínimo (drivers `log` y
+  `array`); SMTP sigue en la fase 8.
+- `getClientIp()` dejó de confiar en `X-Forwarded-For` cuando el cliente se
+  conecta directo: con eso el límite de peticiones no se puede saltar.
+- El correo es único sin distinguir mayúsculas (`COLLATE NOCASE` en la
+  migración del scaffold); lo encontró el test de registro duplicado.
+- Auditoría con el checklist de `docs/PROCESS.md` actualizada.
+- Fuera de alcance: "recordarme", verificación de correo, roles y permisos.
 
 ## Fase 5: CLI y generadores
 
