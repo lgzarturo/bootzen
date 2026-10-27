@@ -10,7 +10,7 @@
         {{ $label }}@if ($attributes->has('required'))<span class="ml-1 text-red-500">*</span>@endif
     </label>
 @endif
-    <input id="{{ $name }}" name="{{ $name }}" type="{{ $type }}" value="{{ $type === 'password' ? '' : old($name, $value) }}" {{ $attributes->class([
+    <input id="{{ $name }}" name="{{ $name }}" type="{{ $type }}" value="{{ in_array($type, ['password', 'file'], true) ? '' : old($name, $value) }}" {{ $attributes->class([
         'w-full rounded-lg border px-3 py-2 focus:outline-none focus:ring-2',
         'border-gray-300 focus:ring-blue-500' => empty($errors[$name]),
         'border-red-300 focus:ring-red-500' => ! empty($errors[$name]),

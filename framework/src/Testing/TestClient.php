@@ -131,7 +131,30 @@ final class TestClient
     }
 
     /**
-     * Envía una petición. Los archivos usan la estructura de $_FILES.
+     * Archivo para enviar en un formulario: client()->post('/fotos', ['foto' => TestClient::file('a.png', $bytes)]).
+     *
+     * @return array{name: string, type: string, tmp_name: string, error: int, size: int}
+     */
+    public static function file(string $name, string $contents): array
+    {
+        $path = (string) tempnam(sys_get_temp_dir(), 'bootzen-upload-');
+        file_put_contents($path, $contents);
+
+        return ['name' => $name, 'type' => 'application/octet-stream', 'tmp_name' => $path, 'error' => UPLOAD_ERR_OK, 'size' => strlen($contents)];
+    }
+
+    /**
+     * Imagen PNG válida de 1x1 píxel, para probar las reglas image y mimes.
+     *
+     * @return array{name: string, type: string, tmp_name: string, error: int, size: int}
+     */
+    public static function image(string $name = 'imagen.png'): array
+    {
+        return self::file($name, (string) base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='));
+    }
+
+    /**
+     * Envía una petición. Los archivos (TestClient::file()) pueden ir en $data o en $files.
      *
      * @param array<string, mixed> $data
      * @param array<string, string> $headers
@@ -139,6 +162,14 @@ final class TestClient
      */
     public function request(string $method, string $uri, array $data = [], array $headers = [], array $files = []): TestResponse
     {
+        foreach ($data as $key => $value) {
+            if (is_array($value) && array_key_exists('tmp_name', $value) && array_key_exists('error', $value)) {
+                /** @var array<string, mixed> $value */
+                $files[$key] = $value;
+                unset($data[$key]);
+            }
+        }
+
         $request = new Request(
             $method,
             $uri,
