@@ -70,7 +70,7 @@ php bin/bootzen db:seed           # datos de ejemplo (--class=Nombre)
 php bin/bootzen db:fresh --seed   # borra todo, migra y siembra (--force en producción)
 php bin/bootzen db:backup         # copia consistente de SQLite en storage/backups
 php bin/bootzen make:resource Tarea titulo:string hecha:bool  # CRUD completo (ver abajo)
-php bin/bootzen make:model Cliente --migration   # también: make:controller, make:migration,
+php bin/bootzen make:model Cliente --migration   # también: make:controller (--json), make:migration,
                                   # make:middleware, make:seeder, make:test, make:component
 php bin/bootzen route:list        # rutas con nombre, middleware y acción
 php bin/bootzen doctor            # revisa PHP, extensiones, permisos, .env y base de datos
@@ -83,7 +83,9 @@ composer test                     # solo tests
 ```
 
 La primera vez que se compila el CSS, `bin/bootzen` descarga el binario de
-Tailwind en `storage/bin/` y verifica su SHA-256. No hace falta Node.
+Tailwind en `storage/bin/` y verifica su SHA-256 (necesita red esa vez). No
+hace falta Node. Una clase de Tailwind que ninguna vista usaba no aparece en
+`public/assets/app.css` hasta recompilar.
 
 **Antes de dar una tarea por terminada, ejecuta `composer check` y deja todo
 en verde.**
@@ -599,6 +601,12 @@ it('solo deja entrar a usuarios', function (): void {
 - Cliente: `assertDatabaseHas`, `assertDatabaseMissing`,
   `assertDatabaseCount`, `assertAuthenticated`, `assertGuest`. Los correos
   enviados: `$client->app->make(Mailer::class)` es un `ArrayMailer` con `sent()`.
+- Helpers que usan varios archivos de test (por ejemplo, un usuario con
+  sesión) van en `tests/Pest.php`. En Pest las funciones de un archivo de
+  test son globales: ponles un nombre propio del archivo para que no choquen.
+- Para mirar una ruta a mano usa `php bin/bootzen serve` (o `route:list`).
+  Fuera de los tests se usa la base de `.env` (`database/app.sqlite`), no la
+  de memoria: un script suelto que cargue `tests/Pest.php` escribe ahí.
 
 ## API disponible del framework
 

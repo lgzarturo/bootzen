@@ -9,11 +9,11 @@
    opcionales con `:nullable`:
 
    ```bash
-   php bin/bootzen make:resource Cliente nombre:string email:email telefono:string:nullable --table=clientes
+   php bin/bootzen make:resource Cliente nombre:string email:email telefono:string:nullable
    ```
 
-   Usa `--table` cuando el plural en inglés no sirva (`Cliente` → `clientes`
-   sale bien solo; `Ciudad` → `ciudads` no, así que `--table=ciudades`).
+   `Cliente` → `clientes` sale bien solo. Usa `--table` cuando el plural en
+   inglés no sirva (`Ciudad` → `ciudads`, así que `--table=ciudades`).
 2. `php bin/bootzen migrate` y `composer check`. Debe pasar sin tocar nada.
 3. Ajusta lo que pida la tarea, en este orden:
    - Reglas en `rules()` del controlador (por ejemplo `email` único:

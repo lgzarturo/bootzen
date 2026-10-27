@@ -13,7 +13,8 @@
 
 ## Pasos
 
-1. Un controlador aparte o un método nuevo. Devolver un `Paginator` (o un
+1. Un controlador aparte (`php bin/bootzen make:controller ClienteJson --json`
+   lo crea sin vista) o un método nuevo. Devolver un `Paginator` (o un
    modelo, o un array) responde JSON:
 
    ```php

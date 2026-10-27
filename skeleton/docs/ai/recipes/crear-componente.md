@@ -30,6 +30,14 @@ php bin/bootzen make:component forms.select   # resources/views/components/forms
 - Slots con nombre: `<x-slot:footer>...</x-slot:footer>` llega como `$footer`.
 - Si necesita lógica en PHP, `make:component badge --class` crea también
   `app/View/Components/Badge.php`.
+- `make:component` crea un esqueleto con la prop `title`: reemplázalo por lo
+  que necesites (las props de los componentes van en inglés: `title`,
+  `variant`, `size`).
+- **Clases nuevas de Tailwind**: el CSS de `public/assets/app.css` ya trae las
+  de los componentes incluidos, pero una clase que nadie usaba no existe hasta
+  recompilar con `php bin/bootzen css:build` (o mientras corre `serve`). La
+  primera compilación descarga Tailwind, así que necesita red; sin red, usa
+  clases que ya aparezcan en otras vistas.
 
 ## Con JavaScript: modal de confirmación
 
@@ -78,7 +86,9 @@ export default function modal(dialog) {
 }
 ```
 
-Uso para confirmar un borrado:
+Uso para confirmar un borrado (si la vista ya tenía un botón con
+`data-confirm="..."`, reemplázalo por este para que no salgan dos
+confirmaciones):
 
 ```php
 <x-button type="button" variant="danger" data-modal-open="borrar-{{ $cliente->id }}">Borrar</x-button>
