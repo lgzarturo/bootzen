@@ -1,0 +1,1 @@
+<?php $__env->startComponent('card', ['title' => 'Hola ' . $__env->toAttribute($nombre), 'items' => $lista, 'disabled' => true, 'data-id' => '7']); ?>contenido<?php echo $__env->renderComponent(); ?>
