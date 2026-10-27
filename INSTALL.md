@@ -49,6 +49,8 @@ en producción: el proyecto funciona tal cual en cualquier servidor con PHP.
 
 Opciones:
 
+- `--auth`: agrega registro, login, logout y recuperación de contraseña.
+- `--demo`: `--auth` más una app de tareas completa para tomar de ejemplo.
 - `--no-git`: no inicializa un repositorio git.
 
 ## Actualizar BootZen
@@ -58,6 +60,17 @@ Opciones:
 ```
 
 Mueve `~/.bootzen` al último release (o al último tag, o a `main`). Los
-proyectos nuevos usarán esa versión. Actualizar `framework/` dentro de un
-proyecto existente llegará con el comando `framework:update` (ver
-`plan/04_PLAN-MVP-MONOLITO.md`).
+proyectos nuevos usarán esa versión. Para llevarla a un proyecto existente:
+
+```bash
+cd mi-app
+php bin/bootzen framework:update
+```
+
+Reemplaza `framework/` con el de `~/.bootzen` (o el de `BOOTZEN_HOME`, o
+`--from=ruta`) y deja un respaldo en `storage/backups/`. No baja de versión ni
+pisa cambios que hayas hecho a mano en `framework/` salvo que uses `--force`.
+Después revisa el [CHANGELOG](CHANGELOG.md) y corre `composer check`.
+
+Si vienes de la v1 (la del `.phar`), sigue
+[docs/MIGRACION-V1-V2.md](docs/MIGRACION-V1-V2.md).

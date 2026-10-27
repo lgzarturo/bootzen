@@ -1,0 +1,16 @@
+# Para hostings donde no puedes apuntar el document root a public/.
+# Todo pasa a public/ (que tiene su propio .htaccess); el resto del proyecto
+# (.env, database/, storage/, framework/) no queda accesible desde la web.
+# Si puedes elegir el document root, apúntalo a public/ y este archivo no se usa.
+
+Options -Indexes
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
+
+# Sin mod_rewrite no hay forma segura de servir la app desde aquí: se niega todo
+<IfModule !mod_rewrite.c>
+    Require all denied
+</IfModule>

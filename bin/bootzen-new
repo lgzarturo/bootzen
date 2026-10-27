@@ -156,6 +156,10 @@ if ($withDemo) {
 $version = is_file($repository . '/VERSION') ? trim((string) file_get_contents($repository . '/VERSION')) : 'dev';
 file_put_contents($target . '/framework/VERSION', $version . "\n");
 
+// Manifiesto de framework/: framework:update lo usa para detectar cambios locales antes de actualizar
+require_once $repository . '/framework/src/Deploy/FrameworkUpdater.php';
+BootZen\Deploy\FrameworkUpdater::writeManifest($target . '/framework', $version);
+
 $slug = strtolower((string) preg_replace('/[^A-Za-z0-9]+/', '-', $name));
 bootzenReplacePlaceholders($target, [
     '__APP_NAME__' => $name,

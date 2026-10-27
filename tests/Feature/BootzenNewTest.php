@@ -39,7 +39,17 @@ it('crea un proyecto que responde sin Composer', function (): void {
         ->and(file_get_contents($project . '/composer.json'))->toContain('"app/demo-app"')
         ->and(file_get_contents($project . '/composer.json'))->not->toContain('__APP_')
         ->and(file_get_contents($project . '/.env'))->toContain('APP_NAME="demo-app"')
-        ->and(file_get_contents($project . '/.env'))->toMatch('/^APP_KEY=base64:[A-Za-z0-9+\/=]{44}$/m');
+        ->and(file_get_contents($project . '/.env'))->toMatch('/^APP_KEY=base64:[A-Za-z0-9+\/=]{44}$/m')
+        ->and($project . '/.htaccess')->toBeFile()
+        ->and($project . '/Dockerfile')->toBeFile()
+        ->and($project . '/.dockerignore')->toBeFile()
+        ->and(is_executable($project . '/deploy/deploy.sh'))->toBeTrue()
+        ->and(is_executable($project . '/deploy/docker/entrypoint.sh'))->toBeTrue()
+        ->and(runCommand('bash -n deploy/deploy.sh && sh -n deploy/docker/entrypoint.sh', $project)[0])->toBe(0)
+        ->and(json_decode((string) file_get_contents($project . '/framework/MANIFEST.json'), true)['files'])->toHaveKey('bootstrap.php');
+
+    require_once dirname(__DIR__, 2) . '/framework/src/Deploy/FrameworkUpdater.php';
+    expect((new BootZen\Deploy\FrameworkUpdater($project))->localChanges())->toBe([]);
 
     $script = 'require "framework/bootstrap.php"; $app = require "bootstrap/app.php";'
         . ' echo $app->run(new BootZen\Core\Request("GET", "/"))->getBody();';

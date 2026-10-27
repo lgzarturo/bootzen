@@ -33,7 +33,24 @@ jobs:
           echo "$log" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
+      # Si CHANGELOG.md ya tiene la sección "## [X.Y.Z]" escrita a mano, esas son las notas del release
+      # y el CHANGELOG no se toca. Si no, se usan los commits desde el tag anterior
+      - name: Notas del release
+        id: notes
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          awk -v head="## [$version]" 'index($0, head) == 1 { found = 1; next } found && /^## \[/ { exit } found { print }' CHANGELOG.md > release-notes.md
+          if [ -s release-notes.md ]; then
+            echo "written=true" >> "$GITHUB_OUTPUT"
+          else
+            cat > release-notes.md <<'NOTES'
+          ${{ steps.changelog.outputs.log }}
+          NOTES
+            echo "written=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Update CHANGELOG.md
+        if: steps.notes.outputs.written != 'true'
         run: |
           echo "## $GITHUB_REF_NAME - $(date +'%Y-%m-%d')" >> tmp_changelog.md
           echo "" >> tmp_changelog.md
@@ -59,9 +76,10 @@ jobs:
       - name: Empaquetar framework y skeleton
         run: |
           tar -czf "bootzen-${GITHUB_REF_NAME}.tar.gz" \
-            framework skeleton stubs bin init_project.sh VERSION LICENSE README.md
+            framework skeleton stubs bin init_project.sh VERSION LICENSE README.md CHANGELOG.md docs/MIGRACION-V1-V2.md
 
       - name: Commit and push updated CHANGELOG.md
+        if: steps.notes.outputs.written != 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -74,7 +92,7 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          body: ${{ steps.changelog.outputs.log }}
+          body_path: release-notes.md
           files: bootzen-${{ github.ref_name }}.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GH_PAT }}

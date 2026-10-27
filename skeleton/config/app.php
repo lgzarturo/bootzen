@@ -29,4 +29,8 @@ return [
 
     // Nivel mínimo que se escribe en storage/logs
     'log_level' => env('LOG_LEVEL', 'debug'),
+
+    // Instalación desde el navegador (/_bootzen/instalar) para hostings sin terminal. Solo para
+    // la primera instalación: se bloquea sola al terminar y conviene volver a ponerla en false
+    'installer' => env('INSTALL_ENABLED', false),
 ];
