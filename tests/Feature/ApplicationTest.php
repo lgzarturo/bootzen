@@ -162,3 +162,63 @@ it('muestra la página de depuración con APP_DEBUG', function (): void {
         ->and($body)->toContain('class="hl"')
         ->and($body)->toContain('GET /falla');
 });
+
+it('handle() procesa la petición, envía la respuesta y registra los manejadores de errores', function (): void {
+    $this->project = makeProject();
+    $app = new Application($this->project);
+    $app->routes(static function (Router $router): void {
+        $router->get('/', static fn (): string => 'enviado');
+    });
+
+    ob_start();
+
+    try {
+        $app->handle(new Request('GET', '/'));
+    } finally {
+        $output = (string) ob_get_clean();
+        restore_error_handler();
+        restore_exception_handler();
+    }
+
+    expect($output)->toBe('enviado');
+});
+
+it('convierte los warnings en excepciones mientras atiende la petición', function (): void {
+    $this->project = makeProject();
+    $app = new Application($this->project);
+    $app->routes(static function (Router $router): void {
+        $router->get('/warning', static function (): string {
+            trigger_error('algo raro', E_USER_WARNING);
+
+            return 'no llega';
+        });
+    });
+
+    // PHPUnit reduce error_reporting y excluye E_USER_WARNING; en producción está en E_ALL
+    $previousReporting = error_reporting(E_ALL);
+    $previousLog = ini_set('error_log', '/dev/null');
+    ob_start();
+
+    try {
+        $app->handle(new Request('GET', '/warning'));
+    } finally {
+        $output = (string) ob_get_clean();
+        restore_error_handler();
+        restore_exception_handler();
+        error_reporting($previousReporting);
+        ini_set('error_log', (string) $previousLog);
+        http_response_code(200);
+    }
+
+    expect($output)->not->toContain('no llega')
+        ->and((string) file_get_contents($this->project . '/storage/logs/app-' . date('Y-m-d') . '.log'))
+        ->toContain('algo raro');
+});
+
+it('falla con un mensaje claro si ExceptionHandler fue reemplazado por otra cosa', function (): void {
+    $this->project = makeProject();
+    $app = new Application($this->project);
+    $app->instance(BootZen\Core\ExceptionHandler::class, new stdClass());
+
+    $app->run(new Request('GET', '/nada'));
+})->throws(LogicException::class, 'debe extender');
