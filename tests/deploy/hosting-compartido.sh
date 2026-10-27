@@ -10,7 +10,16 @@ PORT=${PORT:-8092}
 BASE="http://127.0.0.1:$PORT"
 WORK=$(mktemp -d)
 NAME=bootzen-hosting-$$
-trap 'docker rm -f "$NAME" > /dev/null 2>&1 || true; rm -rf "$WORK"' EXIT
+# Apache deja los archivos como www-data: se devuelven al usuario actual antes de borrarlos,
+# y la salida del script es la de la prueba, no la de la limpieza
+cleanup() {
+    local status=$?
+    docker exec "$NAME" chown -R "$(id -u):$(id -g)" /var/www/html > /dev/null 2>&1 || true
+    docker rm -f "$NAME" > /dev/null 2>&1 || true
+    rm -rf "$WORK" 2> /dev/null || echo "Aviso: no se pudo borrar $WORK" >&2
+    exit "$status"
+}
+trap cleanup EXIT
 
 unzip -q "$ZIP" -d "$WORK"
 mv "$WORK"/*/ "$WORK/public_html"
