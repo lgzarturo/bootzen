@@ -8,6 +8,7 @@
 - [Arquitectura](docs/ARQUITECTURA.md): componentes del framework.
 - [Plan](plan/04_PLAN-MVP-MONOLITO.md) y [seguimiento](plan/03_SEGUIMIENTO.md).
 - [CHANGELOG](CHANGELOG.md)
+- [Migrar de la v1 a la v2](docs/MIGRACION-V1-V2.md)
 
 ## Lo que recibe cada proyecto
 
@@ -15,3 +16,4 @@
 - [Referencia de la API](skeleton/docs/ai/reference.md) (generada con `bin/bootzen-reference`)
 - [Recetas](skeleton/docs/ai/recipes/README.md)
 - [Skills](skeleton/.claude/skills/)
+- [Guías de despliegue](skeleton/docs/deploy/README.md): hosting compartido, VPS y Docker
