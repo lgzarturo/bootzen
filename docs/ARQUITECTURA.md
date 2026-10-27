@@ -109,8 +109,13 @@ mi-app/
   (`app/View/Components`).
 - **Frontend\Tailwind**: descarga verificada (SHA-256) del CLI standalone de
   Tailwind v4 y comandos de compilación.
-- **Console**: `bin/bootzen` (serve, css:install, css:build, css:watch,
-  view:cache, view:clear).
+- **Database**: `Connection` (PDO; SQLite con WAL por defecto, MySQL
+  opcional), `QueryBuilder` con parámetros enlazados e identificadores
+  validados, `Paginator`, `Model` (Active Record ligero con casts, timestamps,
+  `hasMany` y `belongsTo`), migraciones con SQL directo (`Migrator`) y seeders.
+  La conexión se abre solo cuando se usa.
+- **Console**: `bin/bootzen` (serve, css:*, view:*, migrate, migrate:rollback,
+  migrate:status, db:seed, db:fresh, db:backup).
 - **bootzen.js** (en el skeleton, `public/assets/js`): runtime de JS nativo
   con componentes `data-component`, `request()`, `toast()` y atributos
   declarativos.
