@@ -50,6 +50,12 @@ final class StartSession implements MiddlewareInterface
         $session = $this->start($request);
         $this->container->instance(Session::class, $session);
 
+        // Un formulario enviado vuelve a la página que lo envió: back() y los errores de validación usan esta URL
+        $referer = $this->sameSiteReferer($request);
+        if ($referer !== null && ! in_array($request->getMethod(), ['GET', 'HEAD'], true)) {
+            $session->put('_previous_url', $referer);
+        }
+
         if ($this->container->bound(View::class)) {
             $view = $this->container->make(View::class);
             if ($view instanceof View) {
@@ -64,7 +70,7 @@ final class StartSession implements MiddlewareInterface
                 throw $e;
             }
 
-            $response = Response::redirect($session->previousUrl() ?? $request->getHeader('referer') ?? '/')
+            $response = Response::redirect($session->previousUrl() ?? '/')
                 ->withErrors($e->errors())
                 ->withInput($request->except(self::NOT_FLASHED));
         }
@@ -115,6 +121,29 @@ final class StartSession implements MiddlewareInterface
         }
 
         return new Session($this->store, Session::generateId());
+    }
+
+    /**
+     * Path del Referer si apunta al mismo sitio; null si no hay o es de otro dominio (evita redirigir afuera).
+     */
+    private function sameSiteReferer(Request $request): ?string
+    {
+        $referer = $request->getHeader('referer');
+        $parts = is_string($referer) && $referer !== '' ? parse_url($referer) : false;
+
+        if (! is_array($parts)) {
+            return null;
+        }
+
+        $host = $parts['host'] ?? null;
+        $sameSite = $host === null || strcasecmp($host, (string) parse_url('http://' . ($request->getHeader('host') ?? ''), PHP_URL_HOST)) === 0;
+        $path = $parts['path'] ?? '/';
+
+        if (! $sameSite || ! str_starts_with($path, '/') || str_starts_with($path, '//')) {
+            return null;
+        }
+
+        return $path . (isset($parts['query']) ? '?' . $parts['query'] : '');
     }
 
     /**

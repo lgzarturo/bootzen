@@ -316,3 +316,27 @@ it('ignora ids de sesión desconocidos', function (): void {
         ->and($cookie['secure'])->toBeFalse()
         ->and($cookie['expires'])->toBeGreaterThan(time() + 7000);
 });
+
+it('vuelve a la página del Referer si es del mismo sitio', function (): void {
+    $this->client->send('GET', '/login');
+    $this->client->send('GET', '/registro');
+
+    // Un Referer de otro dominio se ignora: vuelve a la última página vista
+    $ajeno = $this->client->send('POST', '/registro', ['email' => 'x'], ['Referer' => 'https://malo.example/login', 'Host' => 'localhost']);
+    $propio = $this->client->send('POST', '/registro', ['email' => 'x'], ['Referer' => 'http://localhost/login?x=1', 'Host' => 'localhost']);
+    $relativo = $this->client->send('POST', '/registro', ['email' => 'x'], ['Referer' => '/login']);
+
+    expect($propio->getHeader('location'))->toBe('/login?x=1')
+        ->and($relativo->getHeader('location'))->toBe('/login')
+        ->and($ajeno->getHeader('location'))->toBe('/registro');
+});
+
+it('back() vuelve a la página que envió el formulario', function (): void {
+    $this->app->routes(static fn (Router $router) => $router->group(['middleware' => 'web'], static function (Router $router): void {
+        $router->post('/volver', static fn (): Response => back()->with('status', 'ok'));
+    }));
+    $this->client->send('GET', '/registro');
+
+    expect($this->client->send('POST', '/volver', [], ['Referer' => '/login'])->getHeader('location'))->toBe('/login')
+        ->and($this->client->send('POST', '/volver')->getHeader('location'))->toBe('/login');
+});
