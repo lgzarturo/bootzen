@@ -93,18 +93,18 @@ jobs:
           php bin/bootzen route:list | grep -q 'tasks.index'
           php bin/bootzen doctor
 
-      - name: Crear proyecto con --auth
+      - name: Crear la app de demostración (--demo, incluye --auth)
         run: |
           cd "$RUNNER_TEMP/apps"
-          php "$GITHUB_WORKSPACE/bin/bootzen-new" demo-auth --auth --no-git
+          php "$GITHUB_WORKSPACE/bin/bootzen-new" demo-auth --demo --no-git
 
-      - name: composer check del proyecto con --auth
+      - name: composer check de la app de demostración
         working-directory: ${{ runner.temp }}/apps/demo-auth
         run: |
           composer install --no-interaction --no-progress
           composer check
 
-      - name: Registro e inicio de sesión por HTTP con sesiones en archivos
+      - name: Registro, inicio de sesión y tareas por HTTP con sesiones en archivos
         working-directory: ${{ runner.temp }}/apps/demo-auth
         run: |
           php bin/bootzen migrate
@@ -116,16 +116,20 @@ jobs:
           test "$(curl -sS -o /dev/null -w '%{http_code}' -c jar -b jar -d 'nombre=Ana' http://127.0.0.1:8001/registro)" = "419"
           curl -fsS -o /dev/null -w '%{redirect_url}' -c jar -b jar --data-urlencode "_token=$token" \
             -d 'nombre=Ana&email=ana@ejemplo.com&password=secreto-largo&password_confirmation=secreto-largo' \
-            http://127.0.0.1:8001/registro | grep -q '/panel'
+            http://127.0.0.1:8001/registro | grep -q '/tareas'
           curl -fsS -c jar -b jar http://127.0.0.1:8001/panel | grep -q 'Hola, Ana'
+          curl -fsS -c jar -b jar -H 'Accept: application/json' http://127.0.0.1:8001/tareas | grep -q '"total":0'
+          # El seeder de la demo reutiliza a Ana y le crea tres tareas
+          php bin/bootzen db:seed
+          curl -fsS -c jar -b jar -H 'Accept: application/json' http://127.0.0.1:8001/tareas | grep -q '"total":3'
 
       - name: Tailwind standalone y CSS del skeleton al día
         working-directory: ${{ runner.temp }}/apps/demo-auth
         run: |
           php bin/bootzen css:build
-          # El CSS versionado en skeleton/ se genera desde un proyecto con --auth, así cubre también esas vistas
+          # El CSS versionado en skeleton/ se genera desde la app --demo, así cubre también las vistas de auth y de la demo
           cmp public/assets/app.css "$GITHUB_WORKSPACE/skeleton/public/assets/app.css" || {
-            echo "skeleton/public/assets/app.css está desactualizado: regenéralo con php bin/bootzen css:build en un proyecto creado con --auth";
+            echo "skeleton/public/assets/app.css está desactualizado: regenéralo con php bin/bootzen css:build en un proyecto creado con --demo";
             exit 1;
           }
           php bin/bootzen view:cache
