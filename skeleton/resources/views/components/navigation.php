@@ -1,6 +1,7 @@
 {{--
     Barra de navegación. Uso:
     <x-navigation brand="Mi App" :items="[['href' => '/', 'label' => 'Inicio']]" current="/" />
+    Slot opcional actions: botones a la derecha (por ejemplo, el usuario y cerrar sesión).
     En pantallas chicas el menú se abre con el componente JS "menu" (public/assets/js/components/menu.js).
 --}}
 @props(['brand' => 'BootZen', 'items' => [], 'current' => null])
@@ -20,6 +21,9 @@
                     'text-gray-700 hover:text-blue-600' => $current !== $item['href'],
                 ]) }}">{{ $item['label'] }}</a>
             @endforeach
+@if (isset($actions))
+            <div class="flex items-center gap-3">{{ $actions }}</div>
+@endif
         </div>
     </div>
 </nav>

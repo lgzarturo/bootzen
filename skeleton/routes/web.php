@@ -1,7 +1,8 @@
 <?php
 
 /**
- * Rutas de la aplicación.
+ * Rutas de las páginas: todas pasan por el grupo web (sesión, CSRF y errores de validación).
+ * Las rutas JSON van en routes/api.php.
  *
  * Usa siempre [Controlador::class, 'metodo'] y ponle nombre a cada ruta con ->name()
  * para generar URLs con route('nombre').

@@ -38,3 +38,10 @@ it('tiene la base de datos lista para los tests', function (): void {
     expect(db()->scalar('SELECT 1'))->toBe(1)
         ->and(db()->driver())->toBe('sqlite');
 });
+
+it('agrega las cabeceras de seguridad', function (): void {
+    $response = createApp()->run(new Request('GET', '/'));
+
+    expect($response->getHeader('X-Content-Type-Options'))->toBe('nosniff')
+        ->and($response->getHeader('Content-Security-Policy'))->toContain("default-src 'self'");
+});
