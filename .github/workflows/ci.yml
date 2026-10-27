@@ -45,9 +45,10 @@ jobs:
       - name: Instalar dependencias de desarrollo
         run: composer install --no-interaction --no-progress
 
-      # Solo reporta. El umbral (90% en piezas críticas) se fija al ver la primera medición
-      - name: Reporte de cobertura
-        run: vendor/bin/pest --coverage
+      # Falla si la cobertura total baja de 80%. Meta en piezas críticas
+      # (Container, Router, Request, Response): 90%, se revisa en cada PR
+      - name: Cobertura mínima 80%
+        run: vendor/bin/pest --coverage --min=80
 
   skeleton:
     name: Proyecto generado (PHP 8.2)

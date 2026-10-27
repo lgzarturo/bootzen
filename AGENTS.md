@@ -47,8 +47,10 @@ php bin/bootzen-new demo --no-git   # generate a project into ./demo
 ```
 
 CI (`.github/workflows/ci.yml`) runs `composer check` on PHP 8.2, 8.3 and 8.4,
-then generates a project, checks it answers over `php -S` without `vendor/`,
-and runs `composer check` inside it.
+enforces at least 80% total coverage with pcov (`composer test:coverage`;
+target for Container, Router, Request and Response is 90%), then generates a
+project, checks it answers over `php -S` without `vendor/`, and runs
+`composer check` inside it.
 
 ## Release
 
