@@ -1,0 +1,22 @@
+<?php
+
+declare(strict_types=1);
+
+use BootZen\Database\Connection;
+use BootZen\Database\Migration;
+
+return new class () extends Migration {
+    public function up(Connection $db): void
+    {
+        $db->exec(<<<'SQL'
+            CREATE TABLE [[table]] (
+[[columns]]
+            )
+            SQL);
+    }
+
+    public function down(Connection $db): void
+    {
+        $db->exec('DROP TABLE [[table]]');
+    }
+};

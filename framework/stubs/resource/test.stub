@@ -1,0 +1,63 @@
+<?php
+
+declare(strict_types=1);
+
+use App\Models\[[Model]];
+
+/**
+ * Datos válidos como los enviaría el formulario.
+ *
+ * @return array<string, string>
+ */
+function [[camel]]Data(bool $updated = false): array
+{
+    return $updated ? [
+[[updatedData]]
+    ] : [
+[[data]]
+    ];
+}
+
+it('lista los registros', function (): void {
+    $client = client();
+    [[Model]]::create([[camel]]Data());
+
+    $client->get('/[[route]]')->assertOk()[[seeIndex]];
+});
+
+it('muestra el formulario para crear', function (): void {
+    client()->get('/[[route]]/create')->assertOk();
+});
+
+it('crea un registro', function (): void {
+    $client = client();
+
+    $client->post('/[[route]]', [[camel]]Data())
+        ->assertRedirect('/[[route]]/1')
+        ->assertSessionHas('status', 'Registro creado.');
+
+    $client->assertDatabaseCount('[[table]]', 1)[[hasCreated]];
+});
+[[validationTest]]
+it('muestra, edita y actualiza un registro', function (): void {
+    $client = client();
+    $[[singular]] = [[Model]]::create([[camel]]Data());
+
+    $client->get('/[[route]]/' . $[[singular]]->id)->assertOk();
+    $client->get('/[[route]]/' . $[[singular]]->id . '/edit')->assertOk()[[seeEdit]];
+    $client->put('/[[route]]/' . $[[singular]]->id, [[camel]]Data(true))
+        ->assertRedirect('/[[route]]/' . $[[singular]]->id)
+        ->assertSessionHas('status', 'Registro actualizado.');
+[[hasUpdated]]});
+
+it('borra un registro', function (): void {
+    $client = client();
+    $[[singular]] = [[Model]]::create([[camel]]Data());
+
+    $client->delete('/[[route]]/' . $[[singular]]->id)->assertRedirect('/[[route]]');
+    $client->assertDatabaseCount('[[table]]', 0);
+});
+
+it('responde 404 si el registro no existe', function (): void {
+    client()->get('/[[route]]/999')->assertNotFound();
+});

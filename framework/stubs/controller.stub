@@ -1,0 +1,18 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Controllers;
+
+use BootZen\Core\Response;
+
+/**
+ * [[Description]]
+ */
+final class [[Class]]
+{
+    public function index(): Response
+    {
+        return view('[[view]]');
+    }
+}

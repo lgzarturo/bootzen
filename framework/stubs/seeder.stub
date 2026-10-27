@@ -1,0 +1,16 @@
+<?php
+
+declare(strict_types=1);
+
+use BootZen\Database\Connection;
+use BootZen\Database\Seeder;
+
+/**
+ * Ejecútalo con: php bin/bootzen db:seed --class=[[Class]] (o $this->call('[[Class]]') desde DatabaseSeeder).
+ */
+return new class () extends Seeder {
+    public function run(Connection $db): void
+    {
+        // $db->table('tareas')->insert(['titulo' => 'Comprar pan', 'created_at' => date('Y-m-d H:i:s')]);
+    }
+};

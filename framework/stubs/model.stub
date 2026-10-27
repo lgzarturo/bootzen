@@ -1,0 +1,21 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Models;
+
+use BootZen\Database\Model;
+
+/**
+ * [[Description]]
+ *
+ * @property int $id
+[[properties]] * @property \DateTimeImmutable|null $created_at
+ * @property \DateTimeImmutable|null $updated_at
+ */
+final class [[Class]] extends Model
+{
+    protected static string $table = '[[table]]';
+
+    protected static array $fillable = [[[fillable]]];
+[[casts]]}

@@ -1,0 +1,26 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Middleware;
+
+use BootZen\Core\MiddlewareInterface;
+use BootZen\Core\Request;
+use BootZen\Core\Response;
+
+/**
+ * Regístralo en bootstrap/app.php: $app->aliasMiddleware('[[alias]]', [[Class]]::class);
+ */
+final class [[Class]] implements MiddlewareInterface
+{
+    public function process(Request $request, callable $next): Response
+    {
+        // Antes del controlador: abort(403) o retornar otra respuesta corta la petición
+
+        $response = $next($request);
+
+        // Después del controlador: $response->withHeader(...)
+
+        return $response;
+    }
+}

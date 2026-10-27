@@ -1,0 +1,11 @@
+<x-layouts.app title="Editar: [[Heading]]">
+    <x-card title="Editar: [[Heading]]" class="mx-auto max-w-2xl">
+        <x-form :action="route('[[route]].update', ['id' => $[[singular]]->id])" method="PUT">
+[[editFields]]
+            <div class="flex items-center gap-3">
+                <x-button type="submit">Guardar</x-button>
+                <x-button :href="route('[[route]].show', ['id' => $[[singular]]->id])" variant="ghost">Cancelar</x-button>
+            </div>
+        </x-form>
+    </x-card>
+</x-layouts.app>

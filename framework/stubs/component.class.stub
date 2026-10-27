@@ -1,0 +1,26 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\View\Components;
+
+use BootZen\View\Component;
+
+/**
+ * Lógica de <x-[[tag]]>: el constructor recibe los atributos por nombre y las propiedades públicas
+ * y data() llegan a la vista resources/views/components/[[path]].php.
+ */
+final class [[Class]] extends Component
+{
+    public function __construct(public ?string $titulo = null)
+    {
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function data(): array
+    {
+        return [];
+    }
+}
