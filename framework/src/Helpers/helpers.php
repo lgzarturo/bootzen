@@ -23,6 +23,7 @@ use BootZen\Core\Cache;
 use BootZen\Core\HttpException;
 use BootZen\Core\Logger;
 use BootZen\Core\Response;
+use BootZen\View\View;
 
 if (! function_exists('dd')) {
     /**
@@ -347,6 +348,40 @@ if (! function_exists('route')) {
     function route(string $name, array $parameters = []): string
     {
         return Application::getInstance()->getRouter()->url($name, $parameters);
+    }
+}
+
+if (! function_exists('view')) {
+    /**
+     * Renderiza una vista y la devuelve como respuesta HTML.
+     *
+     * @param string $name Nombre con puntos: 'tareas.index' → resources/views/tareas/index.php
+     * @param array<string, mixed> $data Variables para la vista
+     * @param int $status Código de estado HTTP
+     * @example return view('tareas.index', ['tareas' => $tareas]);
+     */
+    function view(string $name, array $data = [], int $status = 200): Response
+    {
+        $view = Application::getInstance()->make(View::class);
+
+        if (! $view instanceof View) {
+            throw new \LogicException('El servicio View debe ser una instancia de ' . View::class . '.');
+        }
+
+        return Response::html($view->render($name, $data), $status);
+    }
+}
+
+if (! function_exists('class_list')) {
+    /**
+     * Arma una lista de clases CSS con condiciones, útil para Tailwind en las vistas.
+     *
+     * @param array<int|string, mixed> $classes Clases fijas y 'clase' => condición
+     * @example <a class="{{ class_list(['px-2', 'text-blue-600' => $activo]) }}">
+     */
+    function class_list(array $classes): string
+    {
+        return \BootZen\View\ComponentAttributeBag::classList($classes);
     }
 }
 

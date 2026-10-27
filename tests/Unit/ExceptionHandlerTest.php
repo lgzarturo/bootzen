@@ -6,9 +6,11 @@ use BootZen\Core\ExceptionHandler;
 use BootZen\Core\HttpException;
 use BootZen\Core\Logger;
 use BootZen\Core\Request;
+use BootZen\View\View;
 
 beforeEach(function (): void {
     $this->directory = makeTempDir();
+    $this->view = new View($this->directory, $this->directory . '/cache');
 });
 
 afterEach(function (): void {
@@ -16,7 +18,7 @@ afterEach(function (): void {
 });
 
 it('usa la página integrada si no hay vistas de error', function (): void {
-    $response = (new ExceptionHandler(null, $this->directory))->render(new HttpException(404));
+    $response = (new ExceptionHandler(null, $this->view))->render(new HttpException(404));
 
     expect($response->getStatusCode())->toBe(404)
         ->and($response->getBody())->toContain('404 - Not Found');
@@ -25,7 +27,7 @@ it('usa la página integrada si no hay vistas de error', function (): void {
 it('cae a la página integrada si la vista de error falla', function (): void {
     writeFile($this->directory . '/errors/500.php', '<?php throw new RuntimeException("vista rota");');
 
-    $response = (new ExceptionHandler(null, $this->directory))->render(new RuntimeException('x'));
+    $response = (new ExceptionHandler(null, $this->view))->render(new RuntimeException('x'));
 
     expect($response->getStatusCode())->toBe(500)
         ->and($response->getBody())->toContain('500 - Internal Server Error')
@@ -33,7 +35,7 @@ it('cae a la página integrada si la vista de error falla', function (): void {
 });
 
 it('conserva las cabeceras de la HttpException', function (): void {
-    $response = (new ExceptionHandler(null, $this->directory))
+    $response = (new ExceptionHandler(null, $this->view))
         ->render(new HttpException(429, 'Calma', ['Retry-After' => '60']));
 
     expect($response->getHeader('retry-after'))->toBe('60');
@@ -42,8 +44,8 @@ it('conserva las cabeceras de la HttpException', function (): void {
 it('incluye la traza en JSON solo con debug', function (): void {
     $request = new Request('GET', '/', ['Accept' => 'application/json']);
 
-    $conDebug = json_decode((new ExceptionHandler(null, $this->directory, true))->render(new LogicException('boom'), $request)->getBody(), true);
-    $sinDebug = json_decode((new ExceptionHandler(null, $this->directory, false))->render(new LogicException('boom'), $request)->getBody(), true);
+    $conDebug = json_decode((new ExceptionHandler(null, $this->view, true))->render(new LogicException('boom'), $request)->getBody(), true);
+    $sinDebug = json_decode((new ExceptionHandler(null, $this->view, false))->render(new LogicException('boom'), $request)->getBody(), true);
 
     expect($conDebug)->toHaveKeys(['exception', 'file', 'line', 'trace'])
         ->and($conDebug['message'])->toBe('boom')
@@ -52,7 +54,7 @@ it('incluye la traza en JSON solo con debug', function (): void {
 });
 
 it('no registra errores 4xx pero sí los 5xx', function (): void {
-    $handler = new ExceptionHandler(new Logger($this->directory . '/logs'), $this->directory);
+    $handler = new ExceptionHandler(new Logger($this->directory . '/logs'), $this->view);
 
     $handler->report(new HttpException(404, 'no se registra'));
     $handler->report(new HttpException(503, 'mantenimiento'));
@@ -61,4 +63,29 @@ it('no registra errores 4xx pero sí los 5xx', function (): void {
 
     expect($log)->not->toContain('no se registra')
         ->and($log)->toContain('mantenimiento');
+});
+
+it('usa la página integrada si no hay motor de vistas', function (): void {
+    expect((new ExceptionHandler(null))->render(new HttpException(410))->getBody())->toContain('410 - Unknown Status');
+});
+
+it('renderiza la vista de error con el motor de vistas y componentes', function (): void {
+    writeFile($this->directory . '/components/marco.php', '<main>{{ $slot }}</main>');
+    writeFile($this->directory . '/errors/404.php', '<x-marco>{{ $status }}: {{ $message }}</x-marco>');
+
+    expect((new ExceptionHandler(null, $this->view))->render(new HttpException(404, 'No está'))->getBody())
+        ->toBe('<main>404: No está</main>');
+});
+
+it('muestra la línea de la vista original en la página de depuración', function (): void {
+    writeFile($this->directory . '/rota.php', "uno\ndos\n{{ throw new LogicException('falla') }}\n");
+
+    try {
+        $this->view->render('rota');
+    } catch (Throwable $e) {
+        $body = (new ExceptionHandler(null, $this->view, true))->render($e)->getBody();
+    }
+
+    expect($body ?? '')->toContain($this->directory . '/rota.php:3')
+        ->and($body ?? '')->toContain('{{ throw new LogicException(&#039;falla&#039;) }}');
 });

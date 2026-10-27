@@ -7,8 +7,8 @@
  *
  * - Petición que espera JSON: respuesta JSON con error, mensaje y estado.
  * - APP_DEBUG activo y error 5xx: página de depuración con traza y fragmento de código.
- * - En otro caso: vista resources/views/errors/{estado}.php, luego errors/default.php,
- *   y si no existen, una página mínima integrada.
+ * - En otro caso: vista errors/{estado} del motor de vistas, luego errors/default,
+ *   y si no existen o fallan, una página mínima integrada.
  *
  * @package    BootZen\Core
  * @author     Arturo Lopez <lgzarturo@gmail.com>
@@ -21,6 +21,8 @@ declare(strict_types=1);
 
 namespace BootZen\Core;
 
+use BootZen\View\View;
+use BootZen\View\ViewException;
 use Throwable;
 
 /**
@@ -30,12 +32,12 @@ class ExceptionHandler
 {
     /**
      * @param Logger|null $logger Logger para report(); null para no registrar
-     * @param string $viewsPath Directorio de vistas (resources/views)
+     * @param View|null $view Motor de vistas para errors/{codigo}; null para usar la página integrada
      * @param bool $debug Mostrar detalles de las excepciones
      */
     public function __construct(
         private readonly ?Logger $logger,
-        private readonly string $viewsPath,
+        private readonly ?View $view = null,
         private readonly bool $debug = false
     ) {
     }
@@ -111,14 +113,13 @@ class ExceptionHandler
      */
     private function errorPage(int $status, string $title, string $message): string
     {
-        foreach (["errors/{$status}.php", 'errors/default.php'] as $view) {
-            $file = rtrim($this->viewsPath, '/') . '/' . $view;
-            if (! is_file($file)) {
+        foreach (["errors.{$status}", 'errors.default'] as $name) {
+            if ($this->view === null || ! $this->view->exists($name)) {
                 continue;
             }
 
             try {
-                return self::renderFile($file, ['status' => $status, 'title' => $title, 'message' => $message]);
+                return $this->view->render($name, ['status' => $status, 'title' => $title, 'message' => $message]);
             } catch (Throwable) {
                 // Si la vista de error falla, se usa la página integrada
                 break;
@@ -137,32 +138,6 @@ class ExceptionHandler
     }
 
     /**
-     * Incluye un archivo PHP con variables y devuelve su salida.
-     *
-     * @param array<string, mixed> $data
-     */
-    private static function renderFile(string $file, array $data): string
-    {
-        $level = ob_get_level();
-        ob_start();
-
-        try {
-            (static function (string $__file, array $__data): void {
-                extract($__data, EXTR_SKIP);
-                require $__file;
-            })($file, $data);
-
-            return (string) ob_get_clean();
-        } catch (Throwable $e) {
-            while (ob_get_level() > $level) {
-                ob_end_clean();
-            }
-
-            throw $e;
-        }
-    }
-
-    /**
      * Página de depuración: excepción, fragmento de código, traza y datos de la petición.
      */
     private function debugPage(Throwable $e, ?Request $request): string
@@ -171,13 +146,18 @@ class ExceptionHandler
 
         $chain = '';
         for ($current = $e; $current !== null; $current = $current->getPrevious()) {
+            // En errores de vistas se muestra la vista original, no el archivo compilado
+            $inView = $current instanceof ViewException && $current->getViewLine() > 0;
+            $file = $inView ? $current->getViewFile() : $current->getFile();
+            $line = $inView ? $current->getViewLine() : $current->getLine();
+
             $chain .= sprintf(
                 '<section><h2>%s</h2><p class="msg">%s</p><p class="loc">%s:%d</p>%s<pre>%s</pre></section>',
                 $h($current::class),
                 $h($current->getMessage()),
-                $h($current->getFile()),
-                $current->getLine(),
-                $this->codeExcerpt($current->getFile(), $current->getLine()),
+                $h($file),
+                $line,
+                $this->codeExcerpt($file, $line),
                 $h($current->getTraceAsString())
             );
         }
