@@ -27,6 +27,9 @@ The roadmap lives in `plan/04_PLAN-MVP-MONOLITO.md`; progress is tracked in
   HttpException, MiddlewareInterface.
 - `framework/src/View/`: view engine (View, ViewCompiler with the closed
   directive list, ComponentAttributeBag, HtmlString, Component, ViewException).
+- `framework/src/Database/`: data layer (Connection over PDO for SQLite and
+  MySQL, QueryBuilder, Paginator, Model, ModelQuery, Migration, Migrator,
+  Seeder, SeederRunner and their exceptions).
 - `framework/src/Console/Console.php`: `bin/bootzen` commands.
 - `framework/src/Frontend/Tailwind.php`: Tailwind v4 standalone CLI download
   (SHA-256 verified) and build arguments.
@@ -62,8 +65,10 @@ enforces at least 80% total coverage with pcov (`composer test:coverage`;
 target for Container, Router, Request and Response is 90%), then generates a
 project, checks it answers over `php -S` without `vendor/`, runs
 `composer check` inside it, builds its CSS with the real Tailwind binary
-(failing if `skeleton/public/assets/app.css` is stale) and runs the
-`bootzen.js` tests with Node 22.
+(failing if `skeleton/public/assets/app.css` is stale), runs
+`tests/Feature/MySqlTest.php` against a MySQL 8.4 service (skipped locally
+unless `BOOTZEN_TEST_MYSQL_HOST` is set) and runs the `bootzen.js` tests with
+Node 22.
 
 ## Release
 

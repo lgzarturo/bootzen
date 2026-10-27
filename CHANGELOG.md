@@ -5,6 +5,33 @@
 Inicio de la v2.0 según [plan/04_PLAN-MVP-MONOLITO.md](plan/04_PLAN-MVP-MONOLITO.md).
 **Cambios incompatibles con la v1.x.**
 
+### Fase 3: datos
+
+#### Agregado
+
+- `BootZen\Database\Connection` sobre PDO: SQLite por defecto (WAL, claves
+  foráneas, `busy_timeout`) y MySQL. Consultas con parámetros enlazados y
+  `QueryException` con el SQL y los valores. Transacciones anidables.
+- `QueryBuilder`: `select`, `where` (y `orWhere`, `whereIn`, `whereNull`,
+  `whereRaw`), `join`, `orderBy`, `limit`, `paginate`, `insert`, `update` y
+  `delete`. Identificadores validados y entre comillas; `update()` y
+  `delete()` exigen un `where`.
+- `Paginator` serializable a JSON y componente `<x-pagination>`.
+- `Model` (Active Record ligero): `find`, `findOrFail` (404 automático),
+  `create`, `save`, `update`, `delete`, `$fillable`, `$hidden`, `$casts`
+  (`int`, `float`, `bool`, `string`, `array`, `datetime`, `date`), timestamps,
+  `hasMany` y `belongsTo`.
+- Migraciones con SQL directo (`Migrator`, por lotes y con transacción en
+  SQLite) y seeders (`Seeder`, `SeederRunner`).
+- Comandos `migrate`, `migrate:rollback`, `migrate:status`, `db:seed`,
+  `db:fresh` (pide `--force` en producción) y `db:backup` (`VACUUM INTO`).
+- Helper `db()`. Devolver un modelo o paginador desde un controlador responde
+  JSON.
+- Skeleton: `config/database.php`, variables `DB_*`, `database/migrations`,
+  `database/seeds/DatabaseSeeder.php`, `app/Models` y tests con SQLite en
+  memoria y migraciones aplicadas en `createApp()`.
+- CI: tests de integración contra MySQL 8.4.
+
 ### Fase 2: vistas, componentes y frontend
 
 #### Agregado

@@ -95,3 +95,76 @@ it('muestra el error y devuelve 1 si un comando falla', function (): void {
     expect(($this->console)()->run(['bootzen', 'view:cache']))->toBe(1)
         ->and(consoleOutput($this->output))->toContain('Error: Error de sintaxis en la vista');
 });
+
+it('migra, muestra el estado, revierte y vuelve a crear la base', function (): void {
+    writeFile($this->project . '/database/migrations/2026_01_01_000000_crear_tareas.php', <<<'PHP'
+        <?php
+        use BootZen\Database\Connection;
+        use BootZen\Database\Migration;
+
+        return new class () extends Migration {
+            public function up(Connection $db): void { $db->exec('CREATE TABLE tareas (id INTEGER PRIMARY KEY, titulo TEXT)'); }
+            public function down(Connection $db): void { $db->exec('DROP TABLE tareas'); }
+        };
+        PHP);
+    writeFile($this->project . '/database/seeds/DatabaseSeeder.php', <<<'PHP'
+        <?php
+        use BootZen\Database\Connection;
+        use BootZen\Database\Seeder;
+
+        return new class () extends Seeder {
+            public function run(Connection $db): void { $db->table('tareas')->insert(['titulo' => 'Pan']); }
+        };
+        PHP);
+    $console = ($this->console)();
+
+    expect($console->run(['bootzen', 'migrate:status']))->toBe(0)
+        ->and($console->run(['bootzen', 'migrate']))->toBe(0)
+        ->and($console->run(['bootzen', 'migrate']))->toBe(0)
+        ->and($console->run(['bootzen', 'migrate:status']))->toBe(0)
+        ->and($console->run(['bootzen', 'db:seed']))->toBe(0)
+        ->and($console->run(['bootzen', 'migrate:rollback', '--step=2']))->toBe(0)
+        ->and($console->run(['bootzen', 'migrate:rollback']))->toBe(0)
+        ->and($console->run(['bootzen', 'db:fresh', '--seed']))->toBe(0)
+        ->and(db()->table('tareas')->count())->toBe(1);
+
+    $output = consoleOutput($this->output);
+
+    expect($output)->toContain('[ ] 2026_01_01_000000_crear_tareas')
+        ->and($output)->toContain('Migrada: 2026_01_01_000000_crear_tareas')
+        ->and($output)->toContain('No hay migraciones pendientes.')
+        ->and($output)->toContain('[x] 2026_01_01_000000_crear_tareas (lote 1)')
+        ->and($output)->toContain('Seeder ejecutado: DatabaseSeeder')
+        ->and($output)->toContain('Revertida: 2026_01_01_000000_crear_tareas')
+        ->and($output)->toContain('No hay migraciones para revertir.')
+        ->and($output)->toContain('Tablas borradas.');
+});
+
+it('pide --force para db:fresh en producción', function (): void {
+    writeFile($this->project . '/config/app.php', "<?php return ['env' => 'production'];");
+    $this->app = new Application($this->project);
+
+    expect(($this->console)()->run(['bootzen', 'db:fresh']))->toBe(1)
+        ->and(consoleOutput($this->output))->toContain('agrega --force')
+        ->and(($this->console)()->run(['bootzen', 'db:fresh', '--force']))->toBe(0);
+});
+
+it('crea una copia consistente de la base SQLite', function (): void {
+    db()->exec('CREATE TABLE notas (texto TEXT)');
+    db()->table('notas')->insert(['texto' => 'hola']);
+
+    expect(($this->console)()->run(['bootzen', 'db:backup']))->toBe(0);
+
+    $backups = glob($this->project . '/storage/backups/backup-*.sqlite') ?: [];
+    $copy = new PDO('sqlite:' . ($backups[0] ?? ''));
+
+    expect($backups)->toHaveCount(1)
+        ->and($copy->query('SELECT texto FROM notas')?->fetchColumn())->toBe('hola');
+});
+
+it('rechaza db:backup en bases que no son SQLite', function (): void {
+    $this->app->instance(BootZen\Database\Connection::class, new BootZen\Database\Connection(new PDO('sqlite::memory:'), 'mysql'));
+
+    expect(($this->console)()->run(['bootzen', 'db:backup']))->toBe(1)
+        ->and(consoleOutput($this->output))->toContain('mysqldump');
+});

@@ -11,6 +11,11 @@
             <directory suffix="Test.php">./tests/Feature</directory>
         </testsuite>
     </testsuites>
+    <php>
+        <!-- Cada test usa una base SQLite en memoria nueva, con todas las migraciones (ver tests/Pest.php) -->
+        <env name="DB_CONNECTION" value="sqlite" force="true"/>
+        <env name="DB_DATABASE" value=":memory:" force="true"/>
+    </php>
     <source>
         <include>
             <directory suffix=".php">./app</directory>

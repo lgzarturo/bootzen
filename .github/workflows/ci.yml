@@ -95,6 +95,48 @@ jobs:
           }
           php bin/bootzen view:cache
 
+  mysql:
+    name: MySQL 8.4 (PHP 8.3)
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: secret
+          MYSQL_DATABASE: bootzen_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -psecret --silent"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: mbstring, fileinfo, pdo_sqlite, pdo_mysql
+          coverage: none
+
+      - name: Instalar dependencias de desarrollo
+        run: composer install --no-interaction --no-progress
+
+      - name: Tests de integración con MySQL
+        env:
+          BOOTZEN_TEST_MYSQL_HOST: 127.0.0.1
+          BOOTZEN_TEST_MYSQL_PORT: "3306"
+          BOOTZEN_TEST_MYSQL_DATABASE: bootzen_test
+          BOOTZEN_TEST_MYSQL_USERNAME: root
+          BOOTZEN_TEST_MYSQL_PASSWORD: secret
+        run: |
+          vendor/bin/pest tests/Feature/MySqlTest.php --colors=never | tee "$RUNNER_TEMP/mysql.txt"
+          # Si los tests se saltaran por falta de configuración, el job no debe pasar en verde
+          grep -q "4 passed" "$RUNNER_TEMP/mysql.txt"
+
   js:
     name: Runtime JS (Node 22)
     runs-on: ubuntu-latest

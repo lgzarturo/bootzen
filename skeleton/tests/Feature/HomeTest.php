@@ -31,3 +31,10 @@ it('muestra la página 404 de la aplicación', function (): void {
     expect($response->getStatusCode())->toBe(404)
         ->and($response->getBody())->toContain('Página no encontrada');
 });
+
+it('tiene la base de datos lista para los tests', function (): void {
+    createApp();
+
+    expect(db()->scalar('SELECT 1'))->toBe(1)
+        ->and(db()->driver())->toBe('sqlite');
+});

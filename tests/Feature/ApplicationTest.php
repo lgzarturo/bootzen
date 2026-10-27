@@ -222,3 +222,37 @@ it('falla con un mensaje claro si ExceptionHandler fue reemplazado por otra cosa
 
     $app->run(new Request('GET', '/nada'));
 })->throws(LogicException::class, 'debe extender');
+
+it('abre la conexión de config/database.php solo cuando se usa', function (): void {
+    $this->project = makeProject('', [
+        'config/database.php' => "<?php return ['default' => 'sqlite', 'connections' => ['sqlite' => ['driver' => 'sqlite', 'database' => 'database/app.sqlite']]];",
+    ]);
+    $app = new Application($this->project);
+
+    expect($this->project . '/database/app.sqlite')->not->toBeFile();
+
+    db()->exec('CREATE TABLE x (id INTEGER)');
+
+    expect($this->project . '/database/app.sqlite')->toBeFile()
+        ->and($app->make(BootZen\Database\Connection::class))->toBe(db())
+        ->and($app->make(BootZen\Database\Migrator::class))->toBeInstanceOf(BootZen\Database\Migrator::class);
+});
+
+it('explica si la conexión por defecto no existe', function (): void {
+    $this->project = makeProject('', [
+        'config/database.php' => "<?php return ['default' => 'pgsql', 'connections' => []];",
+    ]);
+    new Application($this->project);
+
+    db();
+})->throws(LogicException::class, 'La conexión [pgsql] no está definida');
+
+it('responde JSON al devolver un modelo o un paginador desde el controlador', function (): void {
+    $this->project = makeProject();
+    $app = new Application($this->project);
+    $app->routes(static function (Router $router): void {
+        $router->get('/pagina', static fn () => new BootZen\Database\Paginator([['id' => 1]], 1, 10, 1));
+    });
+
+    expect(json_decode($app->run(new Request('GET', '/pagina'))->getBody(), true)['total'])->toBe(1);
+});

@@ -3,8 +3,8 @@
 /**
  * Console.php
  *
- * CLI del proyecto (bin/bootzen). Comandos de la fase 2: servidor de desarrollo, Tailwind y caché de vistas.
- * La fase 5 agrega generadores, migraciones y el resto de comandos.
+ * CLI del proyecto (bin/bootzen): servidor de desarrollo, Tailwind, caché de vistas y base de datos.
+ * La fase 5 agrega los generadores y el resto de comandos.
  *
  * @package    BootZen\Console
  * @author     Arturo Lopez <lgzarturo@gmail.com>
@@ -18,6 +18,9 @@ declare(strict_types=1);
 namespace BootZen\Console;
 
 use BootZen\Core\Application;
+use BootZen\Database\Connection;
+use BootZen\Database\Migrator;
+use BootZen\Database\SeederRunner;
 use BootZen\Frontend\Tailwind;
 use BootZen\View\View;
 use Closure;
@@ -40,6 +43,12 @@ final class Console
         'css:watch' => 'Recompila el CSS cada vez que cambian las vistas o el JS',
         'view:cache' => 'Precompila todas las vistas (para producción)',
         'view:clear' => 'Borra las vistas compiladas',
+        'migrate' => 'Ejecuta las migraciones pendientes de database/migrations',
+        'migrate:rollback' => 'Revierte el último lote de migraciones (--step=N para más lotes)',
+        'migrate:status' => 'Lista las migraciones y si ya se ejecutaron',
+        'db:seed' => 'Ejecuta database/seeds/DatabaseSeeder.php (--class=Nombre para otro)',
+        'db:fresh' => 'Borra todas las tablas y migra de nuevo (--seed, --force en producción)',
+        'db:backup' => 'Copia consistente de la base SQLite en storage/backups',
     ];
 
     /**
@@ -91,6 +100,12 @@ final class Console
                 'css:watch' => $this->cssBuild(true),
                 'view:cache' => $this->viewCache(),
                 'view:clear' => $this->viewClear(),
+                'migrate' => $this->migrate(),
+                'migrate:rollback' => $this->rollback($options),
+                'migrate:status' => $this->migrateStatus(),
+                'db:seed' => $this->seed($options),
+                'db:fresh' => $this->fresh($options),
+                'db:backup' => $this->backup(),
                 default => $this->unknown($command),
             };
         } catch (Throwable $e) {
@@ -106,7 +121,7 @@ final class Console
         $this->line('');
 
         foreach (self::COMMANDS as $name => $description) {
-            $this->line(sprintf('  %-12s %s', $name, $description));
+            $this->line(sprintf('  %-17s %s', $name, $description));
         }
 
         $this->line('');
@@ -170,6 +185,138 @@ final class Console
         $this->line("Vistas compiladas borradas: {$count}");
 
         return 0;
+    }
+
+    private function migrate(): int
+    {
+        $ran = $this->migrator()->run();
+
+        if ($ran === []) {
+            $this->line('No hay migraciones pendientes.');
+        }
+
+        foreach ($ran as $name) {
+            $this->line("Migrada: {$name}");
+        }
+
+        return 0;
+    }
+
+    /**
+     * @param array<string, string|true> $options
+     */
+    private function rollback(array $options): int
+    {
+        $steps = is_string($options['step'] ?? null) ? max(1, (int) $options['step']) : 1;
+        $reverted = $this->migrator()->rollback($steps);
+
+        if ($reverted === []) {
+            $this->line('No hay migraciones para revertir.');
+        }
+
+        foreach ($reverted as $name) {
+            $this->line("Revertida: {$name}");
+        }
+
+        return 0;
+    }
+
+    private function migrateStatus(): int
+    {
+        $status = $this->migrator()->status();
+
+        if ($status === []) {
+            $this->line('No hay migraciones en database/migrations.');
+        }
+
+        foreach ($status as $row) {
+            $this->line(sprintf('  [%s] %s%s', $row['ran'] ? 'x' : ' ', $row['migration'], $row['ran'] ? " (lote {$row['batch']})" : ''));
+        }
+
+        return 0;
+    }
+
+    /**
+     * @param array<string, string|true> $options
+     */
+    private function seed(array $options): int
+    {
+        $name = is_string($options['class'] ?? null) ? $options['class'] : 'DatabaseSeeder';
+        $runner = $this->app->make(SeederRunner::class);
+
+        if (! $runner instanceof SeederRunner) {
+            throw new \LogicException('El servicio SeederRunner debe ser una instancia de ' . SeederRunner::class . '.');
+        }
+
+        foreach ($runner->run($name) as $seeder) {
+            $this->line("Seeder ejecutado: {$seeder}");
+        }
+
+        return 0;
+    }
+
+    /**
+     * @param array<string, string|true> $options
+     */
+    private function fresh(array $options): int
+    {
+        if ($this->app->config()->get('app.env') === 'production' && ! isset($options['force'])) {
+            $this->line('db:fresh borra todas las tablas. En producción agrega --force si de verdad quieres hacerlo.');
+
+            return 1;
+        }
+
+        $this->line('Tablas borradas.');
+        foreach ($this->migrator()->fresh() as $name) {
+            $this->line("Migrada: {$name}");
+        }
+
+        return isset($options['seed']) ? $this->seed([]) : 0;
+    }
+
+    private function backup(): int
+    {
+        $db = $this->connection();
+
+        if ($db->driver() !== 'sqlite') {
+            $this->line('db:backup solo funciona con SQLite. Para MySQL usa mysqldump.');
+
+            return 1;
+        }
+
+        $directory = $this->app->basePath('storage/backups');
+        if (! is_dir($directory)) {
+            mkdir($directory, 0775, true);
+        }
+
+        $file = $directory . '/backup-' . date('Ymd-His') . '.sqlite';
+        // VACUUM INTO genera una copia consistente aunque la app esté escribiendo
+        $db->statement('VACUUM INTO ?', [$file]);
+        $this->line("Copia creada: {$file}");
+
+        return 0;
+    }
+
+    private function migrator(): Migrator
+    {
+        $migrator = $this->app->make(Migrator::class);
+
+        if (! $migrator instanceof Migrator) {
+            throw new \LogicException('El servicio Migrator debe ser una instancia de ' . Migrator::class . '.');
+        }
+
+        return $migrator;
+    }
+
+    private function connection(): Connection
+    {
+        $connection = $this->app->make(Connection::class);
+
+        if (! $connection instanceof Connection) {
+            throw new \LogicException('El servicio Connection debe ser una instancia de ' . Connection::class . '.');
+        }
+
+        return $connection;
     }
 
     private function unknown(string $command): int

@@ -78,8 +78,22 @@ Notas de cierre:
 
 ## Fase 3: Datos
 
-- [ ] Connection, QueryBuilder y Model
-- [ ] Migraciones SQL, seeders y comandos de base de datos
+- [x] Connection, QueryBuilder y Model
+- [x] Migraciones SQL, seeders y comandos de base de datos
+
+Notas de cierre:
+
+- Criterio cumplido: CRUD completo (rutas `resource`, modelo, vistas con
+  `<x-pagination>`, `_method` y 404 de `findOrFail`) contra SQLite en memoria
+  en `tests/Feature/CrudTest.php`.
+- MySQL validado contra MySQL 8.4 real (`tests/Feature/MySqlTest.php`, job
+  `mysql` en CI).
+- Los modelos exigen `$table` explícita (pluralizar nombres en español falla:
+  Ciudad → ciudads).
+- `update()` y `delete()` sin `where` lanzan excepción a propósito.
+- Sin carga anticipada de relaciones ni factories: quedan para cuando un
+  caso real las pida (factories, con los generadores de la fase 5).
+- `make:migration` y `make:model` llegan con los generadores de la fase 5.
 
 ## Fase 4: Sesión, seguridad y auth
 

@@ -391,7 +391,7 @@ class Router
 
         return match (true) {
             $result instanceof Response => $result,
-            is_array($result) => Response::json($result),
+            is_array($result), $result instanceof \JsonSerializable => Response::json($result),
             $result === null => Response::noContent(),
             is_string($result), is_int($result), is_float($result), $result instanceof Stringable => Response::html((string) $result),
             default => throw new UnexpectedValueException(sprintf(

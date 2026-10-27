@@ -13,7 +13,7 @@ fricción en hosting compartido, VPS o Docker.
 ## Stack
 
 - **PHP 8.2+** sin dependencias de Composer en producción
-- **SQLite** como base de datos por defecto *(fase 3)*
+- **SQLite** como base de datos por defecto (MySQL opcional), con migraciones en SQL directo
 - **Tailwind CSS v4** con CLI standalone, sin Node
 - **JavaScript nativo** con módulos ES, sin bundler
 - **Plantillas `.php` con componentes `<x-*>`** compiladas y cacheadas

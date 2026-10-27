@@ -105,14 +105,14 @@ class Response
     /**
      * Crea una respuesta JSON
      *
-     * @param array<mixed> $data Datos a codificar en JSON (objeto o lista)
+     * @param array<mixed>|\JsonSerializable $data Datos a codificar en JSON (objeto, lista, modelo o paginador)
      * @param int $statusCode Código de estado HTTP (por defecto 200)
      * @param array<string, string> $headers Cabeceras HTTP adicionales
      * @return self Nueva instancia de Response con contenido JSON
      * @throws \JsonException Si la codificación JSON falla
      * @example $response = Response::json(['ok' => true]);
      */
-    public static function json(array $data, int $statusCode = 200, array $headers = []): self
+    public static function json(array|\JsonSerializable $data, int $statusCode = 200, array $headers = []): self
     {
         $headers['content-type'] = 'application/json';
         $flags = JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES;
