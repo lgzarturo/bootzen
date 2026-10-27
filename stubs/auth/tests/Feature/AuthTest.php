@@ -25,6 +25,16 @@ function registro(): array
 }
 
 /**
+ * Página de inicio tras el login (config/auth.php, home).
+ */
+function inicio(): string
+{
+    $home = config('auth.home', '/');
+
+    return is_string($home) ? $home : '/';
+}
+
+/**
  * Correos enviados (MAIL_DRIVER=array en phpunit.xml).
  *
  * @return list<Message>
@@ -40,7 +50,7 @@ it('registra una cuenta e inicia sesión', function (): void {
     $client = client();
     $client->get('/registro')->assertOk();
 
-    $client->post('/registro', registro())->assertRedirect('/panel');
+    $client->post('/registro', registro())->assertRedirect(inicio());
 
     $client->assertAuthenticated()->assertDatabaseHas('users', ['email' => 'ana@ejemplo.com']);
     $client->get('/panel')->assertSee('Hola, Ana');
@@ -73,8 +83,9 @@ it('inicia y cierra sesión', function (): void {
     User::create(['nombre' => 'Ana', 'email' => 'ana@ejemplo.com', 'password' => Hash::make('secreto-largo')]);
 
     $client->get('/panel')->assertRedirect('/login');
+    // Vuelve a la página que intentó abrir antes del login
     $client->post('/login', ['email' => 'ana@ejemplo.com', 'password' => 'secreto-largo'])->assertRedirect('/panel');
-    $client->get('/login')->assertRedirect('/panel');
+    $client->get('/login')->assertRedirect(inicio());
 
     $client->post('/logout')->assertRedirect('/');
     $client->assertGuest()->get('/panel')->assertRedirect('/login');

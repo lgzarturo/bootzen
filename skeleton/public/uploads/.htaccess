@@ -1,0 +1,5 @@
+# Archivos subidos por usuarios: nunca se ejecutan como scripts
+<FilesMatch "\.(php[0-9]?|phtml|phar|pht|cgi|pl|py|sh)$">
+    Require all denied
+</FilesMatch>
+Options -ExecCGI -Indexes

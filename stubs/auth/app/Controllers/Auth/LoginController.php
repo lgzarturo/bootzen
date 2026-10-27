@@ -49,7 +49,9 @@ final class LoginController
 
         $this->limiter->clear($clave);
 
-        return redirect(auth()->intended(route('dashboard')));
+        $home = config('auth.home', '/');
+
+        return redirect(auth()->intended(is_string($home) ? $home : '/'));
     }
 
     public function destroy(): Response

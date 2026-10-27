@@ -11,6 +11,16 @@ aplicación monolítica construida con BootZen.
 - Sin dependencias de Composer en producción. Composer solo instala
   herramientas de desarrollo: Pest, PHPStan (nivel 8) y PHP CS Fixer.
 
+## Dónde buscar
+
+- **Recetas** en `docs/ai/recipes/`: crear un CRUD, proteger rutas, endpoint
+  JSON, componente (con un modal), migraciones, subir archivos y enviar
+  correos. Paso a paso, con tests. Úsalas antes de improvisar.
+- **Referencia** en `docs/ai/reference.md`: todas las firmas públicas de
+  BootZen, generadas desde el código. Si dudas de un método, búscalo ahí.
+- **Skills** en `.claude/skills/` (y `.agents/skills/`): `crear-recurso`,
+  `crear-componente` y `revisar-seguridad`.
+
 ## Mapa del proyecto
 
 | Ruta                       | Contenido                                                     |
@@ -41,6 +51,9 @@ aplicación monolítica construida con BootZen.
 | `database/seeds/`          | Datos de ejemplo: `DatabaseSeeder.php` y los que llame        |
 | `database/app.sqlite`      | Base SQLite local (fuera de git)                              |
 | `tests/`                   | Tests con Pest (`Feature/` y `Unit/`)                         |
+| `docs/ai/`                 | Recetas (`recipes/`) y referencia de la API (`reference.md`)  |
+| `public/uploads/`          | Archivos subidos públicos (`storePublic`)                     |
+| `storage/app/`             | Archivos subidos privados (`store`)                           |
 | `framework/`               | BootZen. **No editar**: se actualiza desde el repo oficial    |
 
 ## Comandos
@@ -57,7 +70,7 @@ php bin/bootzen db:seed           # datos de ejemplo (--class=Nombre)
 php bin/bootzen db:fresh --seed   # borra todo, migra y siembra (--force en producción)
 php bin/bootzen db:backup         # copia consistente de SQLite en storage/backups
 php bin/bootzen make:resource Tarea titulo:string hecha:bool  # CRUD completo (ver abajo)
-php bin/bootzen make:model Cliente --migration   # también: make:controller, make:migration,
+php bin/bootzen make:model Cliente --migration   # también: make:controller (--json), make:migration,
                                   # make:middleware, make:seeder, make:test, make:component
 php bin/bootzen route:list        # rutas con nombre, middleware y acción
 php bin/bootzen doctor            # revisa PHP, extensiones, permisos, .env y base de datos
@@ -70,7 +83,9 @@ composer test                     # solo tests
 ```
 
 La primera vez que se compila el CSS, `bin/bootzen` descarga el binario de
-Tailwind en `storage/bin/` y verifica su SHA-256. No hace falta Node.
+Tailwind en `storage/bin/` y verifica su SHA-256 (necesita red esa vez). No
+hace falta Node. Una clase de Tailwind que ninguna vista usaba no aparece en
+`public/assets/app.css` hasta recompilar.
 
 **Antes de dar una tarea por terminada, ejecuta `composer check` y deja todo
 en verde.**
@@ -475,6 +490,7 @@ $request->boolean('activo');          // '1', 'on', 'true', 'yes'
 $request->integer('pagina', 1);
 $request->param('id');                // parámetro de ruta
 $request->wantsJson();                // el cliente pide JSON
+$request->file('foto')?->storePublic('clientes');  // 'uploads/clientes/3f9c...jpg' (ver subir-archivos.md)
 ```
 
 ### Respuestas y errores
@@ -585,13 +601,19 @@ it('solo deja entrar a usuarios', function (): void {
 - Cliente: `assertDatabaseHas`, `assertDatabaseMissing`,
   `assertDatabaseCount`, `assertAuthenticated`, `assertGuest`. Los correos
   enviados: `$client->app->make(Mailer::class)` es un `ArrayMailer` con `sent()`.
+- Helpers que usan varios archivos de test (por ejemplo, un usuario con
+  sesión) van en `tests/Pest.php`. En Pest las funciones de un archivo de
+  test son globales: ponles un nombre propio del archivo para que no choquen.
+- Para mirar una ruta a mano usa `php bin/bootzen serve` (o `route:list`).
+  Fuera de los tests se usa la base de `.env` (`database/app.sqlite`), no la
+  de memoria: un script suelto que cargue `tests/Pest.php` escribe ahí.
 
 ## API disponible del framework
 
 - **Router**: `get`, `post`, `put`, `patch`, `delete`, `options`, `match`,
   `any`, `resource`, `group(['prefix', 'as', 'middleware'], fn)`; en la ruta:
   `->name()`, `->middleware()`, `->where()`.
-- **Request**: `validate`, `session`, `input`, `all`, `only`, `except`, `has`,
+- **Request**: `validate`, `file`, `session`, `input`, `all`, `only`, `except`, `has`,
   `filled`, `boolean`, `integer`, `param`, `params`, `getRoute`, `getMethod`, `getPath`,
   `getQuery`, `getBody`, `getHeader`, `getFile`, `getCookie`, `wantsJson`,
   `isJson`, `isAjax`, `isSecure`, `getClientIp`.

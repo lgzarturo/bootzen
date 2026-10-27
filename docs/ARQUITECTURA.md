@@ -140,6 +140,12 @@ mi-app/
   `actingAs()` y aserciones de base de datos.
 - **Support\Str**: conversión de nombres y plurales en inglés para los
   generadores.
+- **UploadedFile**: `$request->file('campo')` con `store()` (privado, en
+  `storage/app`) y `storePublic()` (en `public/uploads`), nombre aleatorio y
+  extensión tomada del tipo detectado.
+- **Capa para IA** (en cada proyecto): `AGENTS.md`, `docs/ai/recipes`,
+  `docs/ai/reference.md` (generada con `bin/bootzen-reference`), `llms.txt` y
+  skills en `.claude/skills` y `.agents/skills`.
 - **bootzen.js** (en el skeleton, `public/assets/js`): runtime de JS nativo
   con componentes `data-component`, `request()`, `toast()` y atributos
   declarativos.

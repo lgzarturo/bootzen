@@ -25,8 +25,16 @@ it('genera URLs absolutas con la URL de la configuración', function (): void {
 it('versiona los assets que existen con su fecha de modificación', function (): void {
     $version = filemtime($this->project . '/public/assets/app.css');
 
-    expect(asset('assets/app.css'))->toBe('https://mi-app.test/assets/app.css?v=' . $version)
-        ->and(asset('assets/no-existe.js'))->toBe('https://mi-app.test/assets/no-existe.js');
+    // Sin host: funciona en cualquier dominio o puerto y la CSP 'self' no lo bloquea
+    expect(asset('assets/app.css'))->toBe('/assets/app.css?v=' . $version)
+        ->and(asset('/assets/no-existe.js'))->toBe('/assets/no-existe.js');
+});
+
+it('antepone el subdirectorio de APP_URL a los assets', function (): void {
+    writeFile($this->project . '/config/app.php', "<?php return ['url' => 'https://hosting.test/mi-app/'];");
+    new Application($this->project);
+
+    expect(asset('assets/app.css'))->toStartWith('/mi-app/assets/app.css?v=');
 });
 
 it('crea respuestas JSON y de descarga', function (): void {

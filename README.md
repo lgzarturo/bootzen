@@ -19,6 +19,9 @@ fricción en hosting compartido, VPS o Docker.
 - **Plantillas `.php` con componentes `<x-*>`** compiladas y cacheadas
 - **Sesión, CSRF, validación y autenticación** incluidas; registro, login y
   recuperación de contraseña con `bootzen-new mi-app --auth`
+- **Capa para IA**: `AGENTS.md`, recetas, referencia de la API generada desde
+  el código, skills y `make:resource`; `bootzen-new mi-app --demo` trae una
+  app de tareas completa para tomar de ejemplo
 
 ## Instalación rápida
 

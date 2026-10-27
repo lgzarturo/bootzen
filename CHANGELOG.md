@@ -5,6 +5,34 @@
 Inicio de la v2.0 según [plan/04_PLAN-MVP-MONOLITO.md](plan/04_PLAN-MVP-MONOLITO.md).
 **Cambios incompatibles con la v1.x.**
 
+### Fase 6: capa para IA
+
+#### Agregado
+
+- Recetas en `docs/ai/recipes/` del proyecto: crear un CRUD, proteger rutas,
+  endpoint JSON, crear un componente (modal con `<dialog>`), migraciones,
+  subir archivos y enviar correos, cada una con tests y errores comunes.
+- `docs/ai/reference.md` con la API pública generada desde los PHPDoc
+  (`bin/bootzen-reference`; un test avisa si queda vieja) y `llms.txt` en
+  el proyecto y en el repositorio.
+- Skills `crear-recurso`, `crear-componente` y `revisar-seguridad` en
+  `.claude/skills/` y `.agents/skills/`.
+- `bootzen-new mi-app --demo`: auth más una app de tareas por usuario con
+  modal de borrado, JSON paginado, filtros, seeder y tests.
+- Subida de archivos: `$request->file('campo')` con `store()` (privado) y
+  `storePublic()` (en `public/uploads`), nombre aleatorio, extensión según el
+  tipo detectado y bloqueo de extensiones ejecutables. `TestClient::file()` y
+  `TestClient::image()` para los tests.
+- `make:controller --json` (sin vista).
+
+#### Cambiado
+
+- `asset()` devuelve rutas relativas al dominio (`/assets/app.css?v=...`), con
+  el subdirectorio de `APP_URL` si lo hay.
+- El login y el registro del scaffold redirigen a `config('auth.home')`.
+- `make:component` usa la prop `title`, como los componentes incluidos.
+- El CSS del skeleton se genera desde un proyecto `--demo`.
+
 ### Fase 5: CLI y generadores
 
 #### Agregado

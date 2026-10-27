@@ -7,10 +7,11 @@
  * Crea un proyecto nuevo copiando skeleton/ y framework/ del repositorio BootZen.
  *
  * Uso:
- *   bin/bootzen-new [nombre] [--auth] [--no-git]
+ *   bin/bootzen-new [nombre] [--auth] [--demo] [--no-git]
  *
  * El proyecto se crea en el directorio actual. Si no se indica nombre se usa "my-php-app".
  * --auth agrega registro, login, logout y recuperación de contraseña (stubs/auth).
+ * --demo agrega además una app de tareas de ejemplo (stubs/demo) que sirve de referencia.
  *
  * @package    BootZen
  * @author     Arturo Lopez <lgzarturo@gmail.com>
@@ -21,7 +22,7 @@
 
 declare(strict_types=1);
 
-const BOOTZEN_PLACEHOLDER_EXTENSIONS = ['php', 'json', 'md', 'neon', 'xml', 'example'];
+const BOOTZEN_PLACEHOLDER_EXTENSIONS = ['php', 'json', 'md', 'neon', 'xml', 'example', 'txt'];
 
 /**
  * Escribe un mensaje de error y termina con código 1.
@@ -102,13 +103,15 @@ function bootzenReplacePlaceholders(string $directory, array $replacements): voi
 $repository = dirname(__DIR__);
 $arguments = array_slice($argv, 1);
 $withGit = ! in_array('--no-git', $arguments, true);
-$withAuth = in_array('--auth', $arguments, true);
+$withDemo = in_array('--demo', $arguments, true);
+$withAuth = $withDemo || in_array('--auth', $arguments, true);
 $positional = array_values(array_filter($arguments, static fn (string $arg): bool => ! str_starts_with($arg, '--')));
 $name = $positional[0] ?? 'my-php-app';
 
 if (in_array('--help', $arguments, true) || in_array('-h', $arguments, true)) {
-    echo "Uso: bootzen-new [nombre] [--auth] [--no-git]\n";
+    echo "Uso: bootzen-new [nombre] [--auth] [--demo] [--no-git]\n";
     echo "  --auth    registro, login, logout y recuperación de contraseña\n";
+    echo "  --demo    --auth más una app de tareas de ejemplo para tomar de referencia\n";
     echo "  --no-git  no inicializa un repositorio git\n";
     exit(0);
 }
@@ -122,9 +125,17 @@ if (file_exists($target)) {
     bootzenFail("Ya existe {$target}. Elige otro nombre o bórralo primero.");
 }
 
-foreach ($withAuth ? ['skeleton', 'framework', 'stubs/auth'] : ['skeleton', 'framework'] as $required) {
-    if (! is_dir($repository . '/' . $required)) {
-        bootzenFail("No se encontró {$repository}/{$required}. ¿La instalación de BootZen está completa?");
+$required = ['skeleton', 'framework'];
+if ($withAuth) {
+    $required[] = 'stubs/auth';
+}
+if ($withDemo) {
+    $required[] = 'stubs/demo';
+}
+
+foreach ($required as $directory) {
+    if (! is_dir($repository . '/' . $directory)) {
+        bootzenFail("No se encontró {$repository}/{$directory}. ¿La instalación de BootZen está completa?");
     }
 }
 
@@ -136,6 +147,10 @@ bootzenCopyDirectory($repository . '/framework', $target . '/framework');
 if ($withAuth) {
     // Los archivos del scaffold reemplazan a los del skeleton con el mismo nombre (rutas, layout, config/auth.php)
     bootzenCopyDirectory($repository . '/stubs/auth', $target);
+}
+
+if ($withDemo) {
+    bootzenCopyDirectory($repository . '/stubs/demo', $target);
 }
 
 $version = is_file($repository . '/VERSION') ? trim((string) file_get_contents($repository . '/VERSION')) : 'dev';
@@ -160,12 +175,14 @@ if ($withGit && shell_exec('git --version 2>&1') !== null) {
     echo $status === 0 ? "Repositorio git inicializado.\n" : "No se pudo inicializar git, continúa sin él.\n";
 }
 
+$seedHint = $withDemo ? "\n  php bin/bootzen db:seed           # usuario ana@ejemplo.com / secreto-demo con tareas" : '';
+
 echo <<<TXT
 \033[0;32mProyecto creado con BootZen {$version}.\033[0m
 
 Siguientes pasos:
   cd {$name}
-  php bin/bootzen migrate           # crea database/app.sqlite y sus tablas
+  php bin/bootzen migrate           # crea database/app.sqlite y sus tablas{$seedHint}
   php bin/bootzen serve             # abre http://127.0.0.1:8000
   composer install                  # opcional: tests, PHPStan y formato
   composer check

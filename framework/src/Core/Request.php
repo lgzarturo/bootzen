@@ -329,6 +329,16 @@ class Request
     }
 
     /**
+     * Archivo subido como objeto (tipo detectado, store(), storePublic()), o null si no llegó.
+     *
+     * @example $ruta = $request->file('foto')?->storePublic('avatares');
+     */
+    public function file(string $key): ?UploadedFile
+    {
+        return UploadedFile::fromArray($this->files[$key] ?? null);
+    }
+
+    /**
      * Obtiene todos los archivos subidos por la solicitud
      *
      * @return array<string, array<string, mixed>> Array de archivos

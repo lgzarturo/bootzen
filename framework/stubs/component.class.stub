@@ -12,7 +12,7 @@ use BootZen\View\Component;
  */
 final class [[Class]] extends Component
 {
-    public function __construct(public ?string $titulo = null)
+    public function __construct(public ?string $title = null)
     {
     }
 

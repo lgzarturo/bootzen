@@ -1,11 +1,11 @@
 {{--
     Componente <x-[[tag]]>. Uso:
-    <x-[[tag]] titulo="Hola">contenido</x-[[tag]]>
+    <x-[[tag]] title="Hola">contenido</x-[[tag]]>
 --}}
-@props(['titulo' => null])
+@props(['title' => null])
 <div {{ $attributes->merge(['class' => '']) }}>
-@if ($titulo)
-    <h3 class="font-semibold">{{ $titulo }}</h3>
+@if ($title)
+    <h3 class="font-semibold">{{ $title }}</h3>
 @endif
     {{ $slot }}
 </div>

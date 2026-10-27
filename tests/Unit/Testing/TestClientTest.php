@@ -187,3 +187,13 @@ it('explica qué llegó cuando una aserción falla', function (): void {
     expectAssertionFails(fn () => $this->client->assertDatabaseCount('notas', 3), 'Se esperaban 3 filas en notas y hay 0');
     expectAssertionFails(fn () => $this->client->assertAuthenticated(), 'Se esperaba un usuario autenticado');
 });
+
+it('envía archivos en los datos del formulario', function (): void {
+    $this->client->app->getRouter()->post('/subir', static fn (Request $request): array => [
+        'mime' => $request->file('foto')?->mimeType(),
+        'titulo' => $request->input('titulo'),
+    ]);
+
+    $this->client->post('/subir', ['titulo' => 'Hola', 'foto' => TestClient::image()])
+        ->assertJson(['mime' => 'image/png', 'titulo' => 'Hola']);
+});

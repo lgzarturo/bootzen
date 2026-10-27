@@ -35,6 +35,8 @@ final class RegisterController
 
         auth()->login($user);
 
-        return redirect(route('dashboard'))->with('status', "¡Hola, {$user->nombre}! Tu cuenta está lista.");
+        $home = config('auth.home', '/');
+
+        return redirect(is_string($home) ? $home : '/')->with('status', "¡Hola, {$user->nombre}! Tu cuenta está lista.");
     }
 }

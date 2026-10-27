@@ -1,0 +1,21 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Controllers;
+
+use BootZen\Core\Request;
+
+/**
+ * [[Description]] Responde JSON: retorna un array, un modelo o un Paginator.
+ */
+final class [[Class]]
+{
+    /**
+     * @return array<string, mixed>
+     */
+    public function index(Request $request): array
+    {
+        return ['data' => []];
+    }
+}
