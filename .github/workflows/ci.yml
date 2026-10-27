@@ -78,11 +78,20 @@ jobs:
           curl -fsS http://127.0.0.1:8000/ | grep -q "Hola"
           curl -fsS http://127.0.0.1:8000/up | grep -q '"ok"'
 
-      - name: composer check del proyecto generado
+      - name: make:resource genera un CRUD que pasa composer check sin tocar nada
         working-directory: ${{ runner.temp }}/apps/demo
         run: |
+          php bin/bootzen make:resource Task title:string done:bool
           composer install --no-interaction --no-progress
           composer check
+          php bin/bootzen check
+
+      - name: Migraciones, rutas y doctor del proyecto generado
+        working-directory: ${{ runner.temp }}/apps/demo
+        run: |
+          php bin/bootzen migrate
+          php bin/bootzen route:list | grep -q 'tasks.index'
+          php bin/bootzen doctor
 
       - name: Crear proyecto con --auth
         run: |
