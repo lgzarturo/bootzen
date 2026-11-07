@@ -47,6 +47,7 @@ it('crea un proyecto que responde sin Composer', function (): void {
         ->and(is_executable($project . '/deploy/docker/entrypoint.sh'))->toBeTrue()
         ->and(is_executable($project . '/deploy/docker/scheduler.sh'))->toBeTrue()
         ->and($project . '/routes/schedule.php')->toBeFile()
+        ->and($project . '/config/storage.php')->toBeFile()
         ->and(runCommand('bash -n deploy/deploy.sh && sh -n deploy/docker/entrypoint.sh && sh -n deploy/docker/scheduler.sh', $project)[0])->toBe(0)
         ->and(json_decode((string) file_get_contents($project . '/framework/MANIFEST.json'), true)['files'])->toHaveKey('bootstrap.php');
 

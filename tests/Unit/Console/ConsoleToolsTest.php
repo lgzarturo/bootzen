@@ -245,3 +245,15 @@ it('envía un correo de prueba con mail:test', function (): void {
     expect(($this->run)('mail:test', 'ana@ejemplo.com'))->toBe(1)
         ->and(consoleOutput($this->output))->toContain('Error: No se pudo conectar al servidor SMTP 127.0.0.1:1');
 });
+
+it('revisa los discos de archivos con doctor', function (): void {
+    ($this->run)('doctor');
+
+    expect(consoleOutput($this->output))->toContain('✓ Archivos privados: disco local (local)')
+        ->toContain('✓ Archivos públicos: disco public (local)');
+
+    writeFile($this->project . '/config/storage.php', "<?php return ['default' => 's3', 'disks' => ['s3' => ['driver' => 's3', 'bucket' => 'b']]];");
+    ($this->run)('doctor');
+
+    expect(consoleOutput($this->output))->toContain('✗ Archivos privados: Al disco s3 (s3) le falta: key, secret.');
+});

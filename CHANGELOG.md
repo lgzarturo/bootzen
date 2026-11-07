@@ -1,5 +1,41 @@
 # CHANGELOG
 
+## [2.3.0] - 2026-11-07
+
+Tercera pieza de la fase 8: archivos en cualquier destino y procesamiento de
+imágenes, sin librerías.
+
+### Agregado
+
+- Discos con nombre en `config/storage.php`: `local`, `s3` (AWS S3 y
+  compatibles: Cloudflare R2, DigitalOcean Spaces, Backblaze B2, Wasabi,
+  MinIO, Google Cloud Storage interoperable), `ftp` (FTP y FTPS) y `sftp`.
+  Cada disco es público o privado y puede tener un prefijo.
+- Toda la app cambia de destino desde `.env`: `STORAGE_DISK` (privados) y
+  `STORAGE_PUBLIC_DISK` (públicos).
+- `storage('disco')` con `put()`, `putFile()`, `get()`, `exists()`,
+  `delete()`, `size()`, `url()`, `temporaryUrl()` y `download()`;
+  helpers `file_url()` y `temporary_url()`.
+- URLs temporales para archivos privados: prefirmadas en S3 y, en los demás
+  discos, por `/_bootzen/archivo` firmada con la `APP_KEY`.
+- `store()` y `storePublic()` aceptan el disco: `store('contratos', 's3')`.
+- Imágenes con GD: `$request->file('foto')->resize(1600)` y
+  `->cover(300, 300)`, que aplican la orientación de la cámara y quitan los
+  metadatos EXIF (incluido el GPS). Clase `BootZen\Support\Image`.
+- `doctor` prueba la conexión de los discos por defecto.
+- El `Dockerfile` instala `gd`, `exif` y `ftp`.
+- CI: job con servidores reales de S3 (SeaweedFS), FTPS y SFTP.
+
+### Cambiado
+
+- `store()` y `storePublic()` guardan a través de los discos; las rutas que
+  devuelven no cambian (`uploads/...` para públicos), así las filas
+  existentes y `asset()` siguen funcionando.
+- Los discos públicos rechazan siempre archivos que el navegador o el
+  servidor ejecutarían (php, html, svg, js, `.htaccess`).
+- En proyectos creados antes, copia `config/storage.php` del skeleton para
+  configurar discos remotos (sin él siguen funcionando `local` y `public`).
+
 ## [2.2.0] - 2026-11-07
 
 Segunda pieza de la fase 8: cola de trabajos y tareas programadas, con el

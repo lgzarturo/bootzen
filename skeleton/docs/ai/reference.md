@@ -26,6 +26,7 @@
 - `download(string $filePath, ?string $fileName = null): Response`: Crea una respuesta que fuerza la descarga de un archivo. Debe retornarse desde el handler.
 - `e(Stringable|string|int|float|bool|null $value): string`: Escapa un valor para salida segura en HTML.
 - `env(string $key, mixed $default = null): mixed`: Obtiene el valor de una variable de entorno.
+- `file_url(string $path, ?string $disk = null): string`: URL pública de un archivo guardado con storePublic() (o del disco indicado).
 - `format_bytes(int $bytes, int $precision = 2): string`: Formatea una cantidad de bytes en una cadena legible (KB, MB, etc.).
 - `get_client_ip(): string`: Obtiene la IP pública del cliente considerando proxies y cabeceras.
 - `is_ajax(): bool`: Verifica si la petición actual es AJAX.
@@ -40,8 +41,10 @@
 - `route(string $name, array $parameters = []): string`: Genera el path de una ruta con nombre. Los parámetros sobrantes se agregan como query string.
 - `session(?string $key = null, mixed $default = null): mixed`: Sin argumentos devuelve la sesión; con una clave, su valor (o el valor por defecto si no hay sesión).
 - `slugify(string $text): string`: Convierte un texto en un slug apto para URLs.
+- `storage(?string $disk = null): Storage`: Disco de config/storage.php; sin nombre, el privado por defecto (STORAGE_DISK).
 - `storage_path(string $path = ''): string`: Obtiene la ruta absoluta al directorio storage.
 - `str_random(int $length = 16): string`: Genera una cadena aleatoria alfanumérica criptográficamente segura.
+- `temporary_url(string $path, int $minutes = 30, ?string $disk = null): string`: URL que permite descargar un archivo privado durante $minutes minutos (del disco privado por defecto).
 - `url(string $path = ''): string`: Genera una URL absoluta basada en config('app.url') o, en su defecto, APP_URL.
 - `validate_csrf_token(?string $token): bool`: Compara un token con el de la sesión. VerifyCsrfToken ya lo hace en el grupo web.
 - `view(string $name, array $data = [], int $status = 200): Response`: Renderiza una vista y la devuelve como respuesta HTML.
@@ -134,8 +137,11 @@ Se obtiene con $request->file('campo'). Valida antes con las reglas file, image,
 - `size(): int`: Tamaño en bytes.
 - `mimeType(): string`: Tipo MIME detectado por el contenido (no el que dice el navegador).
 - `extension(): string`: Extensión con la que se guarda: la del tipo detectado, o la del nombre si es inofensiva; si no, 'bin'.
-- `store(string $directory = 'uploads'): string`: Guarda el archivo en storage/app/{directorio} (no accesible por URL) y devuelve su ruta relativa a storage/app. Para entregarlo después: download(storage_path('app/' . $ruta)).
-- `storePublic(string $directory = ''): string`: Guarda el archivo en public/uploads/{directorio} y devuelve la ruta para asset(): 'uploads/avatares/3f9c...jpg'. Solo para imágenes, PDFs y archivos que cualquiera puede ver.
+- `store(string $directory = 'uploads', ?string $disk = null): string`: Guarda el archivo en un disco privado (por defecto STORAGE_DISK: storage/app) y devuelve su ruta en el disco, por ejemplo 'contratos/a81b...pdf'. Para entregarlo: temporary_url($ruta) o storage()->download($ruta).
+- `storePublic(string $directory = '', ?string $disk = null): string`: Guarda el archivo en el disco público (por defecto STORAGE_PUBLIC_DISK: public/) bajo uploads/ y devuelve su ruta, por ejemplo 'uploads/avatares/3f9c...jpg'. Se muestra con file_url($ruta). Solo para imágenes, PDFs y archivos que cualquiera puede ver.
+- `resize(int $maxWidth, ?int $maxHeight = null, int $quality = 85): self`: Copia de la imagen reducida para caber en $maxWidth x $maxHeight (nunca la agranda), sin metadatos EXIF y con la orientación de la cámara aplicada. Se guarda igual: ->resize(1600)->storePublic('productos').
+- `cover(int $width, int $height, int $quality = 85): self`: Copia de la imagen recortada al centro para llenar $width x $height (avatares, miniaturas), sin metadatos EXIF. Ejemplo: ->cover(300, 300)->storePublic('avatares').
+- `contents(): string`: Contenido del archivo subido.
 
 ### Router
 
@@ -479,6 +485,38 @@ Logger de archivo diario (storage/logs/app-AAAA-MM-DD.log).
 - `alert(Stringable|string $message, array $context = []): void`
 - `emergency(Stringable|string $message, array $context = []): void`
 - `log(string $level, Stringable|string $message, array $context = []): void`: Registra un mensaje. Los marcadores {clave} del mensaje se reemplazan con el contexto.
+
+## Archivos
+
+### Storage
+
+Las rutas no pueden salir del disco ('..'). En un disco público no se guardan archivos que el navegador o el servidor ejecutarían (php, html, svg, js, .htaccess).
+
+- `put(string $path, string $contents, ?string $mime = null): void`: Guarda el contenido en la ruta. El tipo se detecta del contenido si no se indica.
+- `putFile(string $path, string $localFile, ?string $mime = null): void`: Copia un archivo del servidor al disco.
+- `get(string $path): string`: Contenido completo del archivo.
+- `exists(string $path): bool`: Indica si el archivo existe en el disco.
+- `delete(string $path): bool`: Borra el archivo. Devuelve false si no existía.
+- `size(string $path): int`: Tamaño en bytes.
+- `url(string $path): string`: URL pública del archivo (disco público).
+- `temporaryUrl(string $path, int $minutes = 30, ?string $downloadName = null): string`: URL que permite descargar el archivo durante $minutes minutos, sin sesión. Con $downloadName se descarga con ese nombre.
+- `download(string $path, ?string $name = null, bool $inline = false): Response`: Respuesta que entrega el archivo: para descargar (por defecto) o para verlo en el navegador con $inline (solo imágenes, PDF y texto; lo demás siempre se descarga).
+- `isPublic(): bool`
+- `disk(): Disk`: El driver por debajo (LocalDisk, S3Disk, FtpDisk o SftpDisk).
+- `::detectMime(string $contents, string $path = ''): string`: Tipo MIME por contenido (finfo) o, si no se puede, por extensión.
+- `$name` (string)
+
+### Image
+
+Formatos: JPEG, PNG (con transparencia), WebP y GIF (primer cuadro). Nunca agranda una imagen. Rechaza imágenes de más de 40 megapíxeles antes de decodificarlas, para no agotar la memoria.
+
+- `::fromString(string $contents): self`: Abre una imagen desde su contenido.
+- `width(): int`: Ancho en píxeles.
+- `height(): int`: Alto en píxeles.
+- `type(): string`: Formato original: jpeg, png, webp o gif.
+- `resize(int $maxWidth, ?int $maxHeight = null): self`: Reduce la imagen para que quepa en $maxWidth x $maxHeight conservando la proporción. Si ya es más chica, la deja igual.
+- `cover(int $width, int $height): self`: Recorta al centro y escala para llenar exactamente $width x $height (avatares, miniaturas). No agranda: si la imagen es más chica, el resultado sale proporcionalmente más chico.
+- `encode(?string $type = null, int $quality = 85): string`: Codifica en el formato indicado (por defecto el original). $quality de 0 a 100 para JPEG y WebP.
 
 ## Cola y tareas programadas
 

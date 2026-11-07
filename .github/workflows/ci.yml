@@ -20,7 +20,7 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
-          extensions: mbstring, fileinfo, pdo_sqlite
+          extensions: mbstring, fileinfo, pdo_sqlite, gd, exif
           coverage: none
 
       - name: Instalar dependencias de desarrollo
@@ -39,7 +39,7 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: "8.3"
-          extensions: mbstring, fileinfo, pdo_sqlite
+          extensions: mbstring, fileinfo, pdo_sqlite, gd, exif
           coverage: pcov
 
       - name: Instalar dependencias de desarrollo
@@ -217,6 +217,29 @@ jobs:
           vendor/bin/pest tests/Feature/SmtpTest.php --colors=never | tee "$RUNNER_TEMP/smtp.txt"
           # Si los tests se saltaran por falta de configuración, el job no debe pasar en verde
           grep -q "3 passed" "$RUNNER_TEMP/smtp.txt"
+
+  storage:
+    name: Discos remotos (S3, FTPS y SFTP)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: mbstring, fileinfo, pdo_sqlite, gd, exif, ftp, ssh2
+          coverage: none
+
+      - name: Instalar dependencias de desarrollo
+        run: composer install --no-interaction --no-progress
+
+      - name: Servidores reales y tests
+        run: |
+          eval "$(bash tests/storage/servers.sh)"
+          vendor/bin/pest tests/Feature/S3Test.php tests/Feature/RemoteDiskTest.php --colors=never | tee "$RUNNER_TEMP/storage.txt"
+          # Si los tests se saltaran por falta de configuración, el job no debe pasar en verde
+          grep -q "5 passed" "$RUNNER_TEMP/storage.txt"
 
   deploy:
     name: Despliegue (artefacto, hosting compartido y Docker)

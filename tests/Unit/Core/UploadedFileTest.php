@@ -57,7 +57,7 @@ it('nunca guarda con una extensión ejecutable', function (string $name, string 
 
 it('no guarda en public/ archivos que el navegador ejecutaría', function (): void {
     UploadedFile::fromArray(TestClient::file('logo.svg', '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'))?->storePublic();
-})->throws(InvalidArgumentException::class, 'no se guardan en public/');
+})->throws(InvalidArgumentException::class, 'no se guardan en un disco público');
 
 it('rechaza directorios que salen de la carpeta', function (string $directory): void {
     expect(fn () => UploadedFile::fromArray(TestClient::image())?->store($directory))

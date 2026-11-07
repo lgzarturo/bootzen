@@ -220,7 +220,7 @@ Un release por pieza (decisión del usuario).
 
 - [x] Mail: SMTP propio con adjuntos (v2.1.0)
 - [x] Colas en SQLite (y MySQL) con `queue:work --stop-when-empty` (v2.2.0)
-- [ ] Subida de archivos: detalles pendientes (lo básico entró en la fase 6)
+- [x] Subida de archivos con discos (local, S3, FTP, SFTP) e imágenes (v2.3.0)
 - [x] Scheduler (`schedule:run`) (v2.2.0)
 - [ ] i18n básico
 
@@ -265,3 +265,25 @@ Notas de cola y scheduler (v2.2.0):
   cron cuando PHP no está en `/usr/bin` (cron usa `PATH=/usr/bin:/bin`).
   `schedule:list` y `doctor` ahora dan la línea con la ruta completa
   (`PHP_BINARY`).
+
+Notas de archivos (v2.3.0):
+
+- Decisiones del usuario: drivers S3 compatible más FTP/SFTP; archivos
+  privados con URL firmada temporal; procesamiento básico de imágenes con
+  GD; prueba con servidor real en el CI.
+- `store()` y `storePublic()` devuelven las mismas rutas que antes: el disco
+  `public` tiene raíz `public/` y `storePublic()` guarda bajo `uploads/`, así
+  `asset()` y las filas viejas siguen funcionando. Lo nuevo es `file_url()`,
+  `temporary_url()` y `storage('disco')`.
+- S3 sin SDK: firma SigV4 propia validada con los tres ejemplos de la
+  documentación de AWS. SFTP necesita la extensión ssh2 (no hay forma sin
+  librería ni extensión); verifica la huella del servidor si se configura.
+- MinIO ya no publica imágenes en Docker Hub y la descarga del binario quedó
+  bloqueada por permisos en la sesión, así que el servidor S3 de las pruebas
+  es SeaweedFS (verifica la firma y permite lectura anónima por bucket).
+- Lo que encontraron las pruebas reales: un FTP que no encierra al usuario en
+  su carpeta (raíz relativa ahora parte de la carpeta del usuario); la
+  orientación EXIF 5 y 7 tenía los giros invertidos; `encode()` dejaba el
+  buffer de salida abierto con un formato inválido; los proyectos sin
+  `config/storage.php` se quedaban sin discos; SeaweedFS reserva espacio por
+  volumen y llenó el disco (el script de pruebas lo limita).
