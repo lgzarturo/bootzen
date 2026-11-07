@@ -1,11 +1,15 @@
 # Producción con Docker: docker compose up -d --build
-# Lee APP_KEY (y lo demás) de .env; la guía completa está en docs/deploy/docker.md
+# Pasa al contenedor todo lo que tengas en .env (correo incluido) y fuerza lo de producción de abajo.
+# La guía completa está en docs/deploy/docker.md
 services:
   app:
     build: .
     restart: unless-stopped
     ports:
       - "${APP_PORT:-8080}:80"
+    env_file:
+      - path: .env
+        required: false
     environment:
       APP_NAME: ${APP_NAME:-BootZen}
       APP_URL: ${APP_URL:-http://localhost:8080}
@@ -13,7 +17,6 @@ services:
       APP_ENV: production
       APP_DEBUG: "false"
       LOG_LEVEL: ${LOG_LEVEL:-warning}
-      MAIL_DRIVER: ${MAIL_DRIVER:-log}
       DB_CONNECTION: sqlite
       DB_DATABASE: storage/database/app.sqlite
     volumes:

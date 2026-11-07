@@ -414,10 +414,29 @@ Componente de vista con lógica.
 
 ### Message
 
+Los métodos cc(), bcc(), replyTo(), from(), attach() y attachData() modifican el mensaje y lo devuelven, así que se pueden encadenar.
+
+- `cc(string ...$emails): self`: Agrega destinatarios en copia (visibles para todos).
+- `bcc(string ...$emails): self`: Agrega destinatarios en copia oculta (no aparecen en las cabeceras).
+- `replyTo(string $email): self`: Dirección a la que llegan las respuestas.
+- `from(string $email, ?string $name = null): self`: Remitente para este correo, en lugar del de config/mail.php.
+- `attach(string $path, ?string $name = null, ?string $mime = null): self`: Adjunta un archivo del disco. El nombre y el tipo se deducen del archivo si no se indican.
+- `attachData(string $contents, string $name, string $mime = 'application/octet-stream'): self`: Adjunta contenido generado en memoria (por ejemplo un CSV o un PDF recién creado).
+- `getCc(): array`: Destinatarios en copia.
+- `getBcc(): array`: Destinatarios en copia oculta.
+- `getReplyTo(): ?string`: Dirección para las respuestas, si se indicó una.
+- `getFrom(): ?array`: Remitente propio de este correo, o null para usar el de config/mail.php.
+- `getAttachments(): array`: Adjuntos en el orden en que se agregaron.
+- `recipients(): array`: Todas las direcciones que reciben el correo: destinatario, copias y copias ocultas, sin repetir.
 - `$to` (string)
 - `$subject` (string)
 - `$text` (string)
 - `$html` (?string)
+
+### MailException
+
+La lanza mailer()->send() cuando el correo no sale; atrápala donde un fallo de envío no deba romper la página.
+
 
 ### ArrayMailer
 

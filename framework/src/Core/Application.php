@@ -33,6 +33,7 @@ use BootZen\Deploy\WebInstaller;
 use BootZen\Mail\ArrayMailer;
 use BootZen\Mail\LogMailer;
 use BootZen\Mail\Mailer;
+use BootZen\Mail\SmtpMailer;
 use BootZen\Session\ArraySessionStore;
 use BootZen\Session\FileSessionStore;
 use BootZen\Session\Session;
@@ -344,7 +345,11 @@ class Application
         $this->container->singleton(Mailer::class, fn (Container $container): Mailer => match ($this->config->get('mail.driver', 'log')) {
             'array' => new ArrayMailer(),
             'log' => new LogMailer($container->make(Logger::class)),
-            default => throw new LogicException('Driver de correo no soportado. Usa log o array en config/mail.php (SMTP llega más adelante).'),
+            'smtp' => SmtpMailer::fromConfig(
+                (array) $this->config->get('mail', []),
+                (string) parse_url((string) $this->config->get('app.url', ''), PHP_URL_HOST)
+            ),
+            default => throw new LogicException('Driver de correo no soportado. Usa log, smtp o array en config/mail.php.'),
         });
 
         $this->container->singleton(View::class, fn (Container $container): View => new View(
