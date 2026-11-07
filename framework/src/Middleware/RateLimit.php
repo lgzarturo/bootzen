@@ -17,6 +17,7 @@ declare(strict_types=1);
 
 namespace BootZen\Middleware;
 
+use BootZen\Core\Application;
 use BootZen\Core\HttpException;
 use BootZen\Core\ParameterizedMiddleware;
 use BootZen\Core\Request;
@@ -60,7 +61,10 @@ final class RateLimit implements ParameterizedMiddleware
         if ($this->limiter->tooManyAttempts($key, $this->maxAttempts)) {
             $seconds = $this->limiter->availableIn($key);
 
-            throw new HttpException(429, "Demasiadas peticiones. Intenta de nuevo en {$seconds} segundos.", [
+            $message = 'Demasiadas peticiones. Intenta de nuevo en :seconds segundos.';
+            $message = Application::hasInstance() && function_exists('__') ? __($message, ['seconds' => $seconds]) : str_replace(':seconds', (string) $seconds, $message);
+
+            throw new HttpException(429, $message, [
                 'Retry-After' => (string) $seconds,
                 'X-RateLimit-Limit' => (string) $this->maxAttempts,
                 'X-RateLimit-Remaining' => '0',

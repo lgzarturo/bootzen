@@ -417,9 +417,19 @@ final class Generator
             throw new RuntimeException("No se pudo editar routes/web.php. Agrega a mano: \$router->resource('{$route}', {$controller}::class);");
         }
 
-        $line = "    \$router->resource('{$route}', {$controller}::class);\n";
-        $contents = substr($contents, 0, $closing) . "\n" . $line . substr($contents, $closing);
-        $contents = (string) preg_replace("/\n\n\n+(    \\\$router->resource)/", "\n\n$1", $contents);
+        // Dentro de $router->localized() si existe, así el CRUD también responde en /en/...
+        $opening = strpos($contents, '$router->localized(');
+        $localizedEnd = $opening === false ? false : strpos($contents, "\n    });", $opening);
+
+        if ($localizedEnd !== false) {
+            $line = "        \$router->resource('{$route}', {$controller}::class);";
+            $contents = substr($contents, 0, $localizedEnd) . "\n\n" . $line . substr($contents, $localizedEnd);
+        } else {
+            $line = "    \$router->resource('{$route}', {$controller}::class);\n";
+            $contents = substr($contents, 0, $closing) . "\n" . $line . substr($contents, $closing);
+        }
+
+        $contents = (string) preg_replace("/\n\n\n+( +\\\$router->resource)/", "\n\n$1", $contents);
 
         // Inserta el use en orden alfabético junto a los demás
         $use = "use App\\Controllers\\{$controller};";

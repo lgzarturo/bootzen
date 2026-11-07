@@ -17,6 +17,7 @@ declare(strict_types=1);
 
 namespace BootZen\Validation;
 
+use BootZen\Core\Application;
 use BootZen\Core\HttpException;
 
 /**
@@ -42,8 +43,10 @@ final class ValidationException extends HttpException
     public static function withMessages(array $messages): self
     {
         $errors = [];
+        $translate = static fn (string $text): string => Application::hasInstance() && function_exists('__') ? __($text) : $text;
+
         foreach ($messages as $field => $value) {
-            $errors[$field] = is_array($value) ? $value : [$value];
+            $errors[$field] = array_map($translate, is_array($value) ? $value : [$value]);
         }
 
         return new self($errors);

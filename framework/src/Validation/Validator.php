@@ -20,6 +20,7 @@ declare(strict_types=1);
 
 namespace BootZen\Validation;
 
+use BootZen\Core\Application;
 use BootZen\Database\Connection;
 use Closure;
 use InvalidArgumentException;
@@ -356,14 +357,23 @@ final class Validator
             ?? $this->messages[$pattern . '.' . $rule]
             ?? $this->messages[$rule]
             ?? self::MESSAGES[$sized]
-            ?? "El campo :attribute no es válido ({$rule}).";
+            ?? 'El campo :attribute no es válido (:rule).';
 
-        return strtr($template, [
-            ':attribute' => $this->attributeName($pattern, $field),
+        return strtr(self::translate($template), [
+            ':attribute' => self::translate($this->attributeName($pattern, $field)),
             ':min' => $parameters[0] ?? '',
             ':max' => $rule === 'between' ? ($parameters[1] ?? '') : ($parameters[0] ?? ''),
             ':values' => implode(', ', $parameters),
+            ':rule' => $rule,
         ]);
+    }
+
+    /**
+     * Traduce al idioma activo si hay aplicación (los mensajes y nombres de campo están en español).
+     */
+    private static function translate(string $text): string
+    {
+        return Application::hasInstance() && function_exists('__') ? __($text) : $text;
     }
 
     private function attributeName(string $pattern, string $field): string

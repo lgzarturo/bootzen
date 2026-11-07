@@ -77,7 +77,7 @@ it('genera la rebanada completa de make:resource', function (): void {
         ->toContain(":value=\"\$task->due?->format('Y-m-d')\"")
         ->and(($this->read)('resources/views/tasks/create.php'))->not->toContain('$task')
         ->and(($this->read)('tests/Feature/TaskTest.php'))->toContain("->assertSessionHasErrors(['title'])")
-        ->and(($this->read)('routes/web.php'))->toContain("    \$router->resource('tasks', TaskController::class);\n};")
+        ->and(($this->read)('routes/web.php'))->toContain("->name('home');\n\n        \$router->resource('tasks', TaskController::class);\n    });\n};")
         ->toContain("use App\\Controllers\\HomeController;\nuse App\\Controllers\\TaskController;\nuse BootZen\\Core\\Router;");
 });
 
@@ -129,6 +129,14 @@ it('no sobrescribe archivos ni deja la rebanada a medias', function (): void {
     expect(fn () => $this->generator->resource('Task', ['title:string']))->toThrow(RuntimeException::class, 'Ya existe app/Models/Task.php')
         ->and(glob($this->project . '/database/migrations/*.php'))->toBe([])
         ->and(fn () => $this->generator->model('Task'))->toThrow(RuntimeException::class, 'Ya existe');
+});
+
+it('agrega la ruta al final si routes/web.php no usa localized()', function (): void {
+    file_put_contents($this->project . '/routes/web.php', "<?php\n\ndeclare(strict_types=1);\n\nuse BootZen\\Core\\Router;\n\nreturn static function (Router \$router): void {\n    \$router->get('/', fn () => 'hola');\n};\n");
+    (new Generator($this->project))->resource('Task', ['title:string']);
+
+    expect(($this->read)('routes/web.php'))->toContain("'hola');\n\n    \$router->resource('tasks', TaskController::class);\n};");
+    assertValidPhp($this->project . '/routes/web.php');
 });
 
 it('pide editar las rutas a mano si routes/web.php no tiene la forma esperada', function (): void {

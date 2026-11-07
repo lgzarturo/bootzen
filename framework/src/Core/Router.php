@@ -71,6 +71,15 @@ class Router
      */
     private ?array $nameIndex = null;
 
+    /**
+     * Idiomas de localized() (APP_LOCALES) y el que va sin prefijo (APP_LOCALE).
+     *
+     * @var list<string>
+     */
+    private array $locales = ['es'];
+
+    private string $defaultLocale = 'es';
+
     private readonly Pipeline $pipeline;
 
     public function __construct(private readonly Container $container, ?Pipeline $pipeline = null)
@@ -151,6 +160,60 @@ class Router
         } finally {
             array_pop($this->groupStack);
         }
+    }
+
+    /**
+     * Rutas en varios idiomas para SEO: el idioma por defecto (APP_LOCALE) sin prefijo y los demás de
+     * APP_LOCALES con el suyo (/en/...). Cada grupo fija su idioma con el middleware locale:xx; las
+     * rutas de otros idiomas se nombran 'en::nombre' y route('nombre') elige la del idioma activo.
+     *
+     * @param Closure(Router): void $callback Registra las rutas (se llama una vez por idioma)
+     * @example $router->localized(function (Router $router): void {
+     *     $router->get('/precios', [PaginaController::class, 'precios'])->name('precios'); // /precios y /en/precios
+     * });
+     */
+    public function localized(Closure $callback): void
+    {
+        foreach ($this->locales as $locale) {
+            $this->group(
+                $locale === $this->defaultLocale
+                    ? ['middleware' => "locale:{$locale}"]
+                    : ['prefix' => '/' . $locale, 'as' => $locale . '::', 'middleware' => "locale:{$locale}"],
+                $callback
+            );
+        }
+    }
+
+    /**
+     * Nombre de la ruta en otro idioma si viene de localized() ('en::precios' → 'precios' para el idioma
+     * por defecto). Null si la ruta no tiene versiones por idioma.
+     */
+    public function localizedName(string $name, string $locale): ?string
+    {
+        $base = str_contains($name, '::') ? substr($name, (int) strpos($name, '::') + 2) : $name;
+        $hasVariants = false;
+
+        foreach ($this->locales as $candidate) {
+            if ($candidate !== $this->defaultLocale && $this->getRoute($candidate . '::' . $base) !== null) {
+                $hasVariants = true;
+            }
+        }
+
+        $target = $locale === $this->defaultLocale ? $base : $locale . '::' . $base;
+
+        return $hasVariants && $this->getRoute($target) !== null ? $target : null;
+    }
+
+    /**
+     * Idiomas para localized().
+     *
+     * @internal La llama Application con APP_LOCALES y APP_LOCALE.
+     * @param list<string> $locales
+     */
+    public function setLocales(array $locales, string $default): void
+    {
+        $this->locales = $locales;
+        $this->defaultLocale = $default;
     }
 
     /**

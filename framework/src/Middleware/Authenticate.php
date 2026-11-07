@@ -40,13 +40,13 @@ final class Authenticate implements MiddlewareInterface
         }
 
         if ($request->wantsJson()) {
-            throw new HttpException(401, 'Necesitas iniciar sesión.');
+            throw new HttpException(401, __('Necesitas iniciar sesión.'));
         }
 
         if ($request->getMethod() === 'GET') {
             $request->session()->put('_intended', $request->getUri());
         }
 
-        return Response::redirect($this->router->getRoute('login') !== null ? $this->router->url('login') : '/login');
+        return Response::redirect($this->router->getRoute('login') !== null ? route('login') : '/login');
     }
 }
