@@ -174,7 +174,40 @@ jobs:
         run: |
           vendor/bin/pest tests/Feature/MySqlTest.php --colors=never | tee "$RUNNER_TEMP/mysql.txt"
           # Si los tests se saltaran por falta de configuración, el job no debe pasar en verde
-          grep -q "4 passed" "$RUNNER_TEMP/mysql.txt"
+          grep -q "5 passed" "$RUNNER_TEMP/mysql.txt"
+
+  deploy:
+    name: Despliegue (artefacto, hosting compartido y Docker)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: mbstring, fileinfo, pdo_sqlite, zip
+          coverage: none
+
+      - name: Crear la app de demostración y armar el artefacto
+        run: |
+          mkdir -p "$RUNNER_TEMP/apps" && cd "$RUNNER_TEMP/apps"
+          php "$GITHUB_WORKSPACE/bin/bootzen-new" tienda --demo --no-git
+          cd tienda
+          php bin/bootzen deploy:build --version=ci
+          unzip -l build/tienda-ci.zip | grep -q 'tienda-ci/public/index.php'
+          # Nada de secretos, datos ni herramientas de desarrollo
+          if unzip -l build/tienda-ci.zip | grep -E 'tienda-ci/(\.env$|tests/|vendor/|database/.*\.sqlite)'; then
+            echo "El artefacto trae archivos que no debería"; exit 1
+          fi
+
+      - name: Hosting compartido (Apache, raíz en la carpeta del proyecto) con el instalador web
+        working-directory: ${{ runner.temp }}/apps/tienda
+        run: bash "$GITHUB_WORKSPACE/tests/deploy/hosting-compartido.sh" "$PWD/build/tienda-ci.zip"
+
+      - name: Imagen de Docker
+        working-directory: ${{ runner.temp }}/apps/tienda
+        run: bash "$GITHUB_WORKSPACE/tests/deploy/docker.sh"
 
   js:
     name: Runtime JS (Node 22)

@@ -5,6 +5,9 @@
 # Entorno y datos locales
 .env
 
+# Artefactos de deploy:build
+/build/
+
 # Cachés de herramientas
 .php-cs-fixer.cache
 .phpunit.cache/

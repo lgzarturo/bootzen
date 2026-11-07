@@ -1,8 +1,8 @@
 # BootZen: boilerplate PHP para MVPs monolíticos
 
-> **Estado:** en desarrollo hacia la v2.0. La v1.x (distribuida como `.phar`)
-> queda descontinuada. Consulta el [CHANGELOG](CHANGELOG.md) y el
-> [plan](plan/04_PLAN-MVP-MONOLITO.md).
+> **Versión 2.0.** La v1.x (distribuida como `.phar`) queda descontinuada:
+> [cómo migrar](docs/MIGRACION-V1-V2.md). Novedades en el
+> [CHANGELOG](CHANGELOG.md).
 
 **Arranca en zen: Desarrolla con calma, crece con poder.**
 
@@ -45,9 +45,12 @@ mi-app/
 ├── resources/views/      # Vistas y componentes <x-*>
 ├── resources/css/        # Fuente de Tailwind
 ├── public/               # Document root: index.php, CSS compilado y JS
-├── storage/              # Logs y cachés
-├── database/             # SQLite local
+├── storage/              # Logs, sesiones, cachés y archivos privados
+├── database/             # Migraciones, seeders y la base SQLite local
 ├── tests/                # Pest
+├── docs/                 # Recetas para la IA y guías de despliegue
+├── deploy/               # Nginx, Caddy, PHP-FPM y deploy.sh para VPS
+├── Dockerfile            # Imagen de producción (más docker-compose.yml)
 ├── framework/            # BootZen como código fuente
 ├── AGENTS.md             # Guía para agentes de IA (CLAUDE.md la importa)
 └── composer.json         # Solo herramientas de desarrollo
@@ -56,6 +59,23 @@ mi-app/
 El framework vive dentro del proyecto como código legible. Eso permite que la
 IA lo entienda y que el proyecto se despliegue subiendo archivos, sin
 `composer install` en el servidor.
+
+## Desplegar
+
+```bash
+php bin/bootzen deploy:build --version=1.0.0   # build/mi-app-1.0.0.zip
+```
+
+Cada proyecto trae guías probadas en `docs/deploy/`:
+
+- **Hosting compartido**: subes el `.zip` con el gestor de archivos y migras
+  desde el navegador con un instalador de un solo uso. Sin terminal.
+- **VPS**: `deploy/deploy.sh` publica por SSH en `releases/` con Nginx o
+  Caddy, sin cortes y con vuelta atrás.
+- **Docker**: `docker compose up -d --build`.
+
+`php bin/bootzen doctor` revisa el servidor y `php bin/bootzen
+framework:update` trae las versiones nuevas del framework al proyecto.
 
 ## Desarrollo del framework
 
@@ -72,8 +92,10 @@ Estructura del repositorio:
 
 - `framework/`: código del framework (namespace `BootZen\`)
 - `skeleton/`: el boilerplate tal cual se copia a un proyecto nuevo
+- `stubs/`: lo que agregan `--auth` y `--demo`
 - `bin/bootzen-new`: instalador de proyectos
-- `tests/`: tests del framework y del instalador
+- `tests/`: tests del framework y del instalador (`tests/deploy/` despliega en
+  contenedores en el CI)
 - `plan/`: hoja de ruta y seguimiento
 
 ## Filosofía

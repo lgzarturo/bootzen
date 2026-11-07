@@ -17,7 +17,7 @@ final class ConsoleToolsTestController
 
 beforeEach(function (): void {
     $this->project = makeTempDir('bootzen-tools');
-    writeFile($this->project . '/config/app.php', "<?php return ['name' => 'Tienda', 'env' => env('BZ_TOOLS_ENV', 'local'), 'debug' => env('BZ_TOOLS_DEBUG', false), 'key' => env('APP_KEY')];");
+    writeFile($this->project . '/config/app.php', "<?php return ['name' => 'Tienda', 'env' => env('BZ_TOOLS_ENV', 'local'), 'debug' => env('BZ_TOOLS_DEBUG', false), 'key' => env('APP_KEY'), 'installer' => env('BZ_TOOLS_INSTALLER', false)];");
     writeFile($this->project . '/config/database.php', "<?php return ['default' => 'sqlite', 'connections' => ['sqlite' => ['driver' => 'sqlite', 'database' => 'database/app.sqlite']]];");
     writeFile($this->project . '/routes/web.php', (string) file_get_contents(dirname(__DIR__, 3) . '/skeleton/routes/web.php'));
     $this->output = fopen('php://memory', 'w+');
@@ -45,7 +45,7 @@ beforeEach(function (): void {
 });
 
 afterEach(function (): void {
-    forgetEnv('BZ_TOOLS_ENV', 'BZ_TOOLS_DEBUG', 'APP_KEY', 'APP_NAME');
+    forgetEnv('BZ_TOOLS_ENV', 'BZ_TOOLS_DEBUG', 'BZ_TOOLS_INSTALLER', 'APP_KEY', 'APP_NAME');
     removeDir($this->project);
 });
 
@@ -61,7 +61,7 @@ it('lista las rutas en columnas', function (): void {
 
 it('guarda y borra la caché de configuración', function (): void {
     expect(($this->run)('config:cache'))->toBe(0)
-        ->and(require $this->project . '/storage/cache/config.php')->toMatchArray(['app' => ['name' => 'Tienda', 'env' => 'local', 'debug' => false, 'key' => null]]);
+        ->and(require $this->project . '/storage/cache/config.php')->toMatchArray(['app' => ['name' => 'Tienda', 'env' => 'local', 'debug' => false, 'key' => null, 'installer' => false]]);
 
     // Con la caché, un cambio en config/ no se ve hasta regenerarla
     writeFile($this->project . '/config/app.php', "<?php return ['name' => 'Otra'];");
@@ -121,6 +121,7 @@ it('marca APP_DEBUG en producción y migraciones pendientes', function (): void 
     expect(($this->run)('doctor'))->toBe(1);
 
     expect(consoleOutput($this->output))->toContain('✗ APP_DEBUG=true en producción')
+        ->toContain('✗ APP_KEY vacía en producción')
         ->toContain('! Hay 1 migración(es) pendiente(s)')
         ->toContain('config:cache');
 });
@@ -131,6 +132,34 @@ it('termina sin errores cuando todo está listo', function (): void {
 
     expect(($this->run)('doctor'))->toBe(0)
         ->and(consoleOutput($this->output))->toContain('Todo listo.');
+});
+
+it('revisa la carpeta real de la base y acepta variables del servidor sin .env', function (): void {
+    $data = makeTempDir('bootzen-datos');
+    writeFile($this->project . '/config/database.php', "<?php return ['default' => 'sqlite', 'connections' => ['sqlite' => ['driver' => 'sqlite', 'database' => '{$data}/app.sqlite']]];");
+    putenv('APP_KEY=base64:del-servidor');
+
+    try {
+        ($this->run)('doctor');
+    } finally {
+        removeDir($data);
+    }
+
+    expect(consoleOutput($this->output))->toContain('✓ Permisos de escritura: storage, storage/logs, storage/cache, storage/sessions, ' . $data)
+        ->toContain('✓ Sin .env: se usan las variables del servidor');
+
+    writeFile($this->project . '/config/database.php', "<?php return ['default' => 'sqlite', 'connections' => ['sqlite' => ['driver' => 'sqlite', 'database' => 'storage/database/app.sqlite']]];");
+    ($this->run)('doctor');
+
+    expect(consoleOutput($this->output))->toContain('storage/sessions, storage/database');
+});
+
+it('recuerda apagar la instalación web', function (): void {
+    putenv('BZ_TOOLS_INSTALLER=true');
+
+    ($this->run)('doctor');
+
+    expect(consoleOutput($this->output))->toContain('! INSTALL_ENABLED=true: la instalación web está activa');
 });
 
 it('reporta si no puede conectar a la base de datos', function (): void {

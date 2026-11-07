@@ -1,0 +1,28 @@
+# Caddy + PHP-FPM en un VPS. HTTPS automático con el dominio.
+# Copia a /etc/caddy/Caddyfile, cambia el dominio, la ruta y el socket del pool (deploy/php-fpm.conf). Guía: docs/deploy/vps.md
+
+tienda.example.com {
+	# current/ apunta a la última versión publicada por deploy/deploy.sh
+	root * /var/www/tienda/current/public
+	encode zstd gzip
+
+	# Solo index.php se ejecuta; archivos ocultos y otros .php (por ejemplo en uploads/) dan 404
+	@bloqueado {
+		path_regexp /\.
+		not path /.well-known/*
+	}
+	@php_directo {
+		path *.php
+		not path /index.php
+	}
+	respond @bloqueado 404
+	respond @php_directo 404
+
+	header /assets/* Cache-Control "public, max-age=2592000"
+
+	php_fastcgi unix//run/php/tienda.sock {
+		# Resuelve el enlace current/ para que cada versión use su propio código
+		resolve_root_symlink
+	}
+	file_server
+}

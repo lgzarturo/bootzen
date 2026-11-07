@@ -1,0 +1,27 @@
+# Producción con Docker: docker compose up -d --build
+# Lee APP_KEY (y lo demás) de .env; la guía completa está en docs/deploy/docker.md
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-8080}:80"
+    environment:
+      APP_NAME: ${APP_NAME:-BootZen}
+      APP_URL: ${APP_URL:-http://localhost:8080}
+      APP_KEY: ${APP_KEY:?Define APP_KEY en .env (php bin/bootzen key:generate)}
+      APP_ENV: production
+      APP_DEBUG: "false"
+      LOG_LEVEL: ${LOG_LEVEL:-warning}
+      MAIL_DRIVER: ${MAIL_DRIVER:-log}
+      DB_CONNECTION: sqlite
+      DB_DATABASE: storage/database/app.sqlite
+    volumes:
+      # Base SQLite, sesiones, logs, archivos privados y respaldos
+      - storage:/var/www/html/storage
+      # Archivos subidos con storePublic()
+      - uploads:/var/www/html/public/uploads
+
+volumes:
+  storage:
+  uploads:

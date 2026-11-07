@@ -179,7 +179,37 @@ Notas de cierre:
 
 ## Fase 7: Despliegue y release v2.0.0
 
-- [ ] `deploy:build`
-- [ ] Docker, Caddy, Nginx y `.htaccess`
-- [ ] Guías probadas en hosting compartido, VPS y Docker
-- [ ] `framework:update`, CHANGELOG y guía de migración
+- [x] `deploy:build`
+- [x] Docker, Caddy, Nginx y `.htaccess`
+- [x] Guías probadas en hosting compartido, VPS y Docker
+- [x] `framework:update`, CHANGELOG y guía de migración
+
+Notas de cierre:
+
+- Criterio de la fase (la app demo desplegada en los tres escenarios
+  siguiendo solo la documentación): hecho con contenedores. Hosting
+  compartido: Apache con la raíz en la carpeta del proyecto, artefacto
+  descomprimido e instalador web; nada privado responde. VPS: `deploy.sh`
+  por SSH a un servidor con PHP-FPM, primero con Nginx y después con Caddy;
+  la sesión sobrevive a un despliegue, se respalda la base, se limpian
+  versiones viejas y se vuelve atrás con el enlace. Docker: `docker compose`
+  con SQLite y con MySQL, datos y sesiones después de reiniciar, vistas
+  nuevas con el volumen viejo y `healthcheck` en verde. En los tres, un
+  navegador se registró, creó una tarea, salió y volvió a entrar.
+- Lo que encontraron esas pruebas y quedó corregido: las migraciones de
+  `--auth` y `--demo` no corrían en MySQL; el contenedor migraba con la
+  caché de configuración vieja del volumen; `doctor` daba "Todo listo" sin
+  `APP_KEY` en producción, revisaba `database/` aunque la base estuviera en
+  otra carpeta y pedía `.env` en Docker; el instalador no avisaba si no
+  podía escribir su bloqueo; `deploy.sh` publicaba sin `APP_KEY` o con la
+  base SQLite dentro de la versión.
+- Decisiones: el instalador web es de un solo uso y está apagado por
+  defecto; `framework:update` copia desde la instalación local con un
+  manifiesto sha256 para detectar cambios a mano; PHP-FPM corre como el
+  usuario de despliegue para que PHP y `bin/bootzen` no peleen por los
+  permisos de SQLite; `config:cache` no va en el artefacto porque depende del
+  `.env` del servidor.
+- El CI despliega la demo en un Apache tipo hosting compartido y con
+  `docker compose` (`tests/deploy/`). El de VPS necesita SSH y quedó como
+  prueba manual.
+- `VERSION` queda en 2.0.0; el tag `v2.0.0` se crea después del merge.

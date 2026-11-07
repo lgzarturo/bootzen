@@ -23,6 +23,8 @@ use BootZen\Core\Route;
 use BootZen\Database\Connection;
 use BootZen\Database\Migrator;
 use BootZen\Database\SeederRunner;
+use BootZen\Deploy\DeployBuilder;
+use BootZen\Deploy\FrameworkUpdater;
 use BootZen\Frontend\Tailwind;
 use BootZen\View\View;
 use Closure;
@@ -65,6 +67,8 @@ final class Console
         'key:generate' => 'Genera APP_KEY en .env (--show solo la muestra, --force la reemplaza)',
         'doctor' => 'Revisa PHP, extensiones, permisos, .env y base de datos',
         'check' => 'Formato, PHPStan y tests, como composer check',
+        'deploy:build' => 'Artefacto para subir al servidor en build/ (--version=1.2.0, --no-css)',
+        'framework:update' => 'Actualiza framework/ desde ~/.bootzen (--from=ruta, --force)',
     ];
 
     /**
@@ -151,6 +155,8 @@ final class Console
                 'key:generate' => $this->keyGenerate($options),
                 'doctor' => (new Doctor($this->app, $this->line(...)))->run(),
                 'check' => $this->check(),
+                'deploy:build' => $this->deployBuild($options),
+                'framework:update' => $this->frameworkUpdate($options),
                 default => $this->unknown($command),
             };
         } catch (Throwable $e) {
@@ -516,6 +522,62 @@ final class Console
         }
 
         $this->line('Todo en verde.');
+
+        return 0;
+    }
+
+    /**
+     * @param array<string, string|true> $options
+     */
+    private function deployBuild(array $options): int
+    {
+        if (! isset($options['no-css']) && is_file($this->app->basePath('resources/css/app.css'))) {
+            $this->line('> CSS (Tailwind)');
+            $status = $this->cssBuild(false);
+
+            if ($status !== 0) {
+                $this->line('No se pudo compilar el CSS. Usa --no-css para empaquetar el public/assets/app.css que ya tienes.');
+
+                return $status;
+            }
+        }
+
+        $name = slugify((string) $this->app->config()->get('app.name', basename($this->app->basePath())));
+        $result = (new DeployBuilder($this->app->basePath()))->build(
+            $name !== '' ? $name : 'app',
+            $this->stringOption($options, 'version') ?? date('YmdHis')
+        );
+        $base = strlen($this->app->basePath()) + 1;
+
+        $this->line("Artefacto: {$result['files']} archivos y {$result['views']} vistas precompiladas.");
+        $this->line('  Carpeta: ' . substr($result['dir'], $base));
+        $this->line('  Archivo: ' . ($result['archive'] === null ? 'sin comprimir (PHP no trae zip ni phar), sube la carpeta' : substr($result['archive'], $base)));
+        $this->line('En el servidor: crea .env desde .env.example (APP_ENV=production, APP_DEBUG=false y tu APP_KEY) y ejecuta');
+        $this->line('php bin/bootzen migrate, config:cache y doctor. Sin terminal: INSTALL_ENABLED=true y abre /_bootzen/instalar.');
+        $this->line('Guías: docs/deploy/.');
+
+        return 0;
+    }
+
+    /**
+     * @param array<string, string|true> $options
+     */
+    private function frameworkUpdate(array $options): int
+    {
+        $home = getenv('BOOTZEN_HOME');
+        $source = $this->stringOption($options, 'from')
+            ?? (is_string($home) && $home !== '' ? $home : rtrim((string) getenv('HOME'), '/') . '/.bootzen');
+
+        $result = (new FrameworkUpdater($this->app->basePath()))->update($source, isset($options['force']));
+
+        if ($result['backup'] === null) {
+            $this->line("framework/ ya está en la versión {$result['to']}. Actualiza la instalación local con updater.sh.");
+
+            return 0;
+        }
+
+        $this->line("framework/ actualizado de {$result['from']} a {$result['to']}. Respaldo en {$result['backup']}.");
+        $this->line('Revisa el CHANGELOG de BootZen, ejecuta php bin/bootzen view:clear, php bin/bootzen migrate y composer check.');
 
         return 0;
     }

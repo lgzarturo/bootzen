@@ -29,6 +29,7 @@ use BootZen\Database\Connection;
 use BootZen\Database\Migrator;
 use BootZen\Database\Model;
 use BootZen\Database\SeederRunner;
+use BootZen\Deploy\WebInstaller;
 use BootZen\Mail\ArrayMailer;
 use BootZen\Mail\LogMailer;
 use BootZen\Mail\Mailer;
@@ -93,6 +94,11 @@ class Application
             : Config::load($this->basePath('config'), $this->basePath('storage/cache/config.php'));
         $this->configureTimezone();
         $this->registerCoreBindings();
+
+        // Instalación web de un solo uso para hostings sin terminal (INSTALL_ENABLED=true)
+        if (filter_var($this->config->get('app.installer', false), FILTER_VALIDATE_BOOL)) {
+            $this->router->match(['GET', 'POST'], WebInstaller::PATH, [WebInstaller::class, 'handle']);
+        }
 
         self::$instance = $this;
     }

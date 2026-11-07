@@ -135,3 +135,26 @@ it('revierte transacciones en InnoDB', function (): void {
     }))->toThrow(RuntimeException::class)
         ->and($this->db->table('tareas')->count())->toBe(0);
 });
+
+it('corre las migraciones de --auth y --demo en MySQL', function (): void {
+    $root = dirname(__DIR__, 2);
+    writeFile($this->dir . '/stubs/2025_01_01_000000_crear_usuarios.php', (string) file_get_contents($root . '/stubs/auth/database/migrations/2025_01_01_000000_crear_usuarios.php'));
+    writeFile($this->dir . '/stubs/2025_01_02_000000_crear_tareas.php', (string) file_get_contents($root . '/stubs/demo/database/migrations/2025_01_02_000000_crear_tareas.php'));
+
+    $migrator = new Migrator($this->db, $this->dir . '/stubs');
+    $migrator->dropAllTables();
+
+    expect($migrator->run())->toBe(['2025_01_01_000000_crear_usuarios', '2025_01_02_000000_crear_tareas']);
+
+    $this->db->insert('INSERT INTO users (nombre, email, password) VALUES (?, ?, ?)', ['Ana', 'ana@ejemplo.com', 'x']);
+    $this->db->insert('INSERT INTO tareas (user_id, titulo, vence) VALUES (1, ?, ?)', ['Comprar pan', '2026-01-31']);
+
+    // El email es único sin distinguir mayúsculas, como en SQLite con COLLATE NOCASE
+    expect(fn () => $this->db->insert('INSERT INTO users (nombre, email, password) VALUES (?, ?, ?)', ['Otra', 'ANA@ejemplo.com', 'x']))
+        ->toThrow(QueryException::class);
+
+    $this->db->statement('DELETE FROM users WHERE id = 1');
+
+    expect($this->db->scalar('SELECT COUNT(*) FROM tareas'))->toBe(0)
+        ->and($migrator->rollback())->toBe(['2025_01_02_000000_crear_tareas', '2025_01_01_000000_crear_usuarios']);
+});

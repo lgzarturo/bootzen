@@ -1,9 +1,57 @@
 # CHANGELOG
 
-## [Sin publicar] - 2.0.0-dev
+## [2.0.0] - 2026-10-27
 
-Inicio de la v2.0 según [plan/04_PLAN-MVP-MONOLITO.md](plan/04_PLAN-MVP-MONOLITO.md).
-**Cambios incompatibles con la v1.x.**
+Primera versión estable. BootZen pasa de microframework en `.phar` a
+boilerplate de monolitos para MVP: PHP 8.2+, SQLite, Tailwind v4 sin Node,
+JavaScript nativo y vistas con componentes `<x-*>`, con el framework como
+código fuente dentro de cada proyecto y sin dependencias de Composer en
+producción. Pensado para construirse con IA generativa y desplegarse en
+hosting compartido, VPS o Docker. Detalle por fase abajo; el plan está en
+[plan/04_PLAN-MVP-MONOLITO.md](plan/04_PLAN-MVP-MONOLITO.md).
+
+**Cambios incompatibles con la v1.x.** Cómo pasar un proyecto:
+[docs/MIGRACION-V1-V2.md](docs/MIGRACION-V1-V2.md).
+
+### Fase 7: despliegue
+
+#### Agregado
+
+- `php bin/bootzen deploy:build [--version=] [--no-css]`: arma
+  `build/<app>-<versión>/` y su `.zip` (o `.tar.gz`) sin `.env`, base,
+  tests ni `vendor/`, con el CSS compilado y las vistas precompiladas.
+- Instalador web de un solo uso para hostings sin terminal:
+  `INSTALL_ENABLED=true` habilita `/_bootzen/instalar`, que pide la
+  `APP_KEY`, ejecuta las migraciones y se bloquea solo
+  (`storage/install.lock`). Límite de 5 intentos cada 10 minutos.
+- `php bin/bootzen framework:update [--from=] [--force]`: copia
+  `framework/` desde la instalación local (`BOOTZEN_HOME` o `~/.bootzen`),
+  no baja de versión ni pisa cambios locales sin `--force` (los detecta con
+  `framework/MANIFEST.json`) y deja un respaldo en `storage/backups/`.
+- En cada proyecto: `.htaccess` en la raíz para hostings donde no puedes
+  apuntar a `public/`, `Dockerfile` y `docker-compose.yml` (Apache, OPcache,
+  volúmenes para datos y archivos), y en `deploy/` las configuraciones de
+  Nginx, Caddy y un pool de PHP-FPM, más `deploy.sh` para VPS con
+  `releases/`, `shared/` y vuelta atrás.
+- Guías en `docs/deploy/` del proyecto (hosting compartido, VPS y Docker),
+  probadas con la app demo en Apache, Nginx, Caddy y Docker con SQLite y
+  MySQL. El CI repite hosting compartido y Docker en cada cambio.
+- Guía de migración desde la v1 en `docs/MIGRACION-V1-V2.md`.
+
+#### Cambiado
+
+- Las vistas compiladas se nombran según la ruta relativa al proyecto, así
+  las precompiladas en `deploy:build` sirven en el servidor.
+- `doctor`: `APP_KEY` vacía en producción es un error, revisa la carpeta
+  real de la base SQLite, acepta variables del servidor sin `.env` y avisa
+  si el instalador web sigue activo.
+- `release.yml` usa la sección escrita a mano del CHANGELOG como notas del
+  release cuando existe, y el paquete incluye el CHANGELOG y la guía de
+  migración.
+
+#### Corregido
+
+- Las migraciones de `--auth` y `--demo` funcionan también en MySQL.
 
 ### Fase 6: capa para IA
 

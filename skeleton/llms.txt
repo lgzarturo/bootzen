@@ -7,6 +7,10 @@
 - [AGENTS.md](AGENTS.md): stack, mapa del proyecto, comandos, convenciones y reglas. Léelo primero.
 - [Referencia de la API](docs/ai/reference.md): firmas públicas de BootZen, generadas desde el código.
 
+## Despliegue
+
+- [Guías de despliegue](docs/deploy/README.md): hosting compartido, VPS (Nginx o Caddy) y Docker.
+
 ## Recetas
 
 - [Crear un CRUD](docs/ai/recipes/crear-crud.md)

@@ -40,6 +40,10 @@ The roadmap lives in `plan/04_PLAN-MVP-MONOLITO.md`; progress is tracked in
   `make:resource`). Placeholders look like `[[Model]]`.
 - `framework/src/Testing/`: TestClient and TestResponse, the HTTP test
   helpers projects use through `client()`.
+- `framework/src/Deploy/`: DeployBuilder (`deploy:build` artifact with
+  precompiled views), WebInstaller (one-time `/_bootzen/instalar`, off unless
+  `INSTALL_ENABLED=true`) and FrameworkUpdater (`framework:update` from
+  `~/.bootzen`, sha256 `framework/MANIFEST.json` written by `bootzen-new`).
 - `framework/src/Core/UploadedFile.php`: `$request->file()` with
   `store()`/`storePublic()` (random names, extension from the detected type).
 - `framework/src/Support/Str.php`: name conversion and English plurals.
@@ -62,6 +66,12 @@ The roadmap lives in `plan/04_PLAN-MVP-MONOLITO.md`; progress is tracked in
   `api`), `public/` (with `assets/app.css` and
   `assets/js/`), `resources/views/` (components, errors), `resources/css/`,
   `storage/`, `database/`, `tests/`, `AGENTS.md`.
+- Deploy files in the skeleton: root `.htaccess` (sends everything to
+  `public/` on shared hosting), `Dockerfile`, `docker-compose.yml`,
+  `.dockerignore`, `deploy/` (`nginx.conf`, `Caddyfile`, `php-fpm.conf`,
+  `deploy.sh` and `docker/`) and the guides in `docs/deploy/`. They were
+  tested by hand with the demo app on Apache, Nginx, Caddy and Docker; CI
+  repeats shared hosting and Docker with `tests/deploy/*.sh`.
 - `stubs/auth/`: files that `--auth` copies over the skeleton (controllers,
   User model, migration, views, `routes/auth.php`, its own `routes/web.php`,
   layout and `config/auth.php`, and `tests/Feature/AuthTest.php`).
@@ -110,7 +120,9 @@ project, checks it answers over `php -S` without `vendor/`, runs
 `composer check` there, registers a user over real HTTP (file sessions and
 CSRF), seeds it and reads the tasks as JSON, builds its CSS with the real
 Tailwind binary (failing if
-`skeleton/public/assets/app.css` is stale), runs
+`skeleton/public/assets/app.css` is stale), builds a `deploy:build` artifact
+and deploys it to an Apache container acting as shared hosting (web
+installer included) and with `docker compose`, runs
 `tests/Feature/MySqlTest.php` against a MySQL 8.4 service (skipped locally
 unless `BOOTZEN_TEST_MYSQL_HOST` is set) and runs the `bootzen.js` tests with
 Node 22.
@@ -123,6 +135,10 @@ Node 22.
   stubs, bin, installer) as a GitHub Release.
 - `install.sh` clones the repo to `~/.bootzen` and adds `~/.bootzen/bin` to the
   PATH. `updater.sh` moves the clone to the latest release, tag or main.
+- Generated projects pull a newer framework with `php bin/bootzen
+  framework:update`, which copies `framework/` from that clone
+  (`BOOTZEN_HOME` or `~/.bootzen`, or `--from=path`), refuses downgrades and
+  local edits without `--force`, and leaves a backup in `storage/backups/`.
 
 ## Key conventions
 

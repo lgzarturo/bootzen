@@ -20,6 +20,7 @@ aplicación monolítica construida con BootZen.
   BootZen, generadas desde el código. Si dudas de un método, búscalo ahí.
 - **Skills** en `.claude/skills/` (y `.agents/skills/`): `crear-recurso`,
   `crear-componente` y `revisar-seguridad`.
+- **Despliegue** en `docs/deploy/`: hosting compartido, VPS y Docker.
 
 ## Mapa del proyecto
 
@@ -54,7 +55,11 @@ aplicación monolítica construida con BootZen.
 | `docs/ai/`                 | Recetas (`recipes/`) y referencia de la API (`reference.md`)  |
 | `public/uploads/`          | Archivos subidos públicos (`storePublic`)                     |
 | `storage/app/`             | Archivos subidos privados (`store`)                           |
-| `framework/`               | BootZen. **No editar**: se actualiza desde el repo oficial    |
+| `framework/`               | BootZen. **No editar**: se actualiza con `framework:update`   |
+| `deploy/`                  | Nginx, Caddy, pool de PHP-FPM, `deploy.sh` y archivos de Docker |
+| `Dockerfile`, `docker-compose.yml` | Imagen de producción (guía en `docs/deploy/docker.md`) |
+| `.htaccess` (raíz)         | Manda todo a `public/` en hostings donde no puedes cambiar la raíz |
+| `build/`                   | Artefactos de `deploy:build` (fuera de git)                   |
 
 ## Comandos
 
@@ -76,6 +81,8 @@ php bin/bootzen route:list        # rutas con nombre, middleware y acción
 php bin/bootzen doctor            # revisa PHP, extensiones, permisos, .env y base de datos
 php bin/bootzen config:cache      # configuración en un archivo (producción; config:clear la borra)
 php bin/bootzen key:generate      # APP_KEY en .env
+php bin/bootzen deploy:build      # artefacto para el servidor en build/ (--version=1.2.0, --no-css)
+php bin/bootzen framework:update  # actualiza framework/ desde ~/.bootzen (--from=ruta, --force)
 composer install                  # solo la primera vez, instala herramientas de dev
 composer check                    # formato + PHPStan + tests. Debe pasar siempre (o php bin/bootzen check)
 composer format                   # corrige el formato
@@ -529,6 +536,20 @@ $stats = cache()->remember('dashboard.stats', 600, fn () => $this->calcularStats
 cache()->forget('dashboard.stats');
 ```
 
+### Despliegue
+
+- `deploy:build` arma `build/<app>-<versión>/` y su `.zip` sin `.env`, base,
+  tests ni `vendor/`, con el CSS compilado y las vistas precompiladas.
+- Guías probadas en `docs/deploy/`: hosting compartido (con el instalador web),
+  VPS (`deploy/deploy.sh`, Nginx o Caddy) y Docker (`docker compose up -d --build`).
+- Instalador web para hostings sin terminal: `INSTALL_ENABLED=true` habilita
+  `/_bootzen/instalar`, que pide la `APP_KEY`, migra y se bloquea solo. Déjalo en
+  `false` el resto del tiempo (`doctor` avisa si sigue activo).
+- En producción: `APP_ENV=production`, `APP_DEBUG=false`, `APP_KEY` propia y
+  `php bin/bootzen doctor` en verde.
+- Si cambias archivos de `deploy/` o el `Dockerfile`, prueba el escenario
+  completo; no son parte de `composer check`.
+
 ### Middleware
 
 Implementa `BootZen\Core\MiddlewareInterface`:
@@ -642,15 +663,15 @@ it('solo deja entrar a usuarios', function (): void {
 
 ## Lo que todavía NO existe
 
-BootZen está en desarrollo hacia la v2.0. Estas piezas llegan en fases
-posteriores; **no las inventes ni instales librerías para suplirlas** sin
-preguntar:
+Estas piezas no vienen en BootZen 2.0; **no las inventes ni instales librerías
+para suplirlas** sin preguntar:
 
 - Factories de datos falsos (en los tests se crean los registros con
   `Modelo::create()`).
 - `route:cache`: el router compila las rutas en cada petición y es rápido
   igual.
-- `deploy:build` y `framework:update` (llegan con la guía de despliegue).
+- Colas de trabajos y tareas programadas (`schedule:run`): usa cron con un
+  comando propio si hace falta.
 - Envío de correo por SMTP (solo drivers `log` y `array`).
 - "Recordarme", verificación de correo, roles y permisos.
 
