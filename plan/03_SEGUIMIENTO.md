@@ -222,7 +222,7 @@ Un release por pieza (decisión del usuario).
 - [x] Colas en SQLite (y MySQL) con `queue:work --stop-when-empty` (v2.2.0)
 - [x] Subida de archivos con discos (local, S3, FTP, SFTP) e imágenes (v2.3.0)
 - [x] Scheduler (`schedule:run`) (v2.2.0)
-- [ ] i18n básico
+- [x] i18n básico (v2.4.0)
 
 Notas de SMTP (v2.1.0):
 
@@ -287,3 +287,24 @@ Notas de archivos (v2.3.0):
   buffer de salida abierto con un formato inválido; los proyectos sin
   `config/storage.php` se quedaban sin discos; SeaweedFS reserva espacio por
   volumen y llenó el disco (el script de pruebas lo limita).
+
+Notas de i18n (v2.4.0):
+
+- Decisiones del usuario: el texto en español es la clave; idioma por
+  `APP_LOCALE`, middleware opcional y prefijo en la URL pensando en SEO;
+  español e inglés incluidos (framework y scaffolds); helpers básicos de
+  fechas, números y moneda.
+- El idioma por defecto no lleva prefijo, así las URLs de siempre no cambian
+  y los proyectos viejos siguen igual. Las rutas no se traducen (`/en/tareas`),
+  solo los textos; quedó anotado en la receta y en "Lo que todavía NO existe".
+- `intl` es opcional: muchos hostings no la traen, así que `Formatter` tiene
+  un formato propio para español e inglés.
+- Lo que encontró la prueba real: `deploy:build` no copiaba `lang/` (la app
+  desplegada se habría quedado en español); el 404 de `/en/lo-que-sea` salía
+  en español porque ningún middleware corría; `make:resource` dejaba el CRUD
+  fuera de `localized()` y las páginas en inglés enlazaban a la versión en
+  español; `auth.home` era una ruta fija y mandaba al panel en español tras
+  el login en inglés.
+- Verificado: suite del repo, proyectos `--auth`, `--demo` y uno con
+  `make:resource` con `bin/bootzen check`, y la demo en Chromium en
+  `/en/...` (registro, crear tarea, modal, hreflang y 404).

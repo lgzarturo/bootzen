@@ -61,6 +61,13 @@ The roadmap lives in `plan/04_PLAN-MVP-MONOLITO.md`; progress is tracked in
   (SHA-256 verified) and build arguments.
 - `framework/src/Session/`: Session, SessionStore, FileSessionStore and
   ArraySessionStore (own session, not PHP native sessions).
+- `framework/src/Translation/`: Translator (the Spanish text is the key,
+  `framework/lang/{locale}.php` then app `lang/{locale}.php` and
+  `lang/{locale}/*.php`, plurals with `|`) and Formatter (dates, numbers
+  and money, intl when present, own fallback for es and en). Middleware
+  `SetLocale` (alias `locale`, registered by Application) and
+  `Router::localized()` (default locale without prefix, others under
+  `/xx` with route names `xx::name`; `route()` picks the active one).
 - `framework/src/Validation/`: Validator (closed rule list, Spanish
   messages) and ValidationException.
 - `framework/src/Auth/`: Auth (session guard), Hash and PasswordReset.
@@ -87,7 +94,7 @@ The roadmap lives in `plan/04_PLAN-MVP-MONOLITO.md`; progress is tracked in
   `.env.example`, `routes/web.php` (group `web`), `routes/api.php` (group
   `api`), `public/` (with `assets/app.css` and
   `assets/js/`), `resources/views/` (components, errors), `resources/css/`,
-  `storage/`, `database/`, `tests/`, `AGENTS.md`.
+  `lang/en.php`, `storage/`, `database/`, `tests/`, `AGENTS.md`.
 - Deploy files in the skeleton: root `.htaccess` (sends everything to
   `public/` on shared hosting), `Dockerfile`, `docker-compose.yml`,
   `.dockerignore`, `deploy/` (`nginx.conf`, `Caddyfile`, `php-fpm.conf`,

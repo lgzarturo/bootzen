@@ -22,6 +22,7 @@
 - [Enviar un correo](docs/ai/recipes/enviar-correo.md)
 - [Cola de trabajos](docs/ai/recipes/cola-de-trabajos.md)
 - [Tareas programadas](docs/ai/recipes/tareas-programadas.md)
+- [Idiomas](docs/ai/recipes/idiomas.md)
 
 ## Skills
 

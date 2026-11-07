@@ -1,5 +1,46 @@
 # CHANGELOG
 
+## [2.4.0] - 2026-11-07
+
+Última pieza de la fase 8: la app en varios idiomas, con URLs pensadas para
+buscadores y formatos de cada país, sin librerías.
+
+### Agregado
+
+- `__('Texto en español')`: el español es la clave y `lang/en.php` (o
+  `lang/en/*.php`) tiene la traducción. Marcadores (`:nombre`), plurales con
+  `trans_choice('uno|:count varios', $n)` y, sin traducción, sale el texto
+  en español.
+- `APP_LOCALE` (idioma por defecto) y `APP_LOCALES` (los que acepta la app).
+- `$router->localized()`: cada página existe en cada idioma, la del idioma
+  por defecto sin prefijo (`/precios`) y las demás con el suyo
+  (`/en/precios`). `route()` elige la del idioma activo, así enlaces y
+  redirecciones se quedan en el idioma del usuario.
+- `hreflang_links()` con las URLs completas de cada idioma y `x-default`,
+  `locale()`, `locale_url('en')` para cambiar de idioma.
+- Middleware `locale`: `locale:en` fija el idioma; sin parámetro usa
+  `?lang=`, la sesión, el navegador y al final `APP_LOCALE`.
+- `format_date()`, `format_number()` y `format_money()` (`APP_CURRENCY`)
+  con `intl` si está instalada y un formato propio para español e inglés si
+  no.
+- Inglés incluido: mensajes de validación, errores, paginación, la página
+  de bienvenida, las páginas de error, `make:resource` y los scaffolds
+  `--auth` y `--demo` (con sus tests en `/en/...`).
+- `home_url()`: `auth.home` acepta un nombre de ruta (`'dashboard'`), que
+  respeta el idioma.
+
+### Cambiado
+
+- Las rutas de páginas del skeleton, `--auth` y `--demo` van dentro de
+  `$router->localized()`; las de siempre no cambian (`/panel`, `/tareas`).
+- `make:resource` agrega su ruta dentro de `localized()` si existe.
+- Una URL con prefijo de idioma que no existe (`/en/nada`) responde el 404
+  en ese idioma.
+- `deploy:build` incluye la carpeta `lang/`.
+- En proyectos creados antes no cambia nada: sin `lang/` ni `localized()`
+  todo sigue en español. Para sumar idiomas, copia `config/app.php` (claves
+  `locales` y `currency`) y sigue `docs/ai/recipes/idiomas.md`.
+
 ## [2.3.0] - 2026-11-07
 
 Tercera pieza de la fase 8: archivos en cualquier destino y procesamiento de
