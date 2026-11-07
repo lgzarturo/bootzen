@@ -29,7 +29,7 @@ final class [[Model]]Controller
     {
         $[[singular]] = [[Model]]::create($request->validate($this->rules()));
 
-        return redirect(route('[[route]].show', ['id' => $[[singular]]->id]))->with('status', 'Registro creado.');
+        return redirect(route('[[route]].show', ['id' => $[[singular]]->id]))->with('status', __('Registro creado.'));
     }
 
     public function show(int $id): Response
@@ -47,14 +47,14 @@ final class [[Model]]Controller
         $[[singular]] = [[Model]]::findOrFail($id);
         $[[singular]]->update($request->validate($this->rules()));
 
-        return redirect(route('[[route]].show', ['id' => $[[singular]]->id]))->with('status', 'Registro actualizado.');
+        return redirect(route('[[route]].show', ['id' => $[[singular]]->id]))->with('status', __('Registro actualizado.'));
     }
 
     public function destroy(int $id): Response
     {
         [[Model]]::findOrFail($id)->delete();
 
-        return redirect(route('[[route]].index'))->with('status', 'Registro borrado.');
+        return redirect(route('[[route]].index'))->with('status', __('Registro borrado.'));
     }
 
     /**

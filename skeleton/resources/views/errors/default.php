@@ -9,7 +9,7 @@
         <h1 class="mt-4 text-2xl font-semibold">{{ $title }}</h1>
         <p class="mt-2 text-gray-600">{{ $message }}</p>
         <div class="mt-8">
-            <x-button href="/" variant="ghost">Volver al inicio</x-button>
+            <x-button href="/" variant="ghost">{{ __('Volver al inicio') }}</x-button>
         </div>
     </div>
 </x-layouts.app>

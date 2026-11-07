@@ -8,12 +8,13 @@
 --}}
 @props(['title' => null, 'description' => null])
 <!doctype html>
-<html lang="{{ config('app.locale', 'es') }}">
+<html lang="{{ locale() }}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ $title ? $title . ' · ' . config('app.name') : config('app.name') }}</title>
+    {{ hreflang_links() }}
 @if ($description)
     <meta name="description" content="{{ $description }}">
 @endif
@@ -24,7 +25,7 @@
 @endif
 </head>
 <body class="min-h-screen bg-gray-50 text-gray-900 antialiased">
-    <x-navigation :brand="config('app.name')" :items="[['href' => '/', 'label' => 'Inicio']]" />
+    <x-navigation :brand="config('app.name')" :items="[['href' => '/', 'label' => __('Inicio')]]" />
     <main {{ $attributes->merge(['class' => 'mx-auto max-w-5xl px-4 py-10']) }}>
 @if (session('status'))
         <x-alert type="success" class="mb-6" dismissible>{{ session('status') }}</x-alert>
