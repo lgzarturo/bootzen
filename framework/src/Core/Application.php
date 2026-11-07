@@ -41,6 +41,9 @@ use BootZen\Session\ArraySessionStore;
 use BootZen\Session\FileSessionStore;
 use BootZen\Session\Session;
 use BootZen\Session\SessionStore;
+use BootZen\Storage\FileController;
+use BootZen\Storage\StorageManager;
+use BootZen\Storage\UrlSigner;
 use BootZen\Validation\Validator;
 use BootZen\View\View;
 use ErrorException;
@@ -98,6 +101,9 @@ class Application
             : Config::load($this->basePath('config'), $this->basePath('storage/cache/config.php'));
         $this->configureTimezone();
         $this->registerCoreBindings();
+
+        // URLs temporales de archivos privados de discos sin URLs propias (local, FTP, SFTP)
+        $this->router->get(UrlSigner::PATH, [FileController::class, 'show']);
 
         // Instalación web de un solo uso para hostings sin terminal (INSTALL_ENABLED=true)
         if (filter_var($this->config->get('app.installer', false), FILTER_VALIDATE_BOOL)) {
@@ -355,6 +361,28 @@ class Application
             default => throw new LogicException('Driver de correo no soportado. Usa log, smtp o array en config/mail.php.'),
         });
 
+        $this->container->singleton(StorageManager::class, function (): StorageManager {
+            $key = $this->config->get('app.key');
+
+            return new StorageManager(
+                (array) $this->config->get('storage', []),
+                $this->basePath,
+                is_string($key) && $key !== '' ? new UrlSigner($key, $this->urlPath()) : null,
+                $this->urlPath()
+            );
+        });
+
+        $this->container->bind(FileController::class, function (Container $container): FileController {
+            $key = $this->config->get('app.key');
+            $storage = $container->make(StorageManager::class);
+
+            if (! $storage instanceof StorageManager) {
+                throw new LogicException('El servicio StorageManager no es válido.');
+            }
+
+            return new FileController($storage, is_string($key) && $key !== '' ? new UrlSigner($key, $this->urlPath()) : null);
+        });
+
         $this->container->singleton(DatabaseQueue::class, fn (Container $container): DatabaseQueue => new DatabaseQueue(
             $this->connectionFrom($container),
             (int) $this->config->get('queue.retry_after', 300),
@@ -411,6 +439,16 @@ class Application
         $minutes = $this->config->get('session.lifetime', 120);
 
         return (is_numeric($minutes) ? (int) $minutes : 120) * 60;
+    }
+
+    /**
+     * Ruta de APP_URL ('' o '/tienda'), base de las URLs relativas.
+     */
+    private function urlPath(): string
+    {
+        $url = $this->config->get('app.url', '');
+
+        return is_string($url) ? rtrim((string) parse_url($url, PHP_URL_PATH), '/') : '';
     }
 
     private function databaseQueue(Container $container): DatabaseQueue

@@ -17,6 +17,7 @@ declare(strict_types=1);
 
 namespace BootZen\Core;
 
+use BootZen\Support\Image;
 use InvalidArgumentException;
 use RuntimeException;
 
@@ -54,6 +55,11 @@ final class UploadedFile
      * Extensiones que no van a public/: el navegador ejecutaría su contenido en tu dominio (XSS).
      */
     private const NOT_PUBLIC = ['html', 'htm', 'xhtml', 'svg', 'xml', 'js', 'mjs'];
+
+    /**
+     * Archivo generado por resize() o cover(): no llegó por un formulario, pero es de confianza.
+     */
+    private bool $processed = false;
 
     /**
      * @param array<string, mixed> $file Entrada de $_FILES (name, type, tmp_name, error, size)
@@ -150,38 +156,50 @@ final class UploadedFile
     }
 
     /**
-     * Guarda el archivo en storage/app/{directorio} (no accesible por URL) y devuelve su ruta relativa
-     * a storage/app. Para entregarlo después: download(storage_path('app/' . $ruta)).
+     * Guarda el archivo en un disco privado (por defecto STORAGE_DISK: storage/app) y devuelve su ruta
+     * en el disco, por ejemplo 'contratos/a81b...pdf'. Para entregarlo: temporary_url($ruta) o
+     * storage()->download($ruta).
      *
+     * @param string|null $disk Disco de config/storage.php; null usa el privado por defecto
      * @throws RuntimeException Si el archivo no es válido o no se puede guardar
      */
-    public function store(string $directory = 'uploads'): string
+    public function store(string $directory = 'uploads', ?string $disk = null): string
     {
         $relative = self::directory($directory) . '/' . $this->randomName();
-        $this->moveTo(storage_path('app/' . $relative));
+        $contents = $this->contents();
+        storage($disk)->put($relative, $contents, $this->mimeType());
 
         return $relative;
     }
 
     /**
-     * Guarda el archivo en public/uploads/{directorio} y devuelve la ruta para asset():
-     * 'uploads/avatares/3f9c...jpg'. Solo para imágenes, PDFs y archivos que cualquiera puede ver.
+     * Guarda el archivo en el disco público (por defecto STORAGE_PUBLIC_DISK: public/) bajo uploads/ y
+     * devuelve su ruta, por ejemplo 'uploads/avatares/3f9c...jpg'. Se muestra con file_url($ruta).
+     * Solo para imágenes, PDFs y archivos que cualquiera puede ver.
      *
-     * @throws InvalidArgumentException Si el tipo podría ejecutar código en el navegador (html, svg, js)
+     * @param string|null $disk Disco público de config/storage.php; null usa el público por defecto
+     * @throws InvalidArgumentException Si el tipo podría ejecutar código en el navegador (html, svg, js) o el disco no es público
      * @throws RuntimeException Si el archivo no es válido o no se puede guardar
      */
-    public function storePublic(string $directory = ''): string
+    public function storePublic(string $directory = '', ?string $disk = null): string
     {
         $extension = $this->extension();
 
         if (in_array($extension, self::NOT_PUBLIC, true)) {
             throw new InvalidArgumentException(
-                "Los archivos .{$extension} no se guardan en public/: el navegador los ejecutaría en tu dominio. Usa store()."
+                "Los archivos .{$extension} no se guardan en un disco público: el navegador los ejecutaría en tu dominio. Usa store()."
             );
         }
 
+        $contents = $this->contents();
+        $target = $disk === null ? storage(self::publicDiskName()) : storage($disk);
+
+        if (! $target->isPublic()) {
+            throw new InvalidArgumentException("El disco {$target->name} es privado: storePublic() necesita un disco con 'visibility' => 'public'. Usa store().");
+        }
+
         $relative = rtrim('uploads/' . self::directory($directory, true), '/') . '/' . $this->randomName();
-        $this->moveTo(public_path($relative));
+        $target->put($relative, $contents, $this->mimeType());
 
         return $relative;
     }
@@ -192,27 +210,74 @@ final class UploadedFile
     }
 
     /**
-     * @throws RuntimeException
+     * Copia de la imagen reducida para caber en $maxWidth x $maxHeight (nunca la agranda), sin metadatos
+     * EXIF y con la orientación de la cámara aplicada. Se guarda igual: ->resize(1600)->storePublic('productos').
+     *
+     * @throws InvalidArgumentException Si no es una imagen JPEG, PNG, WebP o GIF, o es demasiado grande
      */
-    private function moveTo(string $destination): void
+    public function resize(int $maxWidth, ?int $maxHeight = null, int $quality = 85): self
+    {
+        return $this->processedCopy(Image::fromString($this->contents())->resize($maxWidth, $maxHeight)->encode(null, $quality));
+    }
+
+    /**
+     * Copia de la imagen recortada al centro para llenar $width x $height (avatares, miniaturas), sin
+     * metadatos EXIF. Ejemplo: ->cover(300, 300)->storePublic('avatares').
+     *
+     * @throws InvalidArgumentException Si no es una imagen JPEG, PNG, WebP o GIF, o es demasiado grande
+     */
+    public function cover(int $width, int $height, int $quality = 85): self
+    {
+        return $this->processedCopy(Image::fromString($this->contents())->cover($width, $height)->encode(null, $quality));
+    }
+
+    /**
+     * Contenido del archivo subido.
+     *
+     * @throws RuntimeException Si la subida falló o el archivo no llegó por un formulario
+     */
+    public function contents(): string
     {
         if (! $this->isValid()) {
             throw new RuntimeException('El archivo no se subió bien (código ' . $this->error() . '). Valida el campo con la regla file.');
         }
 
-        $directory = dirname($destination);
-        if (! is_dir($directory) && ! mkdir($directory, 0775, true) && ! is_dir($directory)) {
-            throw new RuntimeException("No se pudo crear la carpeta {$directory}.");
+        // En una petición real solo se leen archivos que PHP recibió; en CLI (tests y comandos) cualquiera
+        $readable = ($this->processed || is_uploaded_file($this->path()) || PHP_SAPI === 'cli') && is_readable($this->path());
+        $contents = $readable ? file_get_contents($this->path()) : false;
+
+        if ($contents === false) {
+            throw new RuntimeException('No se pudo leer el archivo subido.');
         }
 
-        // En una petición real solo se mueven archivos que PHP recibió; en CLI (tests) se copian
-        $moved = is_uploaded_file($this->path())
-            ? move_uploaded_file($this->path(), $destination)
-            : PHP_SAPI === 'cli' && copy($this->path(), $destination);
+        return $contents;
+    }
 
-        if (! $moved) {
-            throw new RuntimeException("No se pudo guardar el archivo en {$directory}.");
+    private function processedCopy(string $contents): self
+    {
+        $path = tempnam(sys_get_temp_dir(), 'bootzen-img');
+
+        if ($path === false || file_put_contents($path, $contents) === false) {
+            throw new RuntimeException('No se pudo guardar la imagen procesada en la carpeta temporal.');
         }
+
+        register_shutdown_function(static function () use ($path): void {
+            if (is_file($path)) {
+                unlink($path);
+            }
+        });
+
+        $copy = new self(['name' => $this->clientName(), 'tmp_name' => $path, 'error' => UPLOAD_ERR_OK, 'size' => strlen($contents)]);
+        $copy->processed = true;
+
+        return $copy;
+    }
+
+    private static function publicDiskName(): string
+    {
+        $name = config('storage.public', 'public');
+
+        return is_string($name) && $name !== '' ? $name : 'public';
     }
 
     /**

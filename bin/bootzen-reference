@@ -62,6 +62,10 @@ const BOOTZEN_REFERENCE_SECTIONS = [
         BootZen\Core\Cache::class,
         BootZen\Core\Logger::class,
     ],
+    'Archivos' => [
+        BootZen\Storage\Storage::class,
+        BootZen\Support\Image::class,
+    ],
     'Cola y tareas programadas' => [
         BootZen\Queue\Job::class,
         BootZen\Schedule\Schedule::class,

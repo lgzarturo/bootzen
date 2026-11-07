@@ -22,6 +22,9 @@ use BootZen\Database\Connection;
 use BootZen\Database\Migrator;
 use BootZen\Queue\DatabaseQueue;
 use BootZen\Schedule\Schedule;
+use BootZen\Storage\LocalDisk;
+use BootZen\Storage\Storage;
+use BootZen\Storage\StorageManager;
 use Closure;
 use Throwable;
 
@@ -51,6 +54,7 @@ final class Doctor
         $this->checkEnvironment();
         $this->checkPermissions();
         $this->checkDatabase();
+        $this->checkStorage();
         $this->checkMail();
         $this->checkQueue();
         $this->checkSchedule();
@@ -214,6 +218,37 @@ final class Doctor
 
         if (filter_var($config->get('mail.smtp.verify_peer', true), FILTER_VALIDATE_BOOL) === false) {
             $this->warning('MAIL_VERIFY_PEER=false: el certificado del servidor SMTP no se verifica.');
+        }
+    }
+
+    private function checkStorage(): void
+    {
+        $manager = $this->app->make(StorageManager::class);
+
+        if (! $manager instanceof StorageManager) {
+            return;
+        }
+
+        foreach (['privados' => fn (): Storage => $manager->disk(), 'públicos' => fn (): Storage => $manager->publicDisk()] as $label => $resolve) {
+            try {
+                $storage = $resolve();
+                $disk = $storage->disk();
+
+                // Una consulta real: en discos remotos prueba la conexión y las credenciales
+                $storage->exists('.bootzen-doctor');
+
+                if ($disk instanceof LocalDisk) {
+                    $this->ok("Archivos {$label}: disco {$storage->name} (local)");
+                } else {
+                    $this->ok("Archivos {$label}: disco {$storage->name} (" . strtolower((string) preg_replace('/Disk$/', '', (new \ReflectionClass($disk))->getShortName())) . '), conexión correcta');
+                }
+            } catch (Throwable $e) {
+                $this->error("Archivos {$label}: " . $e->getMessage());
+            }
+        }
+
+        if (! extension_loaded('gd')) {
+            $this->warning('Falta la extensión gd: resize() y cover() de imágenes no funcionarán.');
         }
     }
 

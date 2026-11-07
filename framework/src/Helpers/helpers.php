@@ -29,6 +29,8 @@ use BootZen\Mail\MailService;
 use BootZen\Queue\Job;
 use BootZen\Queue\Queue;
 use BootZen\Session\Session;
+use BootZen\Storage\Storage;
+use BootZen\Storage\StorageManager;
 use BootZen\View\View;
 
 if (! function_exists('dd')) {
@@ -318,6 +320,54 @@ if (! function_exists('mailer')) {
         }
 
         return $mailer instanceof MailService ? $mailer : new MailService($mailer, static fn (): Queue => queue());
+    }
+}
+
+if (! function_exists('storage')) {
+    /**
+     * Disco de config/storage.php; sin nombre, el privado por defecto (STORAGE_DISK).
+     *
+     * @example storage()->put('reportes/marzo.csv', $csv); storage('s3')->delete($ruta);
+     */
+    function storage(?string $disk = null): Storage
+    {
+        $manager = app(StorageManager::class);
+
+        if (! $manager instanceof StorageManager) {
+            throw new LogicException('El servicio StorageManager debe ser una instancia de ' . StorageManager::class . '.');
+        }
+
+        return $manager->disk($disk);
+    }
+}
+
+if (! function_exists('file_url')) {
+    /**
+     * URL pública de un archivo guardado con storePublic() (o del disco indicado).
+     *
+     * @example <img src="{{ file_url($producto->foto) }}">
+     */
+    function file_url(string $path, ?string $disk = null): string
+    {
+        $manager = app(StorageManager::class);
+
+        if (! $manager instanceof StorageManager) {
+            throw new LogicException('El servicio StorageManager debe ser una instancia de ' . StorageManager::class . '.');
+        }
+
+        return ($disk === null ? $manager->publicDisk() : $manager->disk($disk))->url($path);
+    }
+}
+
+if (! function_exists('temporary_url')) {
+    /**
+     * URL que permite descargar un archivo privado durante $minutes minutos (del disco privado por defecto).
+     *
+     * @example <a href="{{ temporary_url($factura->pdf, 10) }}">Descargar</a>
+     */
+    function temporary_url(string $path, int $minutes = 30, ?string $disk = null): string
+    {
+        return storage($disk)->temporaryUrl($path, $minutes);
     }
 }
 

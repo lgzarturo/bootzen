@@ -2,8 +2,11 @@
 # Construir y levantar: docker compose up -d --build (guía en docs/deploy/docker.md)
 FROM php:8.3-apache
 
-# pdo_sqlite, mbstring, fileinfo y ctype ya vienen en la imagen oficial
-RUN docker-php-ext-install pdo_mysql opcache \
+# pdo_sqlite, mbstring, fileinfo y ctype ya vienen en la imagen oficial; gd (imágenes) y ftp se instalan
+RUN apt-get update && apt-get install -y --no-install-recommends libjpeg62-turbo-dev libpng-dev libwebp-dev \
+    && docker-php-ext-configure gd --with-jpeg --with-webp \
+    && docker-php-ext-install pdo_mysql opcache gd exif ftp \
+    && rm -rf /var/lib/apt/lists/* \
     && a2enmod rewrite headers \
     && sed -ri 's!/var/www/html!/var/www/html/public!g' /etc/apache2/sites-available/000-default.conf
 
