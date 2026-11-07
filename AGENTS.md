@@ -45,7 +45,17 @@ The roadmap lives in `plan/04_PLAN-MVP-MONOLITO.md`; progress is tracked in
   `INSTALL_ENABLED=true`) and FrameworkUpdater (`framework:update` from
   `~/.bootzen`, sha256 `framework/MANIFEST.json` written by `bootzen-new`).
 - `framework/src/Core/UploadedFile.php`: `$request->file()` with
-  `store()`/`storePublic()` (random names, extension from the detected type).
+  `store()`/`storePublic()` on configurable disks (random names, extension
+  from the detected type) and `resize()`/`cover()` for images.
+- `framework/src/Storage/`: named disks from `config/storage.php`
+  (StorageManager, Storage wrapper with path normalization and executable
+  extensions blocked on public disks), drivers LocalDisk, S3Disk (any S3
+  compatible service, own SigV4 in S3Signer, presigned URLs), FtpDisk
+  (ext-ftp, FTPS) and SftpDisk (ext-ssh2, host fingerprint), UrlSigner and
+  FileController for `/_bootzen/archivo` (APP_KEY signed temporary URLs).
+- `framework/src/Support/Image.php` (GD resize/cover, EXIF orientation,
+  metadata stripped, 40 MP limit) and `Quietly.php` (captures PHP warnings
+  into error messages).
 - `framework/src/Support/Str.php`: name conversion and English plurals.
 - `framework/src/Frontend/Tailwind.php`: Tailwind v4 standalone CLI download
   (SHA-256 verified) and build arguments.
@@ -143,7 +153,10 @@ and the database queue included; skipped locally unless
 `BOOTZEN_TEST_MYSQL_HOST` is set), runs `tests/Feature/SmtpTest.php`
 against a Mailpit service that requires STARTTLS and auth (skipped unless
 `BOOTZEN_TEST_SMTP_HOST` is set; unit tests use
-`tests/Fixtures/fake-smtp-server.php`) and runs the `bootzen.js` tests with
+`tests/Fixtures/fake-smtp-server.php`), runs `tests/Feature/S3Test.php` and
+`RemoteDiskTest.php` against SeaweedFS (S3), vsftpd (FTPS) and OpenSSH
+(SFTP) started by `tests/storage/servers.sh` (skipped unless the
+`BOOTZEN_TEST_S3_*`, `_FTP_*` and `_SFTP_*` variables are set) and runs the `bootzen.js` tests with
 Node 22.
 
 ## Release

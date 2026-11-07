@@ -52,6 +52,11 @@ docker compose exec -u www-data app php bin/bootzen schedule:list
 
 `docker compose down` y `up` los conservan; `docker compose down -v` los borra.
 
+Si prefieres no guardar archivos en el servidor (por ejemplo, para tener
+varias réplicas), usa un disco S3 o compatible: `STORAGE_DISK=s3` y
+`STORAGE_PUBLIC_DISK=s3-public` en `.env` (receta `subir-archivos.md`). La
+imagen ya trae `gd` (imágenes) y `ftp`.
+
 ## Actualizar
 
 ```bash

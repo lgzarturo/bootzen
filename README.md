@@ -19,6 +19,9 @@ fricción en hosting compartido, VPS o Docker.
 - **Plantillas `.php` con componentes `<x-*>`** compiladas y cacheadas
 - **Sesión, CSRF, validación y autenticación** incluidas; registro, login y
   recuperación de contraseña con `bootzen-new mi-app --auth`
+- **Archivos en disco, S3 (y compatibles: R2, Spaces, B2, MinIO), FTP o SFTP**
+  con solo cambiar `.env`, URLs temporales para privados y `resize()` de
+  imágenes
 - **Correo por SMTP, cola de trabajos y tareas programadas** sin librerías:
   `mailer()->send()`, `dispatch(new MiJob($id))` y `routes/schedule.php` con
   una sola línea de cron

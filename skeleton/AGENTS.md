@@ -47,6 +47,7 @@ aplicación monolítica construida con BootZen.
 | `config/security.php`      | Content-Security-Policy y HSTS                                |
 | `app/Jobs/`                | Jobs para la cola (`make:job`), se encolan con `dispatch()`   |
 | `routes/schedule.php`      | Tareas programadas; las ejecuta `schedule:run` desde cron     |
+| `config/storage.php`       | Discos de archivos: local, `s3` (y compatibles), `ftp` y `sftp` |
 | `config/queue.php`         | Cola: `sync` (en el momento) o `database` (tabla `jobs`)      |
 | `config/mail.php`          | Correo: `log` (en `storage/logs`), `smtp` (envío real) o `array` (tests) |
 | `app/Models/`              | Modelos (`App\Models`), uno por tabla                         |
@@ -56,8 +57,8 @@ aplicación monolítica construida con BootZen.
 | `database/app.sqlite`      | Base SQLite local (fuera de git)                              |
 | `tests/`                   | Tests con Pest (`Feature/` y `Unit/`)                         |
 | `docs/ai/`                 | Recetas (`recipes/`) y referencia de la API (`reference.md`)  |
-| `public/uploads/`          | Archivos subidos públicos (`storePublic`)                     |
-| `storage/app/`             | Archivos subidos privados (`store`)                           |
+| `public/uploads/`          | Archivos subidos públicos (`storePublic`, disco `public`)     |
+| `storage/app/`             | Archivos subidos privados (`store`, disco `local`)            |
 | `framework/`               | BootZen. **No editar**: se actualiza con `framework:update`   |
 | `deploy/`                  | Nginx, Caddy, pool de PHP-FPM, `deploy.sh` y archivos de Docker |
 | `Dockerfile`, `docker-compose.yml` | Imagen de producción (guía en `docs/deploy/docker.md`) |
@@ -510,7 +511,7 @@ $request->boolean('activo');          // '1', 'on', 'true', 'yes'
 $request->integer('pagina', 1);
 $request->param('id');                // parámetro de ruta
 $request->wantsJson();                // el cliente pide JSON
-$request->file('foto')?->storePublic('clientes');  // 'uploads/clientes/3f9c...jpg' (ver subir-archivos.md)
+$request->file('foto')?->resize(1600)->storePublic('clientes');  // 'uploads/clientes/3f9c...jpg' (ver subir-archivos.md)
 ```
 
 ### Respuestas y errores
@@ -548,6 +549,19 @@ logger('Pago rechazado', 'error', ['orden' => $orden]);
 $stats = cache()->remember('dashboard.stats', 600, fn () => $this->calcularStats());
 cache()->forget('dashboard.stats');
 ```
+
+### Archivos
+
+- Guarda con `$request->file('x')->store('carpeta')` (privado) o
+  `->storePublic('carpeta')` (público) y guarda **la ruta** en la base.
+  Muestra con `file_url($ruta)`; entrega privados con
+  `temporary_url($ruta, 10)` o `storage()->download($ruta)`.
+- Imágenes: `->resize(1600)` o `->cover(300, 300)` antes de guardar (quitan
+  EXIF).
+- El destino se elige en `.env` (`STORAGE_DISK`, `STORAGE_PUBLIC_DISK`):
+  disco local, S3 o compatibles (R2, Spaces, B2, MinIO), FTP o SFTP, sin
+  cambiar el código. Para un disco concreto: `storage('s3')->put()`, `get()`,
+  `exists()`, `delete()`, `size()`. Receta: `docs/ai/recipes/subir-archivos.md`.
 
 ### Cola y tareas programadas
 
@@ -684,6 +698,7 @@ it('solo deja entrar a usuarios', function (): void {
   `firstOrFail`, `find`, `value`, `pluck`, `count`, `exists`, `paginate`,
   `insert`, `update`, `delete`.
 - **Helpers**: `db()`, `auth()`, `session()`, `old()`, `back()`, `mailer()`,
+  `storage()`, `file_url()`, `temporary_url()`, `dispatch()`, `queue()`,
   `config()`, `env()`, `route()`, `url()`, `asset()`, `app()`, `logger()`,
   `cache()`, `base_path()`, `public_path()`, `storage_path()`, `e()`,
   `redirect()`, `abort()`, `json_response()`, `download()`, `csrf_token()`,
