@@ -59,6 +59,15 @@ The roadmap lives in `plan/04_PLAN-MVP-MONOLITO.md`; progress is tracked in
   reply-to and attachments; MimeMessage builds the MIME text; SmtpMailer
   speaks SMTP over plain sockets with STARTTLS, implicit TLS and AUTH
   PLAIN/LOGIN; MailException).
+- `framework/src/Queue/`: Job (payload = public constructor params as
+  JSON, no `unserialize`), Queue with SyncQueue (default, runs inline) and
+  DatabaseQueue (atomic reserve with a conditional UPDATE, retry_after
+  reclaim, `failed_jobs`), Worker (`queue:work`). `mailer()` returns
+  MailService, which adds `queue()` through the SendQueuedMail job.
+- `framework/src/Schedule/`: CronExpression, Schedule and Task
+  (`routes/schedule.php`), ScheduleRunner (`schedule:run`, per task lock,
+  catches up missed minutes up to a day, state in
+  `storage/cache/schedule.json`).
 - `framework/src/Middleware/`: StartSession, VerifyCsrfToken,
   SecurityHeaders, RateLimit (`throttle:max,minutes`), Authenticate (`auth`),
   RedirectIfAuthenticated (`guest`) and CorsMiddleware.
@@ -74,7 +83,10 @@ The roadmap lives in `plan/04_PLAN-MVP-MONOLITO.md`; progress is tracked in
   `.dockerignore`, `deploy/` (`nginx.conf`, `Caddyfile`, `php-fpm.conf`,
   `deploy.sh` and `docker/`) and the guides in `docs/deploy/`. They were
   tested by hand with the demo app on Apache, Nginx, Caddy and Docker; CI
-  repeats shared hosting and Docker with `tests/deploy/*.sh`.
+  repeats shared hosting and Docker with `tests/deploy/*.sh`. The compose
+  file has an `app` service and a `scheduler` service
+  (`deploy/docker/scheduler.sh` runs `schedule:run` every minute as
+  `www-data`).
 - `stubs/auth/`: files that `--auth` copies over the skeleton (controllers,
   User model, migration, views, `routes/auth.php`, its own `routes/web.php`,
   layout and `config/auth.php`, and `tests/Feature/AuthTest.php`).
@@ -126,8 +138,9 @@ Tailwind binary (failing if
 `skeleton/public/assets/app.css` is stale), builds a `deploy:build` artifact
 and deploys it to an Apache container acting as shared hosting (web
 installer included) and with `docker compose`, runs
-`tests/Feature/MySqlTest.php` against a MySQL 8.4 service (skipped locally
-unless `BOOTZEN_TEST_MYSQL_HOST` is set), runs `tests/Feature/SmtpTest.php`
+`tests/Feature/MySqlTest.php` against a MySQL 8.4 service (stub migrations
+and the database queue included; skipped locally unless
+`BOOTZEN_TEST_MYSQL_HOST` is set), runs `tests/Feature/SmtpTest.php`
 against a Mailpit service that requires STARTTLS and auth (skipped unless
 `BOOTZEN_TEST_SMTP_HOST` is set; unit tests use
 `tests/Fixtures/fake-smtp-server.php`) and runs the `bootzen.js` tests with

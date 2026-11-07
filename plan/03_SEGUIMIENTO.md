@@ -219,9 +219,9 @@ Notas de cierre:
 Un release por pieza (decisión del usuario).
 
 - [x] Mail: SMTP propio con adjuntos (v2.1.0)
-- [ ] Colas en SQLite con `queue:work --stop-when-empty`
+- [x] Colas en SQLite (y MySQL) con `queue:work --stop-when-empty` (v2.2.0)
 - [ ] Subida de archivos: detalles pendientes (lo básico entró en la fase 6)
-- [ ] Scheduler (`schedule:run`)
+- [x] Scheduler (`schedule:run`) (v2.2.0)
 - [ ] i18n básico
 
 Notas de SMTP (v2.1.0):
@@ -243,3 +243,25 @@ Notas de SMTP (v2.1.0):
   que llega a Mailpit, y lo mismo desde el contenedor de Docker.
 - `docker-compose.yml` ahora pasa el `.env` completo al contenedor
   (`env_file`), así llegan las variables de correo.
+
+Notas de cola y scheduler (v2.2.0):
+
+- Decisiones del usuario: la tabla se crea con una migración generada
+  (`queue:table`); reintentos más tabla de fallidos con `queue:failed`,
+  `queue:retry` y `queue:flush`; `mailer()->queue()`; cola y scheduler
+  juntos en un release.
+- Los jobs viajan como JSON con los parámetros públicos del constructor, sin
+  `unserialize`. `sync` es el driver por defecto (y el de los tests), así
+  `dispatch()` funciona sin tabla. La reserva de `database` es un `UPDATE`
+  condicionado que vale igual en SQLite y MySQL.
+- `schedule:run` recupera lo que tocaba entre dos vueltas del cron (sirve con
+  hostings que solo permiten cron cada 5 o 15 minutos) y bloquea cada tarea
+  para que no se encime consigo misma.
+- Verificado: tests con reloj falso (reintentos, abandonados, dos workers,
+  recuperación de minutos), MySQL 8.4 real, un contenedor con cron de
+  Debian ejecutando la línea que imprime `schedule:list`, y `docker compose`
+  con el servicio `scheduler` procesando jobs encolados desde la app.
+- Lo que encontró la prueba con cron real: `php` a secas no existe para
+  cron cuando PHP no está en `/usr/bin` (cron usa `PATH=/usr/bin:/bin`).
+  `schedule:list` y `doctor` ahora dan la línea con la ruta completa
+  (`PHP_BINARY`).

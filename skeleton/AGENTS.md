@@ -45,6 +45,9 @@ aplicación monolítica construida con BootZen.
 | `config/session.php`       | Sesión (archivos en `storage/sessions`), cookie y CSRF        |
 | `config/auth.php`          | Modelo de usuario y página de inicio tras el login            |
 | `config/security.php`      | Content-Security-Policy y HSTS                                |
+| `app/Jobs/`                | Jobs para la cola (`make:job`), se encolan con `dispatch()`   |
+| `routes/schedule.php`      | Tareas programadas; las ejecuta `schedule:run` desde cron     |
+| `config/queue.php`         | Cola: `sync` (en el momento) o `database` (tabla `jobs`)      |
 | `config/mail.php`          | Correo: `log` (en `storage/logs`), `smtp` (envío real) o `array` (tests) |
 | `app/Models/`              | Modelos (`App\Models`), uno por tabla                         |
 | `config/database.php`      | Conexión: SQLite por defecto, MySQL opcional                  |
@@ -82,6 +85,12 @@ php bin/bootzen doctor            # revisa PHP, extensiones, permisos, .env y ba
 php bin/bootzen config:cache      # configuración en un archivo (producción; config:clear la borra)
 php bin/bootzen key:generate      # APP_KEY en .env
 php bin/bootzen mail:test tu@correo.com  # envía un correo de prueba con la configuración actual
+php bin/bootzen make:job EnviarFactura   # job en app/Jobs para dispatch()
+php bin/bootzen queue:table       # migración de la cola (para QUEUE_DRIVER=database)
+php bin/bootzen queue:work        # atiende la cola (--stop-when-empty, --max-time=50)
+php bin/bootzen queue:failed      # jobs fallidos; queue:retry <id|all> y queue:flush
+php bin/bootzen schedule:run      # tareas de routes/schedule.php que tocan (lo llama cron cada minuto)
+php bin/bootzen schedule:list     # tareas, próxima ejecución y la línea de cron
 php bin/bootzen deploy:build      # artefacto para el servidor en build/ (--version=1.2.0, --no-css)
 php bin/bootzen framework:update  # actualiza framework/ desde ~/.bootzen (--from=ruta, --force)
 composer install                  # solo la primera vez, instala herramientas de dev
@@ -540,6 +549,21 @@ $stats = cache()->remember('dashboard.stats', 600, fn () => $this->calcularStats
 cache()->forget('dashboard.stats');
 ```
 
+### Cola y tareas programadas
+
+- Trabajo lento o que puede fallar (correos, PDFs, APIs externas) va a un
+  job: `php bin/bootzen make:job Nombre`, parámetros del constructor
+  `public readonly` con valores simples (ids, no modelos), y
+  `dispatch(new Nombre($id))`. Correos: `mailer()->queue($message)`.
+- `QUEUE_DRIVER=sync` (por defecto y en tests) ejecuta en el momento;
+  `database` necesita `queue:table` + `migrate` y alguien que corra
+  `queue:work`. Reintentos con `$tries`/`$backoff`, fallidos en
+  `failed_jobs`. Receta: `docs/ai/recipes/cola-de-trabajos.md`.
+- Tareas periódicas en `routes/schedule.php`:
+  `$schedule->command('db:backup')->dailyAt('03:00')`, `->job(...)`,
+  `->call(fn, 'nombre')`. El servidor solo necesita la línea de cron que
+  imprime `schedule:list`. Receta: `docs/ai/recipes/tareas-programadas.md`.
+
 ### Despliegue
 
 - `deploy:build` arma `build/<app>-<versión>/` y su `.zip` sin `.env`, base,
@@ -674,8 +698,7 @@ librerías para suplirlas** sin preguntar:
   `Modelo::create()`).
 - `route:cache`: el router compila las rutas en cada petición y es rápido
   igual.
-- Colas de trabajos y tareas programadas (`schedule:run`): usa cron con un
-  comando propio si hace falta. Los correos se envían en la misma petición.
+- Colas en Redis u otros servicios: la cola es `sync` o `database`.
 - "Recordarme", verificación de correo, roles y permisos.
 
 ## Reglas
