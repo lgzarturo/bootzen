@@ -108,3 +108,16 @@ it('responde JSON paginado y filtra por estado', function (): void {
     $client->getJson('/tareas?estado=otra')->assertUnprocessable();
     $client->get('/tareas?estado=pendientes')->assertOk()->assertSee('Tarea 7')->assertDontSee('Tarea 1<');
 });
+
+it('maneja las tareas en inglés con el prefijo /en', function (): void {
+    $client = client();
+    $client->actingAs(usuario());
+
+    $client->from('/en/tareas/create')->post('/en/tareas', ['titulo' => ''])->assertRedirect('/en/tareas/create');
+    $client->get('/en/tareas/create')->assertSee('The title field is required.')->assertSee('New task');
+
+    $client->post('/en/tareas', ['titulo' => 'Pay the bills', 'vence' => '2026-12-01'])
+        ->assertRedirect('/en/tareas')
+        ->assertSessionHas('status', 'Task created.');
+    $client->get('/en/tareas')->assertSee('My tasks')->assertSee('Due ')->assertSee('Delete this task?');
+});

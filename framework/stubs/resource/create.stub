@@ -1,10 +1,10 @@
-<x-layouts.app title="Nuevo: [[Heading]]">
-    <x-card title="Nuevo: [[Heading]]" class="mx-auto max-w-2xl">
+<x-layouts.app :title="__('Nuevo') . ': [[Heading]]'">
+    <x-card :title="__('Nuevo') . ': [[Heading]]'" class="mx-auto max-w-2xl">
         <x-form :action="route('[[route]].store')">
 [[fields]]
             <div class="flex items-center gap-3">
-                <x-button type="submit">Guardar</x-button>
-                <x-button :href="route('[[route]].index')" variant="ghost">Cancelar</x-button>
+                <x-button type="submit">{{ __('Guardar') }}</x-button>
+                <x-button :href="route('[[route]].index')" variant="ghost">{{ __('Cancelar') }}</x-button>
             </div>
         </x-form>
     </x-card>

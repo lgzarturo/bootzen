@@ -6,6 +6,7 @@
 
 ## Helpers globales
 
+- `__(string $text, array $replace = [], ?string $locale = null): string`: Traduce un texto escrito en español al idioma activo y reemplaza :marcadores.
 - `abort(int $statusCode = 404, string $message = '', array $headers = []): never`: Interrumpe la petición lanzando una HttpException con el código indicado.
 - `active_session(): ?Session`: Sesión de la petición actual, o null si la ruta no pasa por StartSession (grupo web).
 - `app(?string $abstract = null): mixed`: Devuelve la Application actual o resuelve un servicio del contenedor.
@@ -28,9 +29,17 @@
 - `env(string $key, mixed $default = null): mixed`: Obtiene el valor de una variable de entorno.
 - `file_url(string $path, ?string $disk = null): string`: URL pública de un archivo guardado con storePublic() (o del disco indicado).
 - `format_bytes(int $bytes, int $precision = 2): string`: Formatea una cantidad de bytes en una cadena legible (KB, MB, etc.).
+- `format_date(DateTimeInterface|string $date, string $style = 'medium', bool $withTime = false): string`: Fecha en el idioma activo: short (07/11/2026), medium (7 nov 2026) o long (7 de noviembre de 2026).
+- `format_money(int|float $amount, ?string $currency = null): string`: Cantidad en la moneda indicada (por defecto APP_CURRENCY) con el formato del idioma activo.
+- `format_number(int|float $number, int $decimals = 0): string`: Número con los separadores del idioma activo.
+- `formatter(): Formatter`: Formateador de números, moneda y fechas para el idioma activo (lo usan format_number(), format_money() y format_date()).
 - `get_client_ip(): string`: Obtiene la IP pública del cliente considerando proxies y cabeceras.
+- `home_url(): string`: URL a donde va un usuario autenticado: config auth.home, que puede ser un nombre de ruta ('dashboard', respeta el idioma de $router->localized()) o una ruta ('/panel').
+- `hreflang_links(): HtmlString`: Etiquetas <link rel="alternate" hreflang> de la página actual en cada idioma (para SEO). Vacío si la página no es de $router->localized(). Va en el <head> del layout.
 - `is_ajax(): bool`: Verifica si la petición actual es AJAX.
 - `json_response(array $data, int $status = 200, array $headers = []): Response`: Crea una respuesta JSON. Debe retornarse desde el handler.
+- `locale(): string`: Idioma activo ('es', 'en'...). Úsalo en <html lang="{{ locale() }}">.
+- `locale_url(string $locale): string`: URL de la página actual en otro idioma: la ruta con su prefijo si es de $router->localized(), o la misma página con ?lang=xx si no.
 - `logger(string $message, string $level = 'info', array $context = []): void`: Registra un mensaje en el log de la aplicación (storage/logs/app-AAAA-MM-DD.log).
 - `mailer(): MailService`: Servicio de correo configurado en config/mail.php: send() envía ahora, queue() lo deja en la cola.
 - `mime_type(string $filePath): string`: Obtiene el tipo MIME de un archivo.
@@ -45,6 +54,8 @@
 - `storage_path(string $path = ''): string`: Obtiene la ruta absoluta al directorio storage.
 - `str_random(int $length = 16): string`: Genera una cadena aleatoria alfanumérica criptográficamente segura.
 - `temporary_url(string $path, int $minutes = 30, ?string $disk = null): string`: URL que permite descargar un archivo privado durante $minutes minutos (del disco privado por defecto).
+- `trans_choice(string $text, int|float $count, array $replace = []): string`: Elige singular o plural según la cantidad: 'una tarea|:count tareas' (o '{0} ninguna|una|:count').
+- `translator(): Translator`: Traductor de la aplicación (idioma activo, idiomas permitidos).
 - `url(string $path = ''): string`: Genera una URL absoluta basada en config('app.url') o, en su defecto, APP_URL.
 - `validate_csrf_token(?string $token): bool`: Compara un token con el de la sesión. VerifyCsrfToken ya lo hace en el grupo web.
 - `view(string $name, array $data = [], int $status = 200): Response`: Renderiza una vista y la devuelve como respuesta HTML.
@@ -156,6 +167,8 @@ Router HTTP.
 - `match(array $methods, string $path, mixed $handler): Route`: Registra una ruta para varios métodos.
 - `any(string $path, mixed $handler): Route`: Registra una ruta para todos los métodos comunes.
 - `group(array $attributes, Closure $callback): void`: Agrupa rutas con atributos comunes.
+- `localized(Closure $callback): void`: Rutas en varios idiomas para SEO: el idioma por defecto (APP_LOCALE) sin prefijo y los demás de APP_LOCALES con el suyo (/en/...). Cada grupo fija su idioma con el middleware locale:xx; las rutas de otros idiomas se nombran 'en::nombre' y route('nombre') elige la del idioma activo.
+- `localizedName(string $name, string $locale): ?string`: Nombre de la ruta en otro idioma si viene de localized() ('en::precios' → 'precios' para el idioma por defecto). Null si la ruta no tiene versiones por idioma.
 - `resource(string $name, string $controller, array $options = []): array`: Registra las rutas CRUD de un recurso, con nombres '{nombre}.{accion}'.
 - `aliasMiddleware(string $name, string $class): void`: Registra un alias de middleware.
 - `middlewareGroup(string $name, array $middleware): void`: Registra un grupo de middleware.
@@ -517,6 +530,33 @@ Formatos: JPEG, PNG (con transparencia), WebP y GIF (primer cuadro). Nunca agran
 - `resize(int $maxWidth, ?int $maxHeight = null): self`: Reduce la imagen para que quepa en $maxWidth x $maxHeight conservando la proporción. Si ya es más chica, la deja igual.
 - `cover(int $width, int $height): self`: Recorta al centro y escala para llenar exactamente $width x $height (avatares, miniaturas). No agranda: si la imagen es más chica, el resultado sale proporcionalmente más chico.
 - `encode(?string $type = null, int $quality = 85): string`: Codifica en el formato indicado (por defecto el original). $quality de 0 a 100 para JPEG y WebP.
+
+## Idiomas
+
+### Translator
+
+Un texto sin traducción se muestra en español: la app nunca enseña una clave cruda.
+
+- `get(string $text, array $replace = [], ?string $locale = null): string`: Traduce el texto al idioma activo (o al indicado) y reemplaza :marcadores.
+- `choice(string $text, int|float $count, array $replace = [], ?string $locale = null): string`: Elige la forma según la cantidad: 'una tarea|:count tareas' o '{0} ninguna|una|:count' (con tres formas, la primera es para 0). :count se reemplaza solo.
+- `locale(): string`
+- `setLocale(string $locale): void`: Cambia el idioma activo.
+- `defaultLocale(): string`
+- `locales(): array`
+- `isSupported(string $locale): bool`
+- `sourceLocale(): string`: Idioma de los textos del código (las claves).
+- `currentPath(): string`: Path de la petición actual.
+- `currentRoute(): ?Route`
+- `currentParameters(): array`
+- `all(?string $locale = null): array`: Todas las traducciones de un idioma (útil para pasarlas a JavaScript).
+
+### Formatter
+
+La región de cada idioma ('es' => 'es_MX', 'en' => 'en_US') decide separadores y moneda; se configura en config/app.php ('regions').
+
+- `number(int|float $number, int $decimals = 0): string`: Número con separadores de miles y $decimals decimales.
+- `money(int|float $amount, ?string $currency = null): string`: Cantidad con símbolo de moneda (por defecto APP_CURRENCY).
+- `date(DateTimeInterface|string $date, string $style = 'medium', bool $withTime = false): string`: Fecha (y hora con $withTime) en estilo short (07/11/2026), medium (7 nov 2026) o long (7 de noviembre de 2026).
 
 ## Cola y tareas programadas
 

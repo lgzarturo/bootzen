@@ -8,12 +8,13 @@
 --}}
 @props(['title' => null, 'description' => null])
 <!doctype html>
-<html lang="{{ config('app.locale', 'es') }}">
+<html lang="{{ locale() }}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ $title ? $title . ' · ' . config('app.name') : config('app.name') }}</title>
+    {{ hreflang_links() }}
 @if ($description)
     <meta name="description" content="{{ $description }}">
 @endif
@@ -24,17 +25,17 @@
 @endif
 </head>
 <body class="min-h-screen bg-gray-50 text-gray-900 antialiased">
-    <x-navigation :brand="config('app.name')" :items="auth()->check() ? [['href' => '/tareas', 'label' => 'Tareas']] : [['href' => '/', 'label' => 'Inicio']]">
+    <x-navigation :brand="config('app.name')" :items="auth()->check() ? [['href' => route('tareas.index'), 'label' => __('Tareas')]] : [['href' => route('home'), 'label' => __('Inicio')]]">
         <x-slot:actions>
 @if (auth()->check())
             <a href="{{ route('dashboard') }}" class="text-sm font-medium text-gray-700 hover:text-blue-600">{{ auth()->user()?->getAttribute('nombre') }}</a>
             <form action="{{ route('logout') }}" method="POST">
                 @csrf
-                <x-button type="submit" variant="ghost" size="sm">Salir</x-button>
+                <x-button type="submit" variant="ghost" size="sm">{{ __('Salir') }}</x-button>
             </form>
 @else
-            <a href="{{ route('login') }}" class="text-sm font-medium text-gray-700 hover:text-blue-600">Entrar</a>
-            <x-button :href="route('register')" size="sm">Crear cuenta</x-button>
+            <a href="{{ route('login') }}" class="text-sm font-medium text-gray-700 hover:text-blue-600">{{ __('Entrar') }}</a>
+            <x-button :href="route('register')" size="sm">{{ __('Crear cuenta') }}</x-button>
 @endif
         </x-slot:actions>
     </x-navigation>

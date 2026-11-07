@@ -66,6 +66,10 @@ const BOOTZEN_REFERENCE_SECTIONS = [
         BootZen\Storage\Storage::class,
         BootZen\Support\Image::class,
     ],
+    'Idiomas' => [
+        BootZen\Translation\Translator::class,
+        BootZen\Translation\Formatter::class,
+    ],
     'Cola y tareas programadas' => [
         BootZen\Queue\Job::class,
         BootZen\Schedule\Schedule::class,

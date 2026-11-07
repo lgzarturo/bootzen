@@ -14,8 +14,9 @@ aplicación monolítica construida con BootZen.
 ## Dónde buscar
 
 - **Recetas** en `docs/ai/recipes/`: crear un CRUD, proteger rutas, endpoint
-  JSON, componente (con un modal), migraciones, subir archivos y enviar
-  correos. Paso a paso, con tests. Úsalas antes de improvisar.
+  JSON, componente (con un modal), migraciones, subir archivos, enviar
+  correos, cola, tareas programadas e idiomas. Paso a paso, con tests.
+  Úsalas antes de improvisar.
 - **Referencia** en `docs/ai/reference.md`: todas las firmas públicas de
   BootZen, generadas desde el código. Si dudas de un método, búscalo ahí.
 - **Skills** en `.claude/skills/` (y `.agents/skills/`): `crear-recurso`,
@@ -35,6 +36,7 @@ aplicación monolítica construida con BootZen.
 | `resources/views/`         | Vistas `.php` con directivas y componentes `<x-*>`            |
 | `resources/views/components/` | Componentes: `card.php` es `<x-card>`, `layouts/app.php` es `<x-layouts.app>` |
 | `resources/views/errors/`  | Páginas de error: `{codigo}.php` o `default.php`              |
+| `lang/`                    | Traducciones: `en.php` (y `en/*.php`) con texto en español => traducción |
 | `resources/css/app.css`    | Fuente de Tailwind CSS v4                                     |
 | `app/View/Components/`     | Clases opcionales de componentes con lógica                   |
 | `public/`                  | Document root: `index.php`, `.htaccess` y `assets/`           |
@@ -43,7 +45,7 @@ aplicación monolítica construida con BootZen.
 | `bin/bootzen`              | CLI del proyecto                                              |
 | `storage/`                 | Logs, sesiones, cachés y backups (escribible, fuera de git)   |
 | `config/session.php`       | Sesión (archivos en `storage/sessions`), cookie y CSRF        |
-| `config/auth.php`          | Modelo de usuario y página de inicio tras el login            |
+| `config/auth.php`          | Modelo de usuario y página de inicio tras el login (`home_url()`) |
 | `config/security.php`      | Content-Security-Policy y HSTS                                |
 | `app/Jobs/`                | Jobs para la cola (`make:job`), se encolan con `dispatch()`   |
 | `routes/schedule.php`      | Tareas programadas; las ejecuta `schedule:run` desde cron     |
@@ -140,7 +142,10 @@ con componentes, y `tests/Feature/TareaTest.php`. El resultado pasa
 ```php
 // routes/web.php
 return static function (Router $router): void {
-    $router->get('/', [HomeController::class, 'index'])->name('home');
+    // Páginas en cada idioma de APP_LOCALES: /tareas (por defecto) y /en/tareas
+    $router->localized(function (Router $router): void {
+        $router->get('/', [HomeController::class, 'index'])->name('home');
+    });
 
     // CRUD completo con nombres tareas.index, tareas.create, tareas.store,
     // tareas.show, tareas.edit, tareas.update y tareas.destroy
@@ -176,8 +181,8 @@ return static function (Router $router): void {
 - Los formularios HTML envían PUT, PATCH o DELETE con un POST y el campo
   oculto `_method`.
 - Middleware disponibles: `auth` (solo usuarios), `guest` (solo invitados),
-  `throttle:max,minutos` y `cors`. Grupos: `web` (todas las rutas de
-  `web.php`) y `api` (todas las de `api.php`).
+  `throttle:max,minutos`, `cors` y `locale` (idioma, ver Idiomas). Grupos:
+  `web` (todas las rutas de `web.php`) y `api` (todas las de `api.php`).
 
 ### Controladores
 
@@ -198,7 +203,7 @@ final class TareaController
 
         $tarea = Tarea::create($datos);
 
-        return redirect(route('tareas.show', ['id' => $tarea->id]))->with('status', 'Tarea creada.');
+        return redirect(route('tareas.show', ['id' => $tarea->id]))->with('status', __('Tarea creada.'));
     }
 }
 ```
@@ -550,6 +555,23 @@ $stats = cache()->remember('dashboard.stats', 600, fn () => $this->calcularStats
 cache()->forget('dashboard.stats');
 ```
 
+### Idiomas
+
+- Textos visibles con `__('Texto en español')`; el español es la clave y
+  `lang/en.php` tiene `'Texto en español' => 'English text'`. Marcadores:
+  `__('Hola, :nombre', ['nombre' => $n])`; plurales:
+  `trans_choice('Un pedido|:count pedidos', $n)`. Sin traducción sale en
+  español.
+- Idiomas en `.env`: `APP_LOCALE=es` (sin prefijo) y `APP_LOCALES=es,en`.
+  Las páginas van dentro de `$router->localized()` (`/precios` y
+  `/en/precios`); `route()` elige la del idioma activo. `make:resource` ya
+  agrega su ruta ahí.
+- Layout: `lang="{{ locale() }}"` y `{{ hreflang_links() }}` ya vienen.
+  Cambiar de idioma: `<a href="{{ locale_url('en') }}">English</a>`.
+- Formatos del idioma activo: `format_date($fecha)` (`'short'`, `'medium'`,
+  `'long'`, con hora), `format_number($n, 2)`, `format_money($n)`
+  (`APP_CURRENCY`). Receta: `docs/ai/recipes/idiomas.md`.
+
 ### Archivos
 
 - Guarda con `$request->file('x')->store('carpeta')` (privado) o
@@ -674,7 +696,7 @@ it('solo deja entrar a usuarios', function (): void {
 ## API disponible del framework
 
 - **Router**: `get`, `post`, `put`, `patch`, `delete`, `options`, `match`,
-  `any`, `resource`, `group(['prefix', 'as', 'middleware'], fn)`; en la ruta:
+  `any`, `resource`, `localized(fn)`, `group(['prefix', 'as', 'middleware'], fn)`; en la ruta:
   `->name()`, `->middleware()`, `->where()`.
 - **Request**: `validate`, `file`, `session`, `input`, `all`, `only`, `except`, `has`,
   `filled`, `boolean`, `integer`, `param`, `params`, `getRoute`, `getMethod`, `getPath`,
@@ -702,7 +724,9 @@ it('solo deja entrar a usuarios', function (): void {
   `config()`, `env()`, `route()`, `url()`, `asset()`, `app()`, `logger()`,
   `cache()`, `base_path()`, `public_path()`, `storage_path()`, `e()`,
   `redirect()`, `abort()`, `json_response()`, `download()`, `csrf_token()`,
-  `csrf_field()`, `validate_csrf_token()`, `slugify()`, `str_random()`.
+  `csrf_field()`, `validate_csrf_token()`, `slugify()`, `str_random()`,
+  `__()`, `trans_choice()`, `locale()`, `locale_url()`, `hreflang_links()`,
+  `format_date()`, `format_number()`, `format_money()`, `home_url()`.
 
 ## Lo que todavía NO existe
 
@@ -715,6 +739,8 @@ librerías para suplirlas** sin preguntar:
   igual.
 - Colas en Redis u otros servicios: la cola es `sync` o `database`.
 - "Recordarme", verificación de correo, roles y permisos.
+- URLs traducidas por idioma (`/en/prices`): `localized()` solo agrega el
+  prefijo; los textos sí se traducen.
 
 ## Reglas
 
@@ -731,3 +757,4 @@ librerías para suplirlas** sin preguntar:
 - No uses PDO directo: `db()`, el query builder o los modelos.
 - Nada de `exit` ni `die`: retorna un `Response` o usa `abort()`.
 - No leas `env()` fuera de `config/`.
+- Todo texto que ve el usuario va con `__()`, también los mensajes flash.

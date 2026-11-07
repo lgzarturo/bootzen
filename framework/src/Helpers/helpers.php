@@ -31,6 +31,9 @@ use BootZen\Queue\Queue;
 use BootZen\Session\Session;
 use BootZen\Storage\Storage;
 use BootZen\Storage\StorageManager;
+use BootZen\Translation\Formatter;
+use BootZen\Translation\Translator;
+use BootZen\View\HtmlString;
 use BootZen\View\View;
 
 if (! function_exists('dd')) {
@@ -323,6 +326,166 @@ if (! function_exists('mailer')) {
     }
 }
 
+if (! function_exists('translator')) {
+    /**
+     * Traductor de la aplicación (idioma activo, idiomas permitidos).
+     */
+    function translator(): Translator
+    {
+        $translator = app(Translator::class);
+
+        if (! $translator instanceof Translator) {
+            throw new LogicException('El servicio Translator debe ser una instancia de ' . Translator::class . '.');
+        }
+
+        return $translator;
+    }
+}
+
+if (! function_exists('__')) {
+    /**
+     * Traduce un texto escrito en español al idioma activo y reemplaza :marcadores.
+     *
+     * @param array<string, string|int|float|\Stringable> $replace
+     * @example __('Hola, :nombre', ['nombre' => $usuario->nombre])
+     */
+    function __(string $text, array $replace = [], ?string $locale = null): string
+    {
+        return translator()->get($text, $replace, $locale);
+    }
+}
+
+if (! function_exists('trans_choice')) {
+    /**
+     * Elige singular o plural según la cantidad: 'una tarea|:count tareas' (o '{0} ninguna|una|:count').
+     *
+     * @param array<string, string|int|float|\Stringable> $replace
+     * @example trans_choice('una tarea pendiente|:count tareas pendientes', $total)
+     */
+    function trans_choice(string $text, int|float $count, array $replace = []): string
+    {
+        return translator()->choice($text, $count, $replace);
+    }
+}
+
+if (! function_exists('locale')) {
+    /**
+     * Idioma activo ('es', 'en'...). Úsalo en <html lang="{{ locale() }}">.
+     */
+    function locale(): string
+    {
+        return translator()->locale();
+    }
+}
+
+if (! function_exists('locale_url')) {
+    /**
+     * URL de la página actual en otro idioma: la ruta con su prefijo si es de $router->localized(),
+     * o la misma página con ?lang=xx si no.
+     *
+     * @example <a href="{{ locale_url('en') }}">English</a>
+     */
+    function locale_url(string $locale): string
+    {
+        $translator = translator();
+        $router = Application::getInstance()->getRouter();
+        $name = $translator->currentRoute()?->getName();
+        $target = $name === null ? null : $router->localizedName($name, $locale);
+
+        if ($target !== null) {
+            return $router->url($target, array_filter($translator->currentParameters(), 'is_scalar'));
+        }
+
+        return $translator->currentPath() . '?lang=' . rawurlencode($locale);
+    }
+}
+
+if (! function_exists('hreflang_links')) {
+    /**
+     * Etiquetas <link rel="alternate" hreflang> de la página actual en cada idioma (para SEO). Vacío si
+     * la página no es de $router->localized(). Va en el <head> del layout.
+     */
+    function hreflang_links(): HtmlString
+    {
+        $translator = translator();
+        $router = Application::getInstance()->getRouter();
+        $name = $translator->currentRoute()?->getName();
+        $parameters = array_filter($translator->currentParameters(), 'is_scalar');
+        $links = [];
+
+        foreach ($translator->locales() as $locale) {
+            $target = $name === null ? null : $router->localizedName($name, $locale);
+
+            if ($target === null) {
+                return new HtmlString('');
+            }
+
+            $links[$locale] = url($router->url($target, $parameters));
+        }
+
+        $html = '';
+        foreach ($links as $locale => $href) {
+            $html .= '<link rel="alternate" hreflang="' . e($locale) . '" href="' . e($href) . '">' . "\n";
+        }
+
+        return new HtmlString($html . '<link rel="alternate" hreflang="x-default" href="' . e($links[$translator->defaultLocale()] ?? '') . '">');
+    }
+}
+
+if (! function_exists('format_number')) {
+    /**
+     * Número con los separadores del idioma activo.
+     *
+     * @example format_number(1234.5, 2) // '1,234.50' (es_MX)
+     */
+    function format_number(int|float $number, int $decimals = 0): string
+    {
+        return formatter()->number($number, $decimals);
+    }
+}
+
+if (! function_exists('format_money')) {
+    /**
+     * Cantidad en la moneda indicada (por defecto APP_CURRENCY) con el formato del idioma activo.
+     *
+     * @example format_money($pedido->total) // '$1,234.50'
+     */
+    function format_money(int|float $amount, ?string $currency = null): string
+    {
+        return formatter()->money($amount, $currency);
+    }
+}
+
+if (! function_exists('format_date')) {
+    /**
+     * Fecha en el idioma activo: short (07/11/2026), medium (7 nov 2026) o long (7 de noviembre de 2026).
+     *
+     * @example format_date($tarea->vence, 'long')
+     */
+    function format_date(\DateTimeInterface|string $date, string $style = 'medium', bool $withTime = false): string
+    {
+        return formatter()->date($date, $style, $withTime);
+    }
+}
+
+if (! function_exists('formatter')) {
+    /**
+     * Formateador de números, moneda y fechas para el idioma activo (lo usan format_number(),
+     * format_money() y format_date()).
+     */
+    function formatter(): Formatter
+    {
+        $locale = locale();
+        $regions = config('app.regions', []);
+        $region = is_array($regions) && is_string($regions[$locale] ?? null)
+            ? $regions[$locale]
+            : (['es' => 'es_MX', 'en' => 'en_US'][$locale] ?? $locale);
+        $currency = config('app.currency', 'MXN');
+
+        return new Formatter($region, is_string($currency) && $currency !== '' ? $currency : 'MXN');
+    }
+}
+
 if (! function_exists('storage')) {
     /**
      * Disco de config/storage.php; sin nombre, el privado por defecto (STORAGE_DISK).
@@ -493,7 +656,32 @@ if (! function_exists('route')) {
      */
     function route(string $name, array $parameters = []): string
     {
-        return Application::getInstance()->getRouter()->url($name, $parameters);
+        $router = Application::getInstance()->getRouter();
+        $translator = translator();
+
+        // En rutas de $router->localized() usa la versión del idioma activo
+        if (! str_contains($name, '::') && $translator->locale() !== $translator->defaultLocale()
+            && $router->getRoute($translator->locale() . '::' . $name) !== null) {
+            $name = $translator->locale() . '::' . $name;
+        }
+
+        return $router->url($name, $parameters);
+    }
+}
+
+if (! function_exists('home_url')) {
+    /**
+     * URL a donde va un usuario autenticado: config auth.home, que puede ser un nombre de ruta
+     * ('dashboard', respeta el idioma de $router->localized()) o una ruta ('/panel').
+     *
+     * @example return redirect(home_url());
+     */
+    function home_url(): string
+    {
+        $home = config('auth.home', '/');
+        $home = is_string($home) && $home !== '' ? $home : '/';
+
+        return str_starts_with($home, '/') || str_contains($home, '://') ? $home : route($home);
     }
 }
 

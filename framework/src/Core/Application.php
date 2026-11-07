@@ -34,6 +34,7 @@ use BootZen\Mail\ArrayMailer;
 use BootZen\Mail\LogMailer;
 use BootZen\Mail\Mailer;
 use BootZen\Mail\SmtpMailer;
+use BootZen\Middleware\SetLocale;
 use BootZen\Queue\DatabaseQueue;
 use BootZen\Queue\Queue;
 use BootZen\Queue\SyncQueue;
@@ -44,6 +45,7 @@ use BootZen\Session\SessionStore;
 use BootZen\Storage\FileController;
 use BootZen\Storage\StorageManager;
 use BootZen\Storage\UrlSigner;
+use BootZen\Translation\Translator;
 use BootZen\Validation\Validator;
 use BootZen\View\View;
 use ErrorException;
@@ -101,6 +103,13 @@ class Application
             : Config::load($this->basePath('config'), $this->basePath('storage/cache/config.php'));
         $this->configureTimezone();
         $this->registerCoreBindings();
+
+        // Idiomas: alias 'locale' y los de APP_LOCALES para $router->localized()
+        $translator = $this->container->make(Translator::class);
+        if ($translator instanceof Translator) {
+            $this->router->setLocales($translator->locales(), $translator->defaultLocale());
+        }
+        $this->router->aliasMiddleware('locale', SetLocale::class);
 
         // URLs temporales de archivos privados de discos sin URLs propias (local, FTP, SFTP)
         $this->router->get(UrlSigner::PATH, [FileController::class, 'show']);
@@ -172,6 +181,15 @@ class Application
     public function run(?Request $request = null): Response
     {
         $request ??= Request::fromGlobals();
+
+        // Cada petición empieza en el idioma de su prefijo (/en/...) o en el de por defecto; el middleware
+        // locale lo cambia si corresponde. Así un 404 en /en/lo-que-sea sale en inglés.
+        $translator = $this->container->make(Translator::class);
+        if ($translator instanceof Translator) {
+            $prefix = explode('/', trim($request->getPath(), '/'))[0];
+            $translator->setLocale($prefix !== '' && $translator->isSupported($prefix) ? $prefix : $translator->defaultLocale());
+            $translator->setCurrentRoute(null, [], $request->getPath());
+        }
 
         try {
             return $this->router->getPipeline()->run(
@@ -359,6 +377,21 @@ class Application
                 (string) parse_url((string) $this->config->get('app.url', ''), PHP_URL_HOST)
             ),
             default => throw new LogicException('Driver de correo no soportado. Usa log, smtp o array en config/mail.php.'),
+        });
+
+        $this->container->singleton(Translator::class, function (): Translator {
+            $default = $this->config->get('app.locale', 'es');
+            $default = is_string($default) && $default !== '' ? $default : 'es';
+            $configured = $this->config->get('app.locales', $default);
+            $locales = is_array($configured) ? $configured : explode(',', is_string($configured) ? $configured : $default);
+            $locales = array_values(array_unique(array_filter(array_map(static fn (mixed $locale): string => trim(is_string($locale) ? $locale : ''), $locales), static fn (string $locale): bool => $locale !== '')));
+
+            return new Translator(
+                $default,
+                $default,
+                in_array($default, $locales, true) ? $locales : [$default, ...$locales],
+                [dirname(__DIR__, 2) . '/lang', $this->basePath('lang')]
+            );
         });
 
         $this->container->singleton(StorageManager::class, function (): StorageManager {

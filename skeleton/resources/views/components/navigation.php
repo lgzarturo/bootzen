@@ -8,7 +8,7 @@
 <nav class="border-b border-gray-200 bg-white" data-component="menu">
     <div class="mx-auto flex h-16 max-w-5xl items-center justify-between px-4">
         <a href="/" class="text-xl font-bold text-gray-900">{{ $brand }}</a>
-        <button type="button" class="text-gray-700 hover:text-blue-600 md:hidden" data-menu-toggle aria-label="Abrir menú" aria-expanded="false">
+        <button type="button" class="text-gray-700 hover:text-blue-600 md:hidden" data-menu-toggle aria-label="{{ __('Abrir menú') }}" aria-expanded="false">
             <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
             </svg>

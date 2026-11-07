@@ -37,7 +37,7 @@ final class LoginController
 
         if ($this->limiter->tooManyAttempts($clave, self::MAX_ATTEMPTS)) {
             throw ValidationException::withMessages([
-                'email' => 'Demasiados intentos. Intenta de nuevo en ' . $this->limiter->availableIn($clave) . ' segundos.',
+                'email' => __('Demasiados intentos. Intenta de nuevo en :seconds segundos.', ['seconds' => $this->limiter->availableIn($clave)]),
             ]);
         }
 
@@ -49,15 +49,13 @@ final class LoginController
 
         $this->limiter->clear($clave);
 
-        $home = config('auth.home', '/');
-
-        return redirect(auth()->intended(is_string($home) ? $home : '/'));
+        return redirect(auth()->intended(home_url()));
     }
 
     public function destroy(): Response
     {
         auth()->logout();
 
-        return redirect(route('home'))->with('status', 'Cerraste sesión.');
+        return redirect(route('home'))->with('status', __('Cerraste sesión.'));
     }
 }

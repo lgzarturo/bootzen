@@ -86,10 +86,23 @@ class ExceptionHandler
     private function publicMessage(Throwable $e, string $title): string
     {
         if ($e instanceof HttpException) {
-            return $e->getMessage() !== '' ? $e->getMessage() : $title;
+            return $e->getMessage() !== '' ? self::translate($e->getMessage()) : $title;
         }
 
-        return $this->debug ? $e->getMessage() : 'Ocurrió un error inesperado. Inténtalo de nuevo más tarde.';
+        return $this->debug ? $e->getMessage() : self::translate('Ocurrió un error inesperado. Inténtalo de nuevo más tarde.');
+    }
+
+    /**
+     * Traduce al idioma activo los mensajes escritos en español (abort(404, '...'), errores propios).
+     */
+    private static function translate(string $text): string
+    {
+        return Application::hasInstance() && function_exists('__') ? __($text) : $text;
+    }
+
+    private static function locale(): string
+    {
+        return Application::hasInstance() && function_exists('locale') ? locale() : 'es';
     }
 
     /**
@@ -132,7 +145,7 @@ class ExceptionHandler
         }
 
         return sprintf(
-            '<!doctype html><html lang="es"><head><meta charset="utf-8"><title>%1$d %2$s</title>'
+            '<!doctype html><html lang="' . self::locale() . '"><head><meta charset="utf-8"><title>%1$d %2$s</title>'
             . '<meta name="viewport" content="width=device-width, initial-scale=1"></head>'
             . '<body style="font-family:system-ui,sans-serif;display:grid;place-items:center;min-height:100vh;margin:0">'
             . '<main style="text-align:center"><h1>%1$d - %2$s</h1><p>%3$s</p></main></body></html>',
