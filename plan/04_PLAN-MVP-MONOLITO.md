@@ -573,6 +573,84 @@ En orden de utilidad para un MVP:
 4. Scheduler (`schedule:run`).
 5. i18n básico.
 
+### Fase 9: Usuarios, datos de prueba y administración (post v2.4)
+
+Las piezas que casi todo MVP con usuarios termina pidiendo. Un release por
+pieza, como en la fase 8, y cada una arranca con preguntas antes de
+implementar. Orden por dependencias: las factories ayudan a probar todo lo
+demás y el panel necesita los roles.
+
+#### 9.1 Factories para tests y seeds (S, v2.5.0)
+
+- `make:factory Tarea` crea `database/factories/TareaFactory.php`: una clase
+  con `definition()` que devuelve los valores de una fila.
+- Uso: `Tarea::factory()->create()`, `->count(20)->create()`,
+  `->create(['hecha' => true])`, `->make()` (sin guardar) y estados
+  (`->state(['hecha' => true])`).
+- Datos falsos sin Faker: un `Fake` propio pequeño con nombres, correos,
+  frases, números, fechas y `unique()`, en español por defecto y en inglés
+  si el idioma activo lo es. Semilla fija para tests repetibles.
+- Relaciones: un valor puede ser otra factory (`'user_id' => User::factory()`)
+  y se crea antes.
+- `make:resource` genera también la factory y el test la usa; `--demo` trae
+  `UserFactory` y `TareaFactory`, y su seeder pasa a usarlas.
+- **Criterio**: el test generado por `make:resource` y los del demo usan
+  factories; `db:seed` del demo crea 50 tareas con datos creíbles.
+
+#### 9.2 Autenticación completa (L, v2.6.0)
+
+Todo como parte del scaffold `--auth`, con soporte mínimo en el framework.
+
+- **Recordarme**: casilla en el login, cookie firmada con selector y
+  validador (el validador se guarda con hash en una tabla `remember_tokens`,
+  no en `users`), se renueva al usarse y se borra al cerrar sesión. Varias
+  sesiones por usuario y "cerrar sesión en todos los dispositivos".
+- **Verificación de correo**: columna `email_verified_at`, correo con enlace
+  firmado con la `APP_KEY` y vencimiento, reenvío con límite, y middleware
+  `verified` que manda a una página "revisa tu correo".
+- **Roles y permisos**: columna `role` en `users` (por ejemplo `admin`,
+  `usuario`) y permisos por rol en `config/auth.php`
+  (`'admin' => ['*'], 'editor' => ['tareas.*']`). `auth()->user()->can('tareas.borrar')`,
+  `@can`-equivalente sin directiva nueva (`@if (can('...'))`), middleware
+  `role:admin` y `can:tareas.borrar`, y `authorize('...')` que lanza 403.
+  Sin tablas de roles: un MVP no las necesita y se pueden agregar después.
+- Pregunta abierta para el inicio de la pieza: si "dueño del registro"
+  (cada quien edita lo suyo) entra como política (`policy`) o se queda como
+  hoy, con `where('user_id', ...)` en el controlador.
+- **Criterio**: en un proyecto `--auth`, un usuario nuevo no entra al panel
+  hasta verificar el correo (probado con Mailpit), "recordarme" sobrevive a
+  cerrar el navegador, y un usuario sin rol `admin` recibe 403 en una ruta
+  `role:admin`. Todo con tests en el scaffold.
+
+#### 9.3 URLs traducidas (S, v2.7.0)
+
+- `lang/en/rutas.php` traduce segmentos de URL
+  (`'precios' => 'prices'`, `'tareas' => 'tasks'`); `localized()` los aplica
+  al registrar cada idioma, así `/precios` y `/en/prices` son la misma ruta
+  con el mismo nombre. Los parámetros (`{id}`) no se tocan.
+- `route()`, `locale_url()` y `hreflang_links()` funcionan igual, porque ya
+  trabajan con nombres de ruta.
+- `route:list` muestra cada variante; un test avisa si dos segmentos
+  traducidos chocan.
+- `--demo` traduce sus rutas al inglés.
+- **Criterio**: el demo responde en `/en/tasks` y `/en/sign-up`, el
+  `hreflang` apunta a esas URLs y las de español no cambian.
+
+#### 9.4 Panel de administración (M, v2.8.0)
+
+- `make:admin Cliente` genera un CRUD bajo `/admin/clientes` (nombres
+  `admin.clientes.*`) protegido con `auth` y `role:admin`, reutilizando los
+  stubs de `make:resource` con un layout de administración (barra lateral
+  con todos los recursos registrados).
+- Lista con búsqueda, orden por columna, filtros simples y paginación;
+  borrado con el modal de confirmación; exportar a CSV.
+- Sin magia de "recurso que se describe solo": cada pantalla es código
+  generado y editable, como el resto de BootZen.
+- `--demo` trae un panel con usuarios (cambiar rol, verificar a mano) y
+  tareas.
+- **Criterio**: `make:admin Producto nombre:string precio:float` produce un
+  panel que pasa `bootzen check`, y un usuario sin rol `admin` no lo ve.
+
 ### Dependencias entre fases
 
 ```
@@ -580,6 +658,9 @@ Fase 0 → Fase 1 → Fase 2 ─┐
               └─→ Fase 3 ─┼→ Fase 4 → Fase 5 → Fase 6 → Fase 7
                           │
                (2 y 3 pueden ir en paralelo)
+
+Fase 8 (extras) → Fase 9: 9.1 Factories → 9.2 Auth completa → 9.4 Panel
+                          9.3 URLs traducidas va sola, después de la fase 8
 ```
 
 ---

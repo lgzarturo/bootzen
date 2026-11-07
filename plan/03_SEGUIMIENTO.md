@@ -308,3 +308,13 @@ Notas de i18n (v2.4.0):
 - Verificado: suite del repo, proyectos `--auth`, `--demo` y uno con
   `make:resource` con `bin/bootzen check`, y la demo en Chromium en
   `/en/...` (registro, crear tarea, modal, hreflang y 404).
+
+## Fase 9: Usuarios, datos de prueba y administración (post v2.4)
+
+Piezas elegidas por el usuario; un release por pieza. Detalle en el plan.
+
+- [ ] 9.1 Factories para tests y seeds (v2.5.0)
+- [ ] 9.2 Autenticación completa: recordarme, verificación de correo, roles y
+  permisos (v2.6.0)
+- [ ] 9.3 URLs traducidas (v2.7.0)
+- [ ] 9.4 Panel de administración con `make:admin` (v2.8.0)
