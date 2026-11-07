@@ -132,12 +132,46 @@ anterior no las entiende, ejecuta `php bin/bootzen migrate:rollback` desde
 `current` **antes** de cambiar el enlace, o restaura el respaldo que dejó el
 despliegue en `shared/storage/backups/`.
 
-## Respaldos
+## Tareas programadas y cola
 
-Con `crontab -e` como `deploy`:
+Con `crontab -e` como `deploy`, una sola línea para todo `routes/schedule.php`
+(apunta a `current`, así cada versión nueva la toma sola):
 
 ```
-15 3 * * * cd /var/www/tienda/current && php bin/bootzen db:backup > /dev/null && find /var/www/tienda/shared/storage/backups -name '*.sqlite' -mtime +14 -delete
+* * * * * cd /var/www/tienda/current && /usr/bin/php bin/bootzen schedule:run >> /dev/null 2>&1
+```
+
+Con `QUEUE_DRIVER=database`, programa la cola en `routes/schedule.php`
+(`$schedule->command('queue:work --stop-when-empty --max-time=50')->everyMinute();`)
+o déjala como servicio permanente con systemd:
+
+```ini
+# /etc/systemd/system/tienda-cola.service
+[Service]
+User=deploy
+WorkingDirectory=/var/www/tienda/current
+ExecStart=/usr/bin/php bin/bootzen queue:work --max-time=3600
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
+
+`systemctl enable --now tienda-cola`. `--max-time` hace que se reinicie cada
+hora y tome el código de la versión nueva.
+
+## Respaldos
+
+Agrégalo a `routes/schedule.php`:
+
+```php
+$schedule->command('db:backup')->dailyAt('03:15');
+```
+
+o, sin scheduler, con `crontab -e` como `deploy`:
+
+```
+15 3 * * * cd /var/www/tienda/current && /usr/bin/php bin/bootzen db:backup > /dev/null && find /var/www/tienda/shared/storage/backups -name '*.sqlite' -mtime +14 -delete
 ```
 
 Copia `shared/storage/backups/` a otro lugar (otro servidor, almacenamiento de

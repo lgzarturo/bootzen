@@ -20,6 +20,8 @@ namespace BootZen\Console;
 use BootZen\Core\Application;
 use BootZen\Database\Connection;
 use BootZen\Database\Migrator;
+use BootZen\Queue\DatabaseQueue;
+use BootZen\Schedule\Schedule;
 use Closure;
 use Throwable;
 
@@ -32,9 +34,13 @@ final class Doctor
 
     /**
      * @param Closure(string): void $line Escribe una línea de salida
+     * @param (Closure(): Schedule)|null $schedule Tareas de routes/schedule.php
      */
-    public function __construct(private readonly Application $app, private readonly Closure $line)
-    {
+    public function __construct(
+        private readonly Application $app,
+        private readonly Closure $line,
+        private readonly ?Closure $schedule = null
+    ) {
     }
 
     public function run(): int
@@ -46,6 +52,8 @@ final class Doctor
         $this->checkPermissions();
         $this->checkDatabase();
         $this->checkMail();
+        $this->checkQueue();
+        $this->checkSchedule();
         $this->checkAssets();
 
         ($this->line)('');
@@ -206,6 +214,57 @@ final class Doctor
 
         if (filter_var($config->get('mail.smtp.verify_peer', true), FILTER_VALIDATE_BOOL) === false) {
             $this->warning('MAIL_VERIFY_PEER=false: el certificado del servidor SMTP no se verifica.');
+        }
+    }
+
+    private function checkQueue(): void
+    {
+        if ($this->app->config()->get('queue.driver', 'sync') !== 'database') {
+            return;
+        }
+
+        try {
+            $queue = $this->app->make(DatabaseQueue::class);
+            $failed = $queue instanceof DatabaseQueue ? count($queue->failed()) : 0;
+            $pending = $queue instanceof DatabaseQueue ? $queue->size() : 0;
+        } catch (Throwable $e) {
+            $this->error('Cola: ' . $e->getMessage());
+
+            return;
+        }
+
+        $this->ok("Cola en la base: {$pending} pendiente(s)");
+
+        if ($failed > 0) {
+            $this->warning("Hay {$failed} job(s) fallidos: revísalos con php bin/bootzen queue:failed.");
+        }
+    }
+
+    private function checkSchedule(): void
+    {
+        try {
+            $tasks = $this->schedule === null ? [] : ($this->schedule)()->tasks();
+        } catch (Throwable $e) {
+            $this->error('routes/schedule.php: ' . $e->getMessage());
+
+            return;
+        }
+
+        if ($tasks === []) {
+            return;
+        }
+
+        $file = $this->app->basePath('storage/cache/schedule.json');
+        $state = is_file($file) ? json_decode((string) file_get_contents($file), true) : null;
+        $last = is_array($state) && is_int($state['last_run'] ?? null) ? $state['last_run'] : null;
+        $cron = Console::cronLine($this->app->basePath());
+
+        if ($last === null) {
+            $this->warning(count($tasks) . " tarea(s) programada(s), pero schedule:run nunca corrió. Agrega al cron: {$cron}");
+        } elseif (time() - $last > 20 * 60) {
+            $this->warning('schedule:run no corre desde hace ' . intdiv(time() - $last, 60) . " minutos. Revisa el cron: {$cron}");
+        } else {
+            $this->ok(count($tasks) . ' tarea(s) programada(s); schedule:run corrió hace ' . intdiv(time() - $last, 60) . ' min');
         }
     }
 

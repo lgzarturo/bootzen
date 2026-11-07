@@ -30,6 +30,21 @@ final class Attachment
     }
 
     /**
+     * Datos para guardarlo en la cola: la ruta si viene del disco, el contenido en base64 si no.
+     *
+     * @return array{name: string, mime: string, path: string|null, data: string|null}
+     */
+    public function toArray(): array
+    {
+        return [
+            'name' => $this->name,
+            'mime' => $this->mime,
+            'path' => $this->path,
+            'data' => $this->data === null ? null : base64_encode($this->data),
+        ];
+    }
+
+    /**
      * Contenido del archivo.
      *
      * @throws MailException Si el archivo ya no se puede leer

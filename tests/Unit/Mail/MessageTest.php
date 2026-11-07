@@ -159,3 +159,20 @@ it('anota copias y adjuntos en el log', function (): void {
 
     removeDir($dir);
 });
+
+it('se guarda como array y se reconstruye igual (para la cola)', function (): void {
+    $dir = makeTempDir('bootzen-mensaje');
+    writeFile($dir . '/f.pdf', '%PDF');
+    $message = (new Message('ana@ejemplo.com', 'Factura ñ', 'Texto', '<p>HTML</p>'))
+        ->cc('luis@ejemplo.com')->bcc('archivo@tienda.mx')->replyTo('cobranza@tienda.mx')->from('ventas@tienda.mx', 'Ventas')
+        ->attach($dir . '/f.pdf', 'Factura.pdf', 'application/pdf')
+        ->attachData(random_bytes(64), 'datos.bin');
+
+    $copy = Message::fromArray(json_decode((string) json_encode($message->toArray()), true));
+
+    expect($copy)->toEqual($message)
+        ->and($copy->getAttachments()[0]->contents())->toBe('%PDF')
+        ->and($copy->getAttachments()[1]->contents())->toBe($message->getAttachments()[1]->contents());
+
+    removeDir($dir);
+});

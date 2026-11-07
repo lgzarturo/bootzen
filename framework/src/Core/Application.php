@@ -34,6 +34,9 @@ use BootZen\Mail\ArrayMailer;
 use BootZen\Mail\LogMailer;
 use BootZen\Mail\Mailer;
 use BootZen\Mail\SmtpMailer;
+use BootZen\Queue\DatabaseQueue;
+use BootZen\Queue\Queue;
+use BootZen\Queue\SyncQueue;
 use BootZen\Session\ArraySessionStore;
 use BootZen\Session\FileSessionStore;
 use BootZen\Session\Session;
@@ -352,6 +355,19 @@ class Application
             default => throw new LogicException('Driver de correo no soportado. Usa log, smtp o array en config/mail.php.'),
         });
 
+        $this->container->singleton(DatabaseQueue::class, fn (Container $container): DatabaseQueue => new DatabaseQueue(
+            $this->connectionFrom($container),
+            (int) $this->config->get('queue.retry_after', 300),
+            (string) $this->config->get('queue.table', 'jobs'),
+            (string) $this->config->get('queue.failed_table', 'failed_jobs')
+        ));
+
+        $this->container->singleton(Queue::class, fn (Container $container): Queue => match ($this->config->get('queue.driver', 'sync')) {
+            'sync' => new SyncQueue($container),
+            'database' => $this->databaseQueue($container),
+            default => throw new LogicException('Driver de cola no soportado. Usa sync o database en config/queue.php.'),
+        });
+
         $this->container->singleton(View::class, fn (Container $container): View => new View(
             $this->basePath('resources/views'),
             $this->basePath('storage/cache/views'),
@@ -395,6 +411,17 @@ class Application
         $minutes = $this->config->get('session.lifetime', 120);
 
         return (is_numeric($minutes) ? (int) $minutes : 120) * 60;
+    }
+
+    private function databaseQueue(Container $container): DatabaseQueue
+    {
+        $queue = $container->make(DatabaseQueue::class);
+
+        if (! $queue instanceof DatabaseQueue) {
+            throw new LogicException('El servicio DatabaseQueue debe ser una instancia de ' . DatabaseQueue::class . '.');
+        }
+
+        return $queue;
     }
 
     private function connectionFrom(Container $container): Connection

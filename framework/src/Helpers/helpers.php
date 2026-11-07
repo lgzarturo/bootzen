@@ -25,6 +25,9 @@ use BootZen\Core\HttpException;
 use BootZen\Core\Logger;
 use BootZen\Core\Response;
 use BootZen\Mail\Mailer;
+use BootZen\Mail\MailService;
+use BootZen\Queue\Job;
+use BootZen\Queue\Queue;
 use BootZen\Session\Session;
 use BootZen\View\View;
 
@@ -302,11 +305,11 @@ if (! function_exists('auth')) {
 
 if (! function_exists('mailer')) {
     /**
-     * Servicio de correo configurado en config/mail.php.
+     * Servicio de correo configurado en config/mail.php: send() envía ahora, queue() lo deja en la cola.
      *
      * @example mailer()->send(new Message($usuario->email, 'Bienvenida', $texto));
      */
-    function mailer(): Mailer
+    function mailer(): MailService
     {
         $mailer = app(Mailer::class);
 
@@ -314,7 +317,37 @@ if (! function_exists('mailer')) {
             throw new LogicException('El servicio Mailer debe implementar ' . Mailer::class . '.');
         }
 
-        return $mailer;
+        return $mailer instanceof MailService ? $mailer : new MailService($mailer, static fn (): Queue => queue());
+    }
+}
+
+if (! function_exists('queue')) {
+    /**
+     * Cola configurada en config/queue.php (sync o database).
+     *
+     * @example queue()->push(new GenerarReporte($mes), delay: 60);
+     */
+    function queue(): Queue
+    {
+        $queue = app(Queue::class);
+
+        if (! $queue instanceof Queue) {
+            throw new LogicException('El servicio Queue debe implementar ' . Queue::class . '.');
+        }
+
+        return $queue;
+    }
+}
+
+if (! function_exists('dispatch')) {
+    /**
+     * Encola un job; con $delay (segundos) no se ejecuta antes. Con QUEUE_DRIVER=sync se ejecuta en el momento.
+     *
+     * @example dispatch(new EnviarFactura($factura->id));
+     */
+    function dispatch(Job $job, int $delay = 0): int
+    {
+        return queue()->push($job, $delay);
     }
 }
 

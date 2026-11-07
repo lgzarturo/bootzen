@@ -72,6 +72,21 @@ y deberías ver `{"status":"ok"}`.
 No uses `config:cache` en un hosting sin terminal: tendrías que regenerarlo cada
 vez que cambies `.env`, y sin terminal no puedes.
 
+## Tareas programadas y cola
+
+Si usas `routes/schedule.php` (o `QUEUE_DRIVER=database` con `queue:work`
+programado ahí), agrega en el panel una tarea de cron cada minuto (o cada 5,
+si el hosting no permite menos; lo atrasado corre en la siguiente vuelta):
+
+```
+cd /home/usuario/tienda && /usr/local/bin/php bin/bootzen schedule:run
+```
+
+Usa la ruta de PHP que muestre el panel (en cPanel suele estar en la
+pantalla de cron, por ejemplo `/usr/local/bin/php` o
+`/opt/cpanel/ea-php83/root/usr/bin/php`): `php` a secas casi nunca
+funciona desde cron. Revisa en `storage/logs` que aparezcan las tareas.
+
 ## Respaldos
 
 Descarga `database/app.sqlite` desde el gestor de archivos de vez en cuando. Si

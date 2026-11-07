@@ -109,6 +109,33 @@ final class Generator
     }
 
     /**
+     * Migración con las tablas de la cola (jobs y failed_jobs), para QUEUE_DRIVER=database.
+     *
+     * @return list<string>
+     * @throws RuntimeException Si ya existe una migración de la cola
+     */
+    public function queueTable(): array
+    {
+        if (glob($this->basePath . '/database/migrations/*_crear_tablas_de_cola.php') !== []) {
+            throw new RuntimeException('Ya existe la migración de la cola en database/migrations. Ejecuta php bin/bootzen migrate.');
+        }
+
+        return [$this->write($this->migrationPath('crear_tablas_de_cola'), $this->render('queue.migration', []))];
+    }
+
+    /**
+     * Job en app/Jobs para encolar con dispatch().
+     *
+     * @return list<string>
+     */
+    public function job(string $name): array
+    {
+        $class = self::className($name);
+
+        return [$this->write("app/Jobs/{$class}.php", $this->render('job', ['Class' => $class]))];
+    }
+
+    /**
      * @return list<string>
      */
     public function middleware(string $name): array

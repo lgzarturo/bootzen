@@ -20,6 +20,8 @@
 - [Migraciones](docs/ai/recipes/migracion.md)
 - [Subir archivos](docs/ai/recipes/subir-archivos.md)
 - [Enviar un correo](docs/ai/recipes/enviar-correo.md)
+- [Cola de trabajos](docs/ai/recipes/cola-de-trabajos.md)
+- [Tareas programadas](docs/ai/recipes/tareas-programadas.md)
 
 ## Skills
 

@@ -46,6 +46,13 @@ mailer()->send(new Message(
   en una clase en `app/` (por ejemplo `app/Mail/PedidoEnviado.php` con un
   método que devuelve el `Message`). Para HTML, `view('correos.pedido', [...])->getBody()`.
 
+## En segundo plano
+
+`mailer()->queue($correo)` lo deja en la cola y la petición no espera al
+servidor SMTP (con `QUEUE_DRIVER=sync` se envía en el momento). Los
+adjuntos del disco se leen al enviar: el archivo tiene que seguir ahí.
+Receta: `cola-de-trabajos.md`.
+
 ## Si el envío falla
 
 `mailer()->send()` lanza `BootZen\Mail\MailException` (servidor caído,

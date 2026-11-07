@@ -1,5 +1,45 @@
 # CHANGELOG
 
+## [2.2.0] - 2026-11-07
+
+Segunda pieza de la fase 8: cola de trabajos y tareas programadas, con el
+cron como único motor y sin librerías.
+
+### Agregado
+
+- Cola de trabajos: `dispatch(new MiJob($id))` y `make:job`. Los jobs
+  guardan como JSON los parámetros públicos de su constructor, reciben
+  dependencias del contenedor en `handle()` y definen `$tries`, `$backoff`
+  y `failed()`.
+- Drivers `sync` (por defecto: ejecuta en el momento, sin tabla) y
+  `database` (SQLite o MySQL; tablas con `queue:table` + `migrate`).
+- `queue:work` (`--stop-when-empty`, `--max-jobs`, `--max-time`, `--queue`,
+  `--sleep`), `queue:failed`, `queue:retry <id|all>` y `queue:flush`. Un
+  job abandonado por un worker caído vuelve a la cola tras
+  `QUEUE_RETRY_AFTER` segundos.
+- `mailer()->queue($message)` envía el correo en segundo plano, adjuntos
+  incluidos.
+- Tareas programadas en `routes/schedule.php`: `command()`, `job()` y
+  `call()` con `everyMinute()`, `dailyAt('03:00')`, `weekdaysAt()`,
+  `cron('...')` y más. `schedule:run` (desde una sola línea de cron)
+  recupera lo que tocaba entre vueltas si el cron corre cada 5 o 15
+  minutos y no deja que una tarea se encime consigo misma.
+  `schedule:list` muestra la próxima ejecución y la línea de cron con la
+  ruta completa de PHP.
+- Docker: servicio `scheduler` en `docker-compose.yml` que hace de cron.
+- `doctor` avisa si hay tareas y el cron no corre, si falta la tabla de la
+  cola o si hay jobs fallidos.
+- Recetas `cola-de-trabajos` y `tareas-programadas`; guías de despliegue
+  con el cron de cada escenario.
+
+### Cambiado
+
+- `mailer()` devuelve un `MailService` (implementa `Mailer` y suma
+  `queue()`). El código que usa `send()` no cambia.
+- En proyectos creados antes, copia del skeleton `config/queue.php`,
+  `routes/schedule.php`, `docker-compose.yml`, `deploy/docker/` y el
+  `Dockerfile` después de `framework:update`.
+
 ## [2.1.0] - 2026-11-07
 
 Primera pieza de la fase 8: envío de correo real por SMTP, sin librerías.

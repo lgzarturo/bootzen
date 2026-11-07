@@ -30,6 +30,19 @@ proveedor en `.env` (receta `docs/ai/recipes/enviar-correo.md`), reinicia
 con `docker compose up -d` y prueba con
 `docker compose exec -u www-data app php bin/bootzen mail:test tu@correo.com`.
 
+## Tareas programadas y cola
+
+`docker compose` levanta dos servicios con la misma imagen y los mismos
+datos: `app` (la web) y `scheduler`, que ejecuta `schedule:run` al inicio de
+cada minuto como `www-data` (hace de cron). Lo que pongas en
+`routes/schedule.php` corre ahí; con `QUEUE_DRIVER=database`, programa
+también `queue:work --stop-when-empty --max-time=50` cada minuto.
+
+```bash
+docker compose logs -f scheduler
+docker compose exec -u www-data app php bin/bootzen schedule:list
+```
+
 ## Dónde quedan los datos
 
 | Volumen   | Ruta en el contenedor          | Qué guarda                                         |

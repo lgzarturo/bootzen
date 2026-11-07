@@ -40,6 +40,9 @@ sin pisar datos. Sin `--version` usa la fecha (`20260115093000`). Con
   `php bin/bootzen mail:test tu@correo.com` confirma que funciona; si no
   tienes terminal, pide una recuperación de contraseña y revisa
   `storage/logs` si no llega.
+- Si usas `routes/schedule.php` o la cola en la base: la línea de cron que
+  imprime `php bin/bootzen schedule:list` (con la ruta completa de PHP).
+  En Docker ya viene el servicio `scheduler`.
 - `php bin/bootzen doctor` revisa todo lo anterior y te dice qué falta.
 - `GET /up` responde `{"status":"ok"}`: úsalo para monitorear.
 

@@ -1,0 +1,41 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Jobs;
+
+use BootZen\Queue\Job;
+use Throwable;
+
+/**
+ * Encólalo con: dispatch(new [[Class]](...)). Lo ejecuta php bin/bootzen queue:work (o en el momento con QUEUE_DRIVER=sync).
+ */
+final class [[Class]] extends Job
+{
+    public int $tries = 3;
+
+    public int $backoff = 60;
+
+    /**
+     * Solo valores simples (ids, textos, números): viajan como JSON en la cola.
+     */
+    public function __construct(public readonly int $id)
+    {
+    }
+
+    /**
+     * Sus dependencias llegan del contenedor: handle(Mailer $mailer), handle(Connection $db)...
+     */
+    public function handle(): void
+    {
+        // $factura = Factura::findOrFail($this->id);
+    }
+
+    /**
+     * Se llama si agotó los intentos (queda en failed_jobs; queue:retry lo vuelve a encolar).
+     */
+    public function failed(Throwable $exception): void
+    {
+        logger("[[Class]] falló para el id {$this->id}: {$exception->getMessage()}", 'error');
+    }
+}

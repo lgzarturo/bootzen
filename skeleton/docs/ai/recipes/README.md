@@ -13,3 +13,5 @@ que conviene evitar. La API completa está en `../reference.md`.
 | [migracion.md](migracion.md)              | Crear o cambiar tablas                                |
 | [subir-archivos.md](subir-archivos.md)    | Imágenes, PDFs y otros archivos de usuarios           |
 | [enviar-correo.md](enviar-correo.md)      | Avisos por correo                                     |
+| [cola-de-trabajos.md](cola-de-trabajos.md) | Trabajo lento o que puede fallar, en segundo plano   |
+| [tareas-programadas.md](tareas-programadas.md) | Algo que corre solo cada cierto tiempo (cron)    |
