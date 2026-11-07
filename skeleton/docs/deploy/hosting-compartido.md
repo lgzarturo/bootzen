@@ -7,7 +7,8 @@ pero ejecuta `php bin/bootzen migrate` en lugar del instalador web.
 ## Antes de empezar
 
 En el panel, elige PHP 8.2 o superior y revisa que estén activas las extensiones
-`pdo_sqlite`, `mbstring` y `fileinfo` (casi siempre lo están).
+`pdo_sqlite`, `mbstring` y `fileinfo` (casi siempre lo están), más `openssl`
+si vas a enviar correos por SMTP.
 
 ## 1. Arma el artefacto en tu máquina
 

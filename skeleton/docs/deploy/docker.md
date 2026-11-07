@@ -21,9 +21,14 @@ Al arrancar, el contenedor:
 3. Ejecuta las migraciones pendientes (`MIGRATE_ON_START=false` lo evita).
 4. Deja `storage/` escribible para Apache.
 
-Compose toma `APP_NAME`, `APP_URL`, `APP_KEY`, `LOG_LEVEL` y `MAIL_DRIVER` de tu
-`.env` y fuerza `APP_ENV=production` y `APP_DEBUG=false`. El `.env` no entra a
-la imagen.
+Compose pasa al contenedor todas las variables de tu `.env` (las de correo
+incluidas) y fuerza `APP_ENV=production`, `APP_DEBUG=false` y la ruta de la
+base. El `.env` no entra a la imagen: se lee al arrancar.
+
+Para enviar correos de verdad pon `MAIL_DRIVER=smtp` y los datos de tu
+proveedor en `.env` (receta `docs/ai/recipes/enviar-correo.md`), reinicia
+con `docker compose up -d` y prueba con
+`docker compose exec -u www-data app php bin/bootzen mail:test tu@correo.com`.
 
 ## Dónde quedan los datos
 

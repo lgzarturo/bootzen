@@ -45,7 +45,7 @@ aplicación monolítica construida con BootZen.
 | `config/session.php`       | Sesión (archivos en `storage/sessions`), cookie y CSRF        |
 | `config/auth.php`          | Modelo de usuario y página de inicio tras el login            |
 | `config/security.php`      | Content-Security-Policy y HSTS                                |
-| `config/mail.php`          | Correo: driver `log` (en `storage/logs`) o `array` (tests)    |
+| `config/mail.php`          | Correo: `log` (en `storage/logs`), `smtp` (envío real) o `array` (tests) |
 | `app/Models/`              | Modelos (`App\Models`), uno por tabla                         |
 | `config/database.php`      | Conexión: SQLite por defecto, MySQL opcional                  |
 | `database/migrations/`     | Migraciones con SQL directo, en orden de nombre de archivo    |
@@ -81,6 +81,7 @@ php bin/bootzen route:list        # rutas con nombre, middleware y acción
 php bin/bootzen doctor            # revisa PHP, extensiones, permisos, .env y base de datos
 php bin/bootzen config:cache      # configuración en un archivo (producción; config:clear la borra)
 php bin/bootzen key:generate      # APP_KEY en .env
+php bin/bootzen mail:test tu@correo.com  # envía un correo de prueba con la configuración actual
 php bin/bootzen deploy:build      # artefacto para el servidor en build/ (--version=1.2.0, --no-css)
 php bin/bootzen framework:update  # actualiza framework/ desde ~/.bootzen (--from=ruta, --force)
 composer install                  # solo la primera vez, instala herramientas de dev
@@ -327,8 +328,11 @@ $usuario->password = Hash::make($password);     // BootZen\Auth\Hash: Argon2id o
   `'guest'`.
 - Login con límite de intentos: `BootZen\Security\RateLimiter` (`hit`,
   `tooManyAttempts`, `availableIn`, `clear`), ver `LoginController`.
-- Correo: `mailer()->send(new Message($email, 'Asunto', $texto))`. Con
-  `MAIL_DRIVER=log` se escribe en `storage/logs`; SMTP llega más adelante.
+- Correo: `mailer()->send(new Message($email, 'Asunto', $texto, $html))`, con
+  `->cc()`, `->bcc()`, `->replyTo()`, `->attach($ruta)` y `->attachData()`
+  encadenables. `MAIL_DRIVER=log` lo escribe en `storage/logs`; `smtp` lo
+  envía (STARTTLS, TLS, auth). Si falla lanza `MailException`: atrápala donde
+  un correo no deba romper la página. Receta: `docs/ai/recipes/enviar-correo.md`.
 
 ### Seguridad que ya viene puesta
 
@@ -663,16 +667,15 @@ it('solo deja entrar a usuarios', function (): void {
 
 ## Lo que todavía NO existe
 
-Estas piezas no vienen en BootZen 2.0; **no las inventes ni instales librerías
-para suplirlas** sin preguntar:
+Estas piezas todavía no vienen en BootZen; **no las inventes ni instales
+librerías para suplirlas** sin preguntar:
 
 - Factories de datos falsos (en los tests se crean los registros con
   `Modelo::create()`).
 - `route:cache`: el router compila las rutas en cada petición y es rápido
   igual.
 - Colas de trabajos y tareas programadas (`schedule:run`): usa cron con un
-  comando propio si hace falta.
-- Envío de correo por SMTP (solo drivers `log` y `array`).
+  comando propio si hace falta. Los correos se envían en la misma petición.
 - "Recordarme", verificación de correo, roles y permisos.
 
 ## Reglas

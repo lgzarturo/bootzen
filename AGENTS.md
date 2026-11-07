@@ -55,7 +55,10 @@ The roadmap lives in `plan/04_PLAN-MVP-MONOLITO.md`; progress is tracked in
   messages) and ValidationException.
 - `framework/src/Auth/`: Auth (session guard), Hash and PasswordReset.
 - `framework/src/Security/RateLimiter.php` and `framework/src/Mail/`
-  (Mailer with `log` and `array` drivers).
+  (Mailer with `log`, `smtp` and `array` drivers; Message with cc, bcc,
+  reply-to and attachments; MimeMessage builds the MIME text; SmtpMailer
+  speaks SMTP over plain sockets with STARTTLS, implicit TLS and AUTH
+  PLAIN/LOGIN; MailException).
 - `framework/src/Middleware/`: StartSession, VerifyCsrfToken,
   SecurityHeaders, RateLimit (`throttle:max,minutes`), Authenticate (`auth`),
   RedirectIfAuthenticated (`guest`) and CorsMiddleware.
@@ -124,7 +127,10 @@ Tailwind binary (failing if
 and deploys it to an Apache container acting as shared hosting (web
 installer included) and with `docker compose`, runs
 `tests/Feature/MySqlTest.php` against a MySQL 8.4 service (skipped locally
-unless `BOOTZEN_TEST_MYSQL_HOST` is set) and runs the `bootzen.js` tests with
+unless `BOOTZEN_TEST_MYSQL_HOST` is set), runs `tests/Feature/SmtpTest.php`
+against a Mailpit service that requires STARTTLS and auth (skipped unless
+`BOOTZEN_TEST_SMTP_HOST` is set; unit tests use
+`tests/Fixtures/fake-smtp-server.php`) and runs the `bootzen.js` tests with
 Node 22.
 
 ## Release

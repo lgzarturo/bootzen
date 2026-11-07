@@ -213,3 +213,33 @@ Notas de cierre:
   `docker compose` (`tests/deploy/`). El de VPS necesita SSH y quedó como
   prueba manual.
 - `VERSION` queda en 2.0.0; el tag `v2.0.0` se crea después del merge.
+
+## Fase 8: Extras opcionales (post v2.0)
+
+Un release por pieza (decisión del usuario).
+
+- [x] Mail: SMTP propio con adjuntos (v2.1.0)
+- [ ] Colas en SQLite con `queue:work --stop-when-empty`
+- [ ] Subida de archivos: detalles pendientes (lo básico entró en la fase 6)
+- [ ] Scheduler (`schedule:run`)
+- [ ] i18n básico
+
+Notas de SMTP (v2.1.0):
+
+- Decisiones del usuario: alcance con adjuntos (además de cc, bcc, reply-to
+  y remitente por mensaje); si el envío falla, `MailException` y cada flujo
+  decide (el scaffold de `--auth` la registra y responde lo mismo);
+  pruebas contra Mailpit en el CI.
+- `SmtpMailer` usa sockets de PHP: STARTTLS (587), TLS directo (465) o sin
+  cifrar, AUTH PLAIN o LOGIN según lo que anuncie el servidor, una conexión
+  por correo. `MimeMessage` arma el MIME (quoted-printable, base64, asunto y
+  nombres en RFC 2047, nombres de adjuntos en RFC 2231) y rechaza saltos de
+  línea en cabeceras.
+- Verificado: tests con un servidor SMTP falso (incluye STARTTLS y TLS con
+  certificado generado al vuelo, y certificado rechazado si se verifica),
+  `tests/Feature/SmtpTest.php` contra Mailpit real (adjuntos idénticos byte
+  a byte, bcc solo en el sobre, línea con un punto), y a mano en un
+  proyecto `--demo`: `mail:test`, recuperación de contraseña con el enlace
+  que llega a Mailpit, y lo mismo desde el contenedor de Docker.
+- `docker-compose.yml` ahora pasa el `.env` completo al contenedor
+  (`env_file`), así llegan las variables de correo.
