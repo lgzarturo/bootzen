@@ -174,7 +174,7 @@ jobs:
         run: |
           vendor/bin/pest tests/Feature/MySqlTest.php --colors=never | tee "$RUNNER_TEMP/mysql.txt"
           # Si los tests se saltaran por falta de configuración, el job no debe pasar en verde
-          grep -q "5 passed" "$RUNNER_TEMP/mysql.txt"
+          grep -q "6 passed" "$RUNNER_TEMP/mysql.txt"
 
   smtp:
     name: SMTP con Mailpit (PHP 8.3)

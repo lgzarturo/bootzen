@@ -57,9 +57,15 @@ const BOOTZEN_REFERENCE_SECTIONS = [
         BootZen\View\Component::class,
         BootZen\Mail\Message::class,
         BootZen\Mail\MailException::class,
+        BootZen\Mail\MailService::class,
         BootZen\Mail\ArrayMailer::class,
         BootZen\Core\Cache::class,
         BootZen\Core\Logger::class,
+    ],
+    'Cola y tareas programadas' => [
+        BootZen\Queue\Job::class,
+        BootZen\Schedule\Schedule::class,
+        BootZen\Schedule\Task::class,
     ],
     'Tests' => [
         BootZen\Testing\TestClient::class,

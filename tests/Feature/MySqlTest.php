@@ -158,3 +158,47 @@ it('corre las migraciones de --auth y --demo en MySQL', function (): void {
     expect($this->db->scalar('SELECT COUNT(*) FROM tareas'))->toBe(0)
         ->and($migrator->rollback())->toBe(['2025_01_02_000000_crear_tareas', '2025_01_01_000000_crear_usuarios']);
 });
+
+final class MySqlTestJob extends BootZen\Queue\Job
+{
+    public function __construct(public readonly int $id, public readonly string $nota = 'día ñ')
+    {
+    }
+
+    public function handle(): void
+    {
+    }
+}
+
+it('corre la cola de la base en MySQL', function (): void {
+    (new BootZen\Console\Generator($this->dir, 'mysql'))->queueTable();
+    $migrator = new Migrator($this->db, $this->dir . '/database/migrations');
+    $migrator->dropAllTables();
+    $migrator->run();
+
+    $now = 1_000_000;
+    $queue = new BootZen\Queue\DatabaseQueue($this->db, 300, clock: function () use (&$now): int {
+        return $now;
+    });
+    $other = new BootZen\Queue\DatabaseQueue($this->db, 300, clock: function () use (&$now): int {
+        return $now;
+    });
+
+    $queue->push(new MySqlTestJob(1));
+    $queue->push(new MySqlTestJob(2), 60);
+
+    $first = $queue->pop();
+
+    expect($first?->payload)->toBe(['id' => 1, 'nota' => 'día ñ'])
+        ->and($other->pop())->toBeNull();
+
+    $queue->fail($first, new RuntimeException('falló'));
+    $now += 60;
+
+    expect($other->pop()?->payload['id'])->toBe(2)
+        ->and($queue->failed()[0]['error'])->toBe('RuntimeException: falló')
+        ->and($queue->retry())->toBe(1)
+        ->and($queue->size())->toBe(2);
+
+    $migrator->dropAllTables();
+});

@@ -175,6 +175,60 @@ final class Message
     }
 
     /**
+     * El mensaje como array de valores simples, para guardarlo en la cola (mailer()->queue()).
+     *
+     * @return array<string, mixed>
+     */
+    public function toArray(): array
+    {
+        return [
+            'to' => $this->to,
+            'subject' => $this->subject,
+            'text' => $this->text,
+            'html' => $this->html,
+            'cc' => $this->cc,
+            'bcc' => $this->bcc,
+            'reply_to' => $this->replyTo,
+            'from' => $this->getFrom(),
+            'attachments' => array_map(static fn (Attachment $attachment): array => $attachment->toArray(), $this->attachments),
+        ];
+    }
+
+    /**
+     * Reconstruye un mensaje guardado con toArray().
+     *
+     * @param array<string, mixed> $data
+     */
+    public static function fromArray(array $data): self
+    {
+        $string = static fn (mixed $value): ?string => is_string($value) ? $value : null;
+        $list = static fn (mixed $value): array => is_array($value) ? array_values(array_filter($value, 'is_string')) : [];
+
+        $message = new self((string) $string($data['to'] ?? ''), (string) $string($data['subject'] ?? ''), (string) $string($data['text'] ?? ''), $string($data['html'] ?? null));
+        $message->cc = $list($data['cc'] ?? []);
+        $message->bcc = $list($data['bcc'] ?? []);
+        $message->replyTo = $string($data['reply_to'] ?? null);
+
+        if (is_array($data['from'] ?? null) && is_string($data['from']['address'] ?? null)) {
+            $message->from($data['from']['address'], $string($data['from']['name'] ?? null));
+        }
+
+        foreach (is_array($data['attachments'] ?? null) ? $data['attachments'] : [] as $attachment) {
+            if (! is_array($attachment) || ! is_string($attachment['name'] ?? null)) {
+                continue;
+            }
+
+            $mime = (string) ($string($attachment['mime'] ?? null) ?? 'application/octet-stream');
+            $content = $string($attachment['data'] ?? null);
+            $message->attachments[] = $content !== null
+                ? new Attachment($attachment['name'], $mime, data: (string) base64_decode($content, true))
+                : new Attachment($attachment['name'], $mime, path: $string($attachment['path'] ?? null));
+        }
+
+        return $message;
+    }
+
+    /**
      * Todas las direcciones que reciben el correo: destinatario, copias y copias ocultas, sin repetir.
      *
      * @return list<string>

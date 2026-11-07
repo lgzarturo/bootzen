@@ -19,6 +19,7 @@ namespace BootZen\Console;
 
 use BootZen\Core\Application;
 use BootZen\Core\Config;
+use BootZen\Core\Logger;
 use BootZen\Core\Route;
 use BootZen\Database\Connection;
 use BootZen\Database\Migrator;
@@ -28,6 +29,12 @@ use BootZen\Deploy\FrameworkUpdater;
 use BootZen\Frontend\Tailwind;
 use BootZen\Mail\Mailer;
 use BootZen\Mail\Message;
+use BootZen\Queue\DatabaseQueue;
+use BootZen\Queue\Queue;
+use BootZen\Queue\Worker;
+use BootZen\Schedule\Schedule;
+use BootZen\Schedule\ScheduleRunner;
+use BootZen\Schedule\Task;
 use BootZen\View\View;
 use Closure;
 use Throwable;
@@ -55,6 +62,13 @@ final class Console
         'db:seed' => 'Ejecuta database/seeds/DatabaseSeeder.php (--class=Nombre para otro)',
         'db:fresh' => 'Borra todas las tablas y migra de nuevo (--seed, --force en producción)',
         'db:backup' => 'Copia consistente de la base SQLite en storage/backups',
+        'queue:table' => 'Migración de las tablas de la cola (para QUEUE_DRIVER=database)',
+        'queue:work' => 'Atiende la cola (--stop-when-empty, --max-jobs=N, --max-time=S, --queue=nombre, --sleep=3)',
+        'queue:failed' => 'Lista los jobs fallidos',
+        'queue:retry' => 'Vuelve a encolar fallidos (queue:retry 5 o queue:retry all)',
+        'queue:flush' => 'Borra los jobs fallidos',
+        'schedule:run' => 'Ejecuta las tareas de routes/schedule.php que tocan (desde cron, cada minuto)',
+        'schedule:list' => 'Lista las tareas programadas y cuándo corren',
         'mail:test' => 'Envía un correo de prueba con la configuración actual (mail:test tu@correo.com)',
         'make:resource' => 'CRUD completo: make:resource Task title:string done:bool (--table=nombre)',
         'make:controller' => 'Controlador con su vista: make:controller Factura (--json: sin vista, responde JSON)',
@@ -62,6 +76,7 @@ final class Console
         'make:migration' => 'Migración: make:migration crear_facturas (trae el CREATE TABLE)',
         'make:middleware' => 'Middleware en app/Middleware',
         'make:seeder' => 'Seeder en database/seeds',
+        'make:job' => 'Job en app/Jobs para encolar con dispatch()',
         'make:test' => 'Test de feature en tests/Feature (--unit para tests/Unit)',
         'make:component' => 'Componente <x-nombre> en resources/views/components (--class si tiene lógica)',
         'route:list' => 'Lista las rutas: método, path, nombre, middleware y acción',
@@ -148,6 +163,14 @@ final class Console
                 'make:migration' => $this->make(fn (Generator $g): array => $g->migration($this->argument($arguments, 0, 'make:migration crear_facturas'))),
                 'make:middleware' => $this->make(fn (Generator $g): array => $g->middleware($this->argument($arguments, 0, 'make:middleware SoloAdmins'))),
                 'make:seeder' => $this->make(fn (Generator $g): array => $g->seeder($this->argument($arguments, 0, 'make:seeder ClientesSeeder'))),
+                'make:job' => $this->make(fn (Generator $g): array => $g->job($this->argument($arguments, 0, 'make:job EnviarFactura')), 'Encólalo con dispatch(new ...) desde un controlador.'),
+                'queue:table' => $this->make(fn (Generator $g): array => $g->queueTable(), 'Siguiente: php bin/bootzen migrate y QUEUE_DRIVER=database en .env.'),
+                'queue:work' => $this->queueWork($options),
+                'queue:failed' => $this->queueFailed(),
+                'queue:retry' => $this->queueRetry($this->argument($arguments, 0, 'queue:retry 5 (o queue:retry all)')),
+                'queue:flush' => $this->queueFlush(),
+                'schedule:run' => $this->scheduleRun(),
+                'schedule:list' => $this->scheduleList(),
                 'make:test' => $this->make(fn (Generator $g): array => $g->test($this->argument($arguments, 0, 'make:test FacturaTest'), isset($options['unit']))),
                 'make:component' => $this->make(fn (Generator $g): array => $g->component(
                     $this->argument($arguments, 0, 'make:component modal'),
@@ -157,7 +180,7 @@ final class Console
                 'config:cache' => $this->configCache(),
                 'config:clear' => $this->configClear(),
                 'key:generate' => $this->keyGenerate($options),
-                'doctor' => (new Doctor($this->app, $this->line(...)))->run(),
+                'doctor' => (new Doctor($this->app, $this->line(...), $this->schedule(...)))->run(),
                 'check' => $this->check(),
                 'deploy:build' => $this->deployBuild($options),
                 'framework:update' => $this->frameworkUpdate($options),
@@ -378,7 +401,7 @@ final class Console
 
     private function routeList(): int
     {
-        $rows = [['Método', 'Path', 'Nombre', 'Middleware', 'Acción']];
+        $rows = [];
 
         foreach ($this->app->getRouter()->getRoutes() as $route) {
             $rows[] = [
@@ -393,12 +416,24 @@ final class Console
             ];
         }
 
-        if (count($rows) === 1) {
+        if ($rows === []) {
             $this->line('No hay rutas registradas.');
 
             return 0;
         }
 
+        $this->table(['Método', 'Path', 'Nombre', 'Middleware', 'Acción'], $rows);
+
+        return 0;
+    }
+
+    /**
+     * @param list<string> $headers
+     * @param list<list<string>> $rows
+     */
+    private function table(array $headers, array $rows): void
+    {
+        $rows = [$headers, ...$rows];
         $widths = [];
         foreach ($rows as $row) {
             foreach ($row as $index => $cell) {
@@ -414,8 +449,6 @@ final class Console
 
             $this->line(rtrim('  ' . implode('  ', $cells)));
         }
-
-        return 0;
     }
 
     private static function describeHandler(Route $route): string
@@ -451,6 +484,161 @@ final class Console
         $this->line('Caché de configuración borrada.');
 
         return 0;
+    }
+
+    /**
+     * @param array<string, string|true> $options
+     */
+    private function queueWork(array $options): int
+    {
+        if ($this->app->config()->get('queue.driver', 'sync') !== 'database') {
+            $this->line('Con QUEUE_DRIVER=sync los jobs se ejecutan al hacer dispatch(): no hay cola que atender.');
+
+            return 0;
+        }
+
+        $logger = $this->app->make(Logger::class);
+        $worker = new Worker(
+            $this->databaseQueue(),
+            $this->app->getContainer(),
+            fn (string $line) => $this->line($line),
+            $logger instanceof Logger ? $logger : null
+        );
+
+        $processed = $worker->run(
+            $this->stringOption($options, 'queue') ?? 'default',
+            isset($options['stop-when-empty']),
+            (int) ($this->stringOption($options, 'max-jobs') ?? 0),
+            (int) ($this->stringOption($options, 'max-time') ?? 0),
+            max(1, (int) ($this->stringOption($options, 'sleep') ?? 3))
+        );
+
+        if (isset($options['stop-when-empty']) && $processed === 0) {
+            $this->line('No hay jobs pendientes.');
+        }
+
+        return 0;
+    }
+
+    private function queueFailed(): int
+    {
+        $failed = $this->databaseQueue()->failed();
+
+        if ($failed === []) {
+            $this->line('No hay jobs fallidos.');
+
+            return 0;
+        }
+
+        foreach ($failed as $job) {
+            $this->line(sprintf('#%d  %s  %s  (%d intento(s), cola %s)', $job['id'], date('Y-m-d H:i', $job['failed_at']), $job['class'], $job['attempts'], $job['queue']));
+            $this->line('     ' . $job['error']);
+        }
+
+        $this->line('Reintenta con php bin/bootzen queue:retry <id> o queue:retry all; bórralos con queue:flush.');
+
+        return 0;
+    }
+
+    private function queueRetry(string $id): int
+    {
+        if ($id !== 'all' && ! ctype_digit($id)) {
+            throw new \InvalidArgumentException('Indica el id del job fallido o all: php bin/bootzen queue:retry 5');
+        }
+
+        $count = $this->databaseQueue()->retry($id === 'all' ? null : (int) $id);
+        $this->line($count === 0 ? 'No había jobs fallidos con ese id.' : "Vueltos a la cola: {$count}.");
+
+        return $count === 0 && $id !== 'all' ? 1 : 0;
+    }
+
+    private function queueFlush(): int
+    {
+        $this->line('Jobs fallidos borrados: ' . $this->databaseQueue()->flushFailed());
+
+        return 0;
+    }
+
+    private function databaseQueue(): DatabaseQueue
+    {
+        $queue = $this->app->make(DatabaseQueue::class);
+
+        if (! $queue instanceof DatabaseQueue) {
+            throw new \LogicException('El servicio DatabaseQueue debe ser una instancia de ' . DatabaseQueue::class . '.');
+        }
+
+        return $queue;
+    }
+
+    private function scheduleRun(): int
+    {
+        $logger = $this->app->make(Logger::class);
+        $runner = new ScheduleRunner(
+            $this->schedule(),
+            $this->app->basePath('storage/cache'),
+            fn (string $line) => $this->line($line),
+            $logger instanceof Logger ? $logger : null
+        );
+
+        return $runner->run() === 0 ? 0 : 1;
+    }
+
+    private function scheduleList(): int
+    {
+        $tasks = $this->schedule()->tasks();
+
+        if ($tasks === []) {
+            $this->line('No hay tareas en routes/schedule.php.');
+
+            return 0;
+        }
+
+        $now = new \DateTimeImmutable('now', new \DateTimeZone(date_default_timezone_get()));
+        $rows = array_map(static fn (Task $task): array => [
+            $task->expression()->expression,
+            $task->expression()->next($now)?->format('Y-m-d H:i') ?? '-',
+            $task->description(),
+        ], $tasks);
+
+        $this->table(['Cron', 'Próxima', 'Tarea'], $rows);
+        $this->line('Horas en ' . date_default_timezone_get() . '. Línea para el cron del servidor (con la ruta completa de PHP):');
+        $this->line('  ' . self::cronLine($this->app->basePath()));
+
+        return 0;
+    }
+
+    /**
+     * Línea de crontab para schedule:run. Con la ruta completa de PHP: cron no usa el PATH de la terminal.
+     */
+    public static function cronLine(string $basePath): string
+    {
+        return '* * * * * cd ' . escapeshellarg($basePath) . ' && ' . escapeshellarg(PHP_BINARY) . ' bin/bootzen schedule:run >> /dev/null 2>&1';
+    }
+
+    /**
+     * Tareas de routes/schedule.php (vacío si no existe).
+     */
+    public function schedule(): Schedule
+    {
+        $container = $this->app->getContainer();
+        $schedule = new Schedule(
+            $container,
+            fn (string $command): int => $this->run(['bootzen', ...(preg_split('/\s+/', trim($command)) ?: [])]),
+            static fn (): Queue => queue()
+        );
+        $file = $this->app->basePath('routes/schedule.php');
+
+        if (is_file($file)) {
+            $define = require $file;
+
+            if (! $define instanceof Closure) {
+                throw new \LogicException('routes/schedule.php debe retornar una función: return static function (Schedule $schedule): void { ... };');
+            }
+
+            $define($schedule);
+        }
+
+        return $schedule;
     }
 
     private function mailTest(string $to): int

@@ -22,6 +22,7 @@
 - `csrf_token(): string`: Token CSRF de la sesión actual ('' si la ruta no tiene sesión).
 - `db(): Connection`: Conexión a la base de datos de la aplicación.
 - `dd(mixed ...$args): never`: Vuelca los valores recibidos y detiene la ejecución lanzando una excepción.
+- `dispatch(Job $job, int $delay = 0): int`: Encola un job; con $delay (segundos) no se ejecuta antes. Con QUEUE_DRIVER=sync se ejecuta en el momento.
 - `download(string $filePath, ?string $fileName = null): Response`: Crea una respuesta que fuerza la descarga de un archivo. Debe retornarse desde el handler.
 - `e(Stringable|string|int|float|bool|null $value): string`: Escapa un valor para salida segura en HTML.
 - `env(string $key, mixed $default = null): mixed`: Obtiene el valor de una variable de entorno.
@@ -30,10 +31,11 @@
 - `is_ajax(): bool`: Verifica si la petición actual es AJAX.
 - `json_response(array $data, int $status = 200, array $headers = []): Response`: Crea una respuesta JSON. Debe retornarse desde el handler.
 - `logger(string $message, string $level = 'info', array $context = []): void`: Registra un mensaje en el log de la aplicación (storage/logs/app-AAAA-MM-DD.log).
-- `mailer(): Mailer`: Servicio de correo configurado en config/mail.php.
+- `mailer(): MailService`: Servicio de correo configurado en config/mail.php: send() envía ahora, queue() lo deja en la cola.
 - `mime_type(string $filePath): string`: Obtiene el tipo MIME de un archivo.
 - `old(string $key, mixed $default = ''): mixed`: Valor que el usuario envió en el formulario anterior (tras un error de validación). Admite notación de puntos: old('items.0.precio').
 - `public_path(string $path = ''): string`: Obtiene la ruta absoluta al directorio public.
+- `queue(): Queue`: Cola configurada en config/queue.php (sync o database).
 - `redirect(string $url, int $status = 302): Response`: Crea una respuesta de redirección. Debe retornarse desde el handler.
 - `route(string $name, array $parameters = []): string`: Genera el path de una ruta con nombre. Los parámetros sobrantes se agregan como query string.
 - `session(?string $key = null, mixed $default = null): mixed`: Sin argumentos devuelve la sesión; con una clave, su valor (o el valor por defecto si no hay sesión).
@@ -427,6 +429,8 @@ Los métodos cc(), bcc(), replyTo(), from(), attach() y attachData() modifican e
 - `getReplyTo(): ?string`: Dirección para las respuestas, si se indicó una.
 - `getFrom(): ?array`: Remitente propio de este correo, o null para usar el de config/mail.php.
 - `getAttachments(): array`: Adjuntos en el orden en que se agregaron.
+- `toArray(): array`: El mensaje como array de valores simples, para guardarlo en la cola (mailer()->queue()).
+- `::fromArray(array $data): self`: Reconstruye un mensaje guardado con toArray().
 - `recipients(): array`: Todas las direcciones que reciben el correo: destinatario, copias y copias ocultas, sin repetir.
 - `$to` (string)
 - `$subject` (string)
@@ -437,6 +441,13 @@ Los métodos cc(), bcc(), replyTo(), from(), attach() y attachData() modifican e
 
 La lanza mailer()->send() cuando el correo no sale; atrápala donde un fallo de envío no deba romper la página.
 
+
+### MailService
+
+Con QUEUE_DRIVER=sync, queue() envía en el momento (igual que send).
+
+- `send(Message $message): void`: Envía el correo ahora.
+- `queue(Message $message, int $delay = 0): int`: Encola el correo para enviarlo en segundo plano (con $delay, no antes de esos segundos). Devuelve el id del job.
 
 ### ArrayMailer
 
@@ -468,6 +479,47 @@ Logger de archivo diario (storage/logs/app-AAAA-MM-DD.log).
 - `alert(Stringable|string $message, array $context = []): void`
 - `emergency(Stringable|string $message, array $context = []): void`
 - `log(string $level, Stringable|string $message, array $context = []): void`: Registra un mensaje. Los marcadores {clave} del mensaje se reemplazan con el contexto.
+
+## Cola y tareas programadas
+
+### Job
+
+handle() recibe sus dependencias del contenedor (por ejemplo Mailer o Connection). Si lanza una excepción, se reintenta $tries veces esperando $backoff segundos; después pasa a los fallidos y se llama a failed().
+
+- `failed(Throwable $exception): void`: Se llama una sola vez, cuando el job agotó sus intentos.
+- `$tries` (int)
+- `$backoff` (int)
+- `$queue` (string)
+
+### Schedule
+
+- `command(string $command): Task`: Comando de bin/bootzen, con sus opciones: 'db:backup', 'queue:work --stop-when-empty'.
+- `job(Job $job): Task`: Encola un job (con QUEUE_DRIVER=sync se ejecuta en el momento).
+- `call(Closure $callback, string $name): Task`: Función propia; recibe sus dependencias del contenedor.
+
+### Task
+
+Sin frecuencia corre cada minuto. Las horas son de APP_TIMEZONE.
+
+- `everyMinute(): self`: Cada minuto (lo de siempre si no se indica otra frecuencia).
+- `everyFiveMinutes(): self`: Cada 5 minutos.
+- `everyTenMinutes(): self`: Cada 10 minutos.
+- `everyFifteenMinutes(): self`: Cada 15 minutos.
+- `everyThirtyMinutes(): self`: Cada 30 minutos.
+- `hourly(): self`: Cada hora en punto.
+- `hourlyAt(int $minute): self`: Cada hora en el minuto indicado.
+- `daily(): self`: Todos los días a medianoche.
+- `dailyAt(string $time): self`: Todos los días a la hora indicada ('03:00').
+- `twiceDaily(int $first = 1, int $second = 13): self`: Todos los días a dos horas en punto (por ejemplo 9 y 18).
+- `weekly(): self`: Los domingos a medianoche.
+- `weeklyOn(int $day, string $time = '00:00'): self`: Un día de la semana (0 domingo, 1 lunes... 6 sábado) a la hora indicada.
+- `weekdaysAt(string $time): self`: De lunes a viernes a la hora indicada.
+- `monthly(): self`: El día 1 de cada mes a medianoche.
+- `monthlyOn(int $day, string $time = '00:00'): self`: Un día del mes a la hora indicada.
+- `cron(string $expression): self`: Expresión cron de 5 campos.
+- `name(string $description): self`: Nombre para la salida de schedule:run y schedule:list.
+- `description(): string`
+- `expression(): CronExpression`
 
 ## Tests
 

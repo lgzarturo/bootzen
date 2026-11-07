@@ -10,6 +10,7 @@ RUN docker-php-ext-install pdo_mysql opcache \
 COPY deploy/docker/php.ini /usr/local/etc/php/conf.d/bootzen.ini
 COPY deploy/docker/apache.conf /etc/apache2/conf-enabled/zz-bootzen.conf
 COPY deploy/docker/entrypoint.sh /usr/local/bin/bootzen-entrypoint
+COPY deploy/docker/scheduler.sh /usr/local/bin/bootzen-scheduler
 
 WORKDIR /var/www/html
 COPY . .
