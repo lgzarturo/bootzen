@@ -1,5 +1,36 @@
 # CHANGELOG
 
+## [2.1.0] - 2026-11-07
+
+Primera pieza de la fase 8: envío de correo real por SMTP, sin librerías.
+
+### Agregado
+
+- Driver `smtp` (`MAIL_DRIVER=smtp`): STARTTLS (puerto 587), TLS directo
+  (465) o sin cifrar para servidores locales, autenticación PLAIN o LOGIN y
+  verificación del certificado (`MAIL_VERIFY_PEER`). Se configura con
+  `MAIL_HOST`, `MAIL_PORT`, `MAIL_ENCRYPTION`, `MAIL_USERNAME`,
+  `MAIL_PASSWORD`, `MAIL_FROM_ADDRESS` y `MAIL_FROM_NAME`.
+- `Message` suma `cc()`, `bcc()`, `replyTo()`, `from()`, `attach($ruta)` y
+  `attachData($contenido, $nombre)`, encadenables. El constructor de
+  siempre no cambia. Asunto, nombres y adjuntos en UTF-8.
+- `MailException` cuando un correo no se puede armar o enviar. El mensaje
+  trae la respuesta del servidor y nunca la contraseña.
+- `php bin/bootzen mail:test tu@correo.com` para probar la configuración.
+- `doctor` revisa la configuración de SMTP y avisa si en producción los
+  correos siguen yendo al log.
+- CI: job con Mailpit que exige STARTTLS y autenticación.
+
+### Cambiado
+
+- La recuperación de contraseña de `--auth` atrapa `MailException`, la
+  registra en el log y responde lo mismo, sin revelar si la cuenta existe.
+- `docker-compose.yml` pasa todo el `.env` al contenedor (`env_file`) y
+  sigue forzando los valores de producción.
+- `config/mail.php` y `.env.example` traen el remitente y las variables de
+  SMTP. En proyectos creados con la 2.0, copia `config/mail.php` del
+  skeleton después de `framework:update`.
+
 ## [2.0.0] - 2026-10-27
 
 Primera versión estable. BootZen pasa de microframework en `.phar` a

@@ -209,3 +209,39 @@ it('genera archivos con make:* y pide el nombre si falta', function (): void {
         ->and(($this->run)('make:resource', 'Task', 'title:string'))->toBe(1)
         ->and(consoleOutput($this->output))->toContain('Ya existe');
 });
+
+it('revisa la configuración de SMTP con doctor', function (): void {
+    writeFile($this->project . '/config/mail.php', "<?php return ['driver' => 'smtp', 'from' => ['address' => 'hola'], 'smtp' => ['host' => '', 'encryption' => 'tls']];");
+    ($this->run)('doctor');
+
+    expect(consoleOutput($this->output))->toContain('✗ Correo SMTP: MAIL_FROM_ADDRESS no es un correo válido, falta MAIL_HOST.');
+
+    putenv('BZ_TOOLS_ENV=production');
+    writeFile($this->project . '/config/mail.php', "<?php return ['driver' => 'smtp', 'from' => ['address' => 'hola@example.com'], 'smtp' => ['host' => 'smtp.tienda.mx', 'verify_peer' => 'false']];");
+    ($this->run)('doctor');
+
+    expect(consoleOutput($this->output))->toContain('✓ Correo por SMTP en smtp.tienda.mx')
+        ->toContain('! MAIL_FROM_ADDRESS o MAIL_HOST siguen con valores de ejemplo.')
+        ->toContain('! MAIL_VERIFY_PEER=false');
+
+    writeFile($this->project . '/config/mail.php', "<?php return ['driver' => 'log'];");
+    ($this->run)('doctor');
+
+    expect(consoleOutput($this->output))->toContain('! MAIL_DRIVER=log en producción');
+});
+
+it('envía un correo de prueba con mail:test', function (): void {
+    writeFile($this->project . '/config/mail.php', "<?php return ['driver' => 'log'];");
+
+    expect(($this->run)('mail:test', 'ana@ejemplo.com'))->toBe(0)
+        ->and(consoleOutput($this->output))->toContain('Con MAIL_DRIVER=log no sale nada: el correo quedó en storage/logs.')
+        ->and((string) file_get_contents((string) glob($this->project . '/storage/logs/*.log')[0]))->toContain('Correo de prueba de Tienda');
+
+    expect(($this->run)('mail:test'))->toBe(1)
+        ->and(consoleOutput($this->output))->toContain('Uso: php bin/bootzen mail:test tu@correo.com');
+
+    writeFile($this->project . '/config/mail.php', "<?php return ['driver' => 'smtp', 'from' => ['address' => 'hola@tienda.mx'], 'smtp' => ['host' => '127.0.0.1', 'port' => 1, 'encryption' => 'none']];");
+
+    expect(($this->run)('mail:test', 'ana@ejemplo.com'))->toBe(1)
+        ->and(consoleOutput($this->output))->toContain('Error: No se pudo conectar al servidor SMTP 127.0.0.1:1');
+});

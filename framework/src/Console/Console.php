@@ -26,6 +26,8 @@ use BootZen\Database\SeederRunner;
 use BootZen\Deploy\DeployBuilder;
 use BootZen\Deploy\FrameworkUpdater;
 use BootZen\Frontend\Tailwind;
+use BootZen\Mail\Mailer;
+use BootZen\Mail\Message;
 use BootZen\View\View;
 use Closure;
 use Throwable;
@@ -53,6 +55,7 @@ final class Console
         'db:seed' => 'Ejecuta database/seeds/DatabaseSeeder.php (--class=Nombre para otro)',
         'db:fresh' => 'Borra todas las tablas y migra de nuevo (--seed, --force en producción)',
         'db:backup' => 'Copia consistente de la base SQLite en storage/backups',
+        'mail:test' => 'Envía un correo de prueba con la configuración actual (mail:test tu@correo.com)',
         'make:resource' => 'CRUD completo: make:resource Task title:string done:bool (--table=nombre)',
         'make:controller' => 'Controlador con su vista: make:controller Factura (--json: sin vista, responde JSON)',
         'make:model' => 'Modelo: make:model Factura (--migration crea su tabla, --table=nombre)',
@@ -127,6 +130,7 @@ final class Console
                 'db:seed' => $this->seed($options),
                 'db:fresh' => $this->fresh($options),
                 'db:backup' => $this->backup(),
+                'mail:test' => $this->mailTest($this->argument($arguments, 0, 'mail:test tu@correo.com')),
                 'make:resource' => $this->make(fn (Generator $g): array => $g->resource(
                     $this->argument($arguments, 0, 'make:resource Task title:string done:bool'),
                     array_slice($arguments, 1),
@@ -445,6 +449,34 @@ final class Console
         }
 
         $this->line('Caché de configuración borrada.');
+
+        return 0;
+    }
+
+    private function mailTest(string $to): int
+    {
+        $config = $this->app->config();
+        $driver = (string) $config->get('mail.driver', 'log');
+        $name = (string) $config->get('app.name', 'BootZen');
+        $detail = $driver === 'smtp'
+            ? $config->get('mail.smtp.host', '') . ':' . $config->get('mail.smtp.port', 587) . ' (' . $config->get('mail.smtp.encryption', 'tls') . ')'
+            : $driver;
+
+        $mailer = $this->app->make(Mailer::class);
+
+        if (! $mailer instanceof Mailer) {
+            throw new \LogicException('El servicio Mailer debe implementar ' . Mailer::class . '.');
+        }
+
+        $mailer->send(new Message(
+            $to,
+            "Correo de prueba de {$name}",
+            "Si lees esto, el envío de correos de {$name} funciona.\n\nDriver: {$detail}\nEnviado: " . date('c')
+        ));
+
+        $this->line($driver === 'smtp'
+            ? "Enviado a {$to} por {$detail}. Revisa la bandeja (y la carpeta de spam)."
+            : "Con MAIL_DRIVER={$driver} no sale nada: " . ($driver === 'log' ? 'el correo quedó en storage/logs.' : 'quedó en memoria.') . ' Usa MAIL_DRIVER=smtp para enviarlo.');
 
         return 0;
     }

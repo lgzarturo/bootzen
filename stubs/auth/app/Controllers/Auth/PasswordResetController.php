@@ -9,12 +9,14 @@ use BootZen\Auth\Hash;
 use BootZen\Auth\PasswordReset;
 use BootZen\Core\Request;
 use BootZen\Core\Response;
+use BootZen\Mail\MailException;
 use BootZen\Mail\Message;
 use BootZen\Validation\ValidationException;
 
 /**
  * Recuperación de contraseña: pide el correo, envía un enlace con un token y permite elegir una nueva.
- * Con MAIL_DRIVER=log el correo (y el enlace) queda en storage/logs.
+ * Con MAIL_DRIVER=log el correo (y el enlace) queda en storage/logs. Si el envío falla, se registra en
+ * el log y la respuesta es la misma.
  */
 final class PasswordResetController
 {
@@ -36,13 +38,18 @@ final class PasswordResetController
             $token = $this->resets->create($email);
             $enlace = url(route('password.reset', ['token' => $token])) . '?email=' . rawurlencode($email);
 
-            mailer()->send(new Message(
-                $email,
-                'Recupera tu contraseña',
-                "Recibimos una solicitud para cambiar tu contraseña.\n\n"
-                . "Abre este enlace para elegir una nueva (vence en " . config('auth.reset_expire', 60) . " minutos):\n{$enlace}\n\n"
-                . 'Si no fuiste tú, ignora este correo.'
-            ));
+            try {
+                mailer()->send(new Message(
+                    $email,
+                    'Recupera tu contraseña',
+                    "Recibimos una solicitud para cambiar tu contraseña.\n\n"
+                    . "Abre este enlace para elegir una nueva (vence en " . config('auth.reset_expire', 60) . " minutos):\n{$enlace}\n\n"
+                    . 'Si no fuiste tú, ignora este correo.'
+                ));
+            } catch (MailException $e) {
+                // Queda en el log para revisarlo; al usuario se le responde igual para no revelar si la cuenta existe
+                logger('No se pudo enviar el correo de recuperación: ' . $e->getMessage(), 'error');
+            }
         }
 
         // La misma respuesta exista o no la cuenta, para no revelar qué correos están registrados

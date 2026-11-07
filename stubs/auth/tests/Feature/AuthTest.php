@@ -6,6 +6,7 @@ use App\Models\User;
 use BootZen\Auth\Hash;
 use BootZen\Mail\ArrayMailer;
 use BootZen\Mail\Mailer;
+use BootZen\Mail\MailException;
 use BootZen\Mail\Message;
 use BootZen\Testing\TestClient;
 
@@ -143,4 +144,19 @@ it('no revela si el correo existe y rechaza tokens inválidos', function (): voi
     ])->assertSessionHasErrors(['email']);
 
     $client->get('/restablecer-contrasena/falso')->assertSee('El enlace no es válido o ya venció.');
+});
+
+it('responde lo mismo si el correo de recuperación no se pudo enviar', function (): void {
+    $client = client();
+    User::create(['nombre' => 'Ana', 'email' => 'ana@ejemplo.com', 'password' => Hash::make('vieja-clave')]);
+    $client->app->instance(Mailer::class, new class () implements Mailer {
+        public function send(Message $message): void
+        {
+            throw new MailException('El servidor SMTP rechazó autenticación: 535 credenciales inválidas');
+        }
+    });
+
+    $client->from('/recuperar-contrasena')->post('/recuperar-contrasena', ['email' => 'ana@ejemplo.com'])
+        ->assertRedirect('/recuperar-contrasena')
+        ->assertSessionHas('status', 'Si el correo está registrado, te enviamos un enlace para cambiar la contraseña.');
 });

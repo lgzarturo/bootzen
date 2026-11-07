@@ -45,6 +45,7 @@ final class Doctor
         $this->checkEnvironment();
         $this->checkPermissions();
         $this->checkDatabase();
+        $this->checkMail();
         $this->checkAssets();
 
         ($this->line)('');
@@ -157,6 +158,54 @@ final class Doctor
                 : $this->warning("Hay {$pending} migración(es) pendiente(s): ejecuta php bin/bootzen migrate.");
         } catch (Throwable $e) {
             $this->warning('No se pudo revisar las migraciones: ' . $e->getMessage());
+        }
+    }
+
+    private function checkMail(): void
+    {
+        $config = $this->app->config();
+        $driver = $config->get('mail.driver', 'log');
+        $production = $config->get('app.env') === 'production';
+
+        if ($driver !== 'smtp') {
+            if ($production && $driver === 'log') {
+                $this->warning('MAIL_DRIVER=log en producción: los correos no salen, quedan en storage/logs. Usa smtp.');
+            }
+
+            return;
+        }
+
+        $from = $config->get('mail.from.address', '');
+        $host = $config->get('mail.smtp.host', '');
+        $encryption = $config->get('mail.smtp.encryption', 'tls');
+        $problems = [];
+
+        if (! is_string($from) || filter_var($from, FILTER_VALIDATE_EMAIL) === false) {
+            $problems[] = 'MAIL_FROM_ADDRESS no es un correo válido';
+        }
+
+        if (! is_string($host) || $host === '') {
+            $problems[] = 'falta MAIL_HOST';
+        }
+
+        if ($encryption !== 'none' && ! extension_loaded('openssl')) {
+            $problems[] = 'falta la extensión openssl para MAIL_ENCRYPTION=' . (is_string($encryption) ? $encryption : 'tls');
+        }
+
+        if ($problems !== []) {
+            $this->error('Correo SMTP: ' . implode(', ', $problems) . '.');
+
+            return;
+        }
+
+        $this->ok('Correo por SMTP en ' . $host . ' (pruébalo con php bin/bootzen mail:test tu@correo.com)');
+
+        if ($production && (str_ends_with((string) $from, '@example.com') || in_array($host, ['127.0.0.1', 'localhost'], true))) {
+            $this->warning('MAIL_FROM_ADDRESS o MAIL_HOST siguen con valores de ejemplo.');
+        }
+
+        if (filter_var($config->get('mail.smtp.verify_peer', true), FILTER_VALIDATE_BOOL) === false) {
+            $this->warning('MAIL_VERIFY_PEER=false: el certificado del servidor SMTP no se verifica.');
         }
     }
 

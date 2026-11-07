@@ -3,8 +3,8 @@
 /**
  * Mailer.php
  *
- * Contrato de envío de correo. Drivers: log (escribe el correo en storage/logs) y array (tests).
- * SMTP llega en una versión posterior.
+ * Contrato de envío de correo. Drivers: log (escribe el correo en storage/logs), smtp (envío real)
+ * y array (tests).
  *
  * @package    BootZen\Mail
  * @author     Arturo Lopez <lgzarturo@gmail.com>
@@ -19,5 +19,10 @@ namespace BootZen\Mail;
 
 interface Mailer
 {
+    /**
+     * Envía el correo.
+     *
+     * @throws MailException Si no se pudo armar o enviar
+     */
     public function send(Message $message): void;
 }

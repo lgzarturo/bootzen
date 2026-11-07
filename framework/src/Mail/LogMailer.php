@@ -30,9 +30,16 @@ final class LogMailer implements Mailer
 
     public function send(Message $message): void
     {
+        $extra = array_filter([
+            'cc' => $message->getCc(),
+            'bcc' => $message->getBcc(),
+            'reply_to' => $message->getReplyTo(),
+            'attachments' => array_map(static fn (Attachment $attachment): string => $attachment->name, $message->getAttachments()),
+        ], static fn (mixed $value): bool => $value !== [] && $value !== null);
+
         $this->logger->info(
             "Correo para {$message->to}: {$message->subject}\n" . $message->text,
-            ['to' => $message->to, 'subject' => $message->subject]
+            ['to' => $message->to, 'subject' => $message->subject, ...$extra]
         );
     }
 }

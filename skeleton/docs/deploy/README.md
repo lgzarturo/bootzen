@@ -35,6 +35,11 @@ sin pisar datos. Sin `--version` usa la fecha (`20260115093000`). Con
 - El servidor web apunta a `public/`. Si no puedes elegirlo, el `.htaccess` de
   la raíz manda todo a `public/` y bloquea el resto.
 - `storage/` y la carpeta de la base SQLite con permiso de escritura para PHP.
+- Correo: `MAIL_DRIVER=smtp` con `MAIL_HOST`, `MAIL_PORT`, `MAIL_ENCRYPTION`,
+  usuario, contraseña y `MAIL_FROM_ADDRESS` (con `log` los correos no salen).
+  `php bin/bootzen mail:test tu@correo.com` confirma que funciona; si no
+  tienes terminal, pide una recuperación de contraseña y revisa
+  `storage/logs` si no llega.
 - `php bin/bootzen doctor` revisa todo lo anterior y te dice qué falta.
 - `GET /up` responde `{"status":"ok"}`: úsalo para monitorear.
 

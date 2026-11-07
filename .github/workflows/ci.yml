@@ -176,6 +176,48 @@ jobs:
           # Si los tests se saltaran por falta de configuración, el job no debe pasar en verde
           grep -q "5 passed" "$RUNNER_TEMP/mysql.txt"
 
+  smtp:
+    name: SMTP con Mailpit (PHP 8.3)
+    runs-on: ubuntu-latest
+
+    services:
+      mailpit:
+        image: axllent/mailpit:v1.27
+        env:
+          # Certificado autofirmado generado al arrancar, STARTTLS obligatorio y usuario
+          MP_SMTP_TLS_CERT: sans:localhost
+          MP_SMTP_TLS_KEY: sans:localhost
+          MP_SMTP_REQUIRE_STARTTLS: "true"
+          MP_SMTP_AUTH: usuario:clave-secreta
+        ports:
+          - 1025:1025
+          - 8025:8025
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: mbstring, fileinfo, pdo_sqlite, openssl
+          coverage: none
+
+      - name: Instalar dependencias de desarrollo
+        run: composer install --no-interaction --no-progress
+
+      - name: Envío real por STARTTLS con autenticación
+        env:
+          BOOTZEN_TEST_SMTP_HOST: 127.0.0.1
+          BOOTZEN_TEST_SMTP_PORT: "1025"
+          BOOTZEN_TEST_SMTP_USERNAME: usuario
+          BOOTZEN_TEST_SMTP_PASSWORD: clave-secreta
+          BOOTZEN_TEST_SMTP_API: http://127.0.0.1:8025
+        run: |
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:8025/api/v1/info > /dev/null && break; sleep 1; done
+          vendor/bin/pest tests/Feature/SmtpTest.php --colors=never | tee "$RUNNER_TEMP/smtp.txt"
+          # Si los tests se saltaran por falta de configuración, el job no debe pasar en verde
+          grep -q "3 passed" "$RUNNER_TEMP/smtp.txt"
+
   deploy:
     name: Despliegue (artefacto, hosting compartido y Docker)
     runs-on: ubuntu-latest
