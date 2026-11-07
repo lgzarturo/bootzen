@@ -41,10 +41,10 @@ final class PasswordResetController
             try {
                 mailer()->send(new Message(
                     $email,
-                    'Recupera tu contraseña',
-                    "Recibimos una solicitud para cambiar tu contraseña.\n\n"
-                    . "Abre este enlace para elegir una nueva (vence en " . config('auth.reset_expire', 60) . " minutos):\n{$enlace}\n\n"
-                    . 'Si no fuiste tú, ignora este correo.'
+                    __('Recupera tu contraseña'),
+                    __('Recibimos una solicitud para cambiar tu contraseña.') . "\n\n"
+                    . __('Abre este enlace para elegir una nueva (vence en :minutos minutos):', ['minutos' => config('auth.reset_expire', 60)]) . "\n{$enlace}\n\n"
+                    . __('Si no fuiste tú, ignora este correo.')
                 ));
             } catch (MailException $e) {
                 // Queda en el log para revisarlo; al usuario se le responde igual para no revelar si la cuenta existe
@@ -53,7 +53,7 @@ final class PasswordResetController
         }
 
         // La misma respuesta exista o no la cuenta, para no revelar qué correos están registrados
-        return back()->with('status', 'Si el correo está registrado, te enviamos un enlace para cambiar la contraseña.');
+        return back()->with('status', __('Si el correo está registrado, te enviamos un enlace para cambiar la contraseña.'));
     }
 
     public function edit(Request $request, string $token): Response
@@ -73,12 +73,12 @@ final class PasswordResetController
         $user = User::where('email', $email)->first();
 
         if ($user === null || ! $this->resets->isValid($email, (string) $datos['token'])) {
-            throw ValidationException::withMessages(['email' => 'El enlace no es válido o ya venció. Pide uno nuevo.']);
+            throw ValidationException::withMessages(['email' => __('El enlace no es válido o ya venció. Pide uno nuevo.')]);
         }
 
         $user->update(['password' => Hash::make((string) $datos['password'])]);
         $this->resets->delete($email);
 
-        return redirect(route('login'))->with('status', 'Tu contraseña se actualizó. Ya puedes iniciar sesión.');
+        return redirect(route('login'))->with('status', __('Tu contraseña se actualizó. Ya puedes iniciar sesión.'));
     }
 }

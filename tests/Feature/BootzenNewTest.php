@@ -84,7 +84,7 @@ it('agrega el scaffold de autenticación con --auth', function (): void {
         ->and($project . '/routes/auth.php')->toBeFile()
         ->and($project . '/tests/Feature/AuthTest.php')->toBeFile()
         ->and(file_get_contents($project . '/routes/web.php'))->toContain("require __DIR__ . '/auth.php'")
-        ->and(file_get_contents($project . '/config/auth.php'))->toContain("'home' => '/panel'");
+        ->and(file_get_contents($project . '/config/auth.php'))->toContain("'home' => 'dashboard'");
 
     // Migra una base temporal y renderiza el login, que usa la sesión y el layout con el menú de usuario
     $script = 'putenv("DB_DATABASE=" . sys_get_temp_dir() . "/bootzen-auth-" . getmypid() . ".sqlite");'
@@ -120,7 +120,7 @@ it('crea la app de demostración con --demo (incluye --auth)', function (): void
         ->and($project . '/public/assets/js/components/modal.js')->toBeFile()
         ->and($project . '/tests/Feature/TareaTest.php')->toBeFile()
         ->and((string) file_get_contents($project . '/llms.txt'))->toStartWith('# con-demo')
-        ->and(file_get_contents($project . '/config/auth.php'))->toContain("'home' => '/tareas'");
+        ->and(file_get_contents($project . '/config/auth.php'))->toContain("'home' => 'tareas.index'");
 
     // Migra, siembra y pide las tareas de Ana en JSON, sin servidor ni Composer
     $script = 'putenv("DB_DATABASE=" . sys_get_temp_dir() . "/bootzen-demo-" . getmypid() . ".sqlite");'

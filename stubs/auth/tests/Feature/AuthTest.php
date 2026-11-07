@@ -30,9 +30,7 @@ function registro(): array
  */
 function inicio(): string
 {
-    $home = config('auth.home', '/');
-
-    return is_string($home) ? $home : '/';
+    return home_url();
 }
 
 /**
@@ -159,4 +157,22 @@ it('responde lo mismo si el correo de recuperación no se pudo enviar', function
     $client->from('/recuperar-contrasena')->post('/recuperar-contrasena', ['email' => 'ana@ejemplo.com'])
         ->assertRedirect('/recuperar-contrasena')
         ->assertSessionHas('status', 'Si el correo está registrado, te enviamos un enlace para cambiar la contraseña.');
+});
+
+it('atiende en inglés con el prefijo /en', function (): void {
+    $client = client();
+    $inicioEs = inicio();
+    $inicio = '/en' . $inicioEs;
+
+    $client->post('/en/registro', registro())->assertRedirect($inicio);
+    $client->get($inicio)
+        ->assertSee('<html lang="en">', false)
+        ->assertSee('hreflang="es" href="' . url($inicioEs) . '"', false);
+    $client->get('/en/panel')->assertSee('Hi, Ana');
+
+    $client->post('/en/logout')->assertRedirect('/en');
+    $client->assertGuest()->get('/en/panel')->assertRedirect('/en/login');
+
+    $client->from('/en/login')->post('/en/login', ['email' => 'ana@ejemplo.com', 'password' => 'incorrecta']);
+    $client->get('/en/login')->assertSee('The email or password is incorrect.')->assertSee('Forgot your password?');
 });

@@ -49,7 +49,7 @@ final class TareaController
     {
         Tarea::create(['user_id' => $this->usuario()->id] + $request->validate($this->rules()));
 
-        return redirect(route('tareas.index'))->with('status', 'Tarea creada.');
+        return redirect(route('tareas.index'))->with('status', __('Tarea creada.'));
     }
 
     public function edit(int $id): Response
@@ -61,7 +61,7 @@ final class TareaController
     {
         $this->find($id)->update($request->validate($this->rules()));
 
-        return redirect(route('tareas.index'))->with('status', 'Tarea actualizada.');
+        return redirect(route('tareas.index'))->with('status', __('Tarea actualizada.'));
     }
 
     /**
@@ -72,14 +72,14 @@ final class TareaController
         $tarea = $this->find($id);
         $tarea->update(['hecha' => ! $tarea->hecha]);
 
-        return back()->with('status', $tarea->hecha ? 'Tarea hecha.' : 'Tarea pendiente otra vez.');
+        return back()->with('status', $tarea->hecha ? __('Tarea hecha.') : __('Tarea pendiente otra vez.'));
     }
 
     public function destroy(int $id): Response
     {
         $this->find($id)->delete();
 
-        return redirect(route('tareas.index'))->with('status', 'Tarea borrada.');
+        return redirect(route('tareas.index'))->with('status', __('Tarea borrada.'));
     }
 
     /**

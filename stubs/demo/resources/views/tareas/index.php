@@ -1,11 +1,11 @@
-<x-layouts.app title="Mis tareas">
+<x-layouts.app :title="__('Mis tareas')">
     <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <h1 class="text-2xl font-bold">Mis tareas</h1>
-        <x-button :href="route('tareas.create')">Nueva tarea</x-button>
+        <h1 class="text-2xl font-bold">{{ __('Mis tareas') }}</h1>
+        <x-button :href="route('tareas.create')">{{ __('Nueva tarea') }}</x-button>
     </div>
 
-    <nav class="mb-4 flex gap-2 text-sm" aria-label="Filtrar tareas">
-        @foreach (['' => 'Todas', 'pendientes' => 'Pendientes', 'hechas' => 'Hechas'] as $valor => $texto)
+    <nav class="mb-4 flex gap-2 text-sm" aria-label="{{ __('Filtrar tareas') }}">
+        @foreach (['' => __('Todas'), 'pendientes' => __('Pendientes'), 'hechas' => __('Hechas')] as $valor => $texto)
             <a href="{{ route('tareas.index', $valor === '' ? [] : ['estado' => $valor]) }}" class="{{ class_list([
                 'rounded-full px-3 py-1',
                 'bg-blue-600 text-white' => ($estado ?? '') === $valor,
@@ -22,30 +22,30 @@
                         'flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2',
                         'border-green-600 bg-green-600 text-white' => $tarea->hecha,
                         'border-gray-300 hover:border-green-600' => ! $tarea->hecha,
-                    ]) }}" aria-label="{{ $tarea->hecha ? 'Marcar como pendiente' : 'Marcar como hecha' }}">
+                    ]) }}" aria-label="{{ $tarea->hecha ? __('Marcar como pendiente') : __('Marcar como hecha') }}">
                         @if ($tarea->hecha)✓@endif
                     </button>
                 </x-form>
                 <div class="min-w-0 flex-1">
                     <p class="{{ class_list(['font-medium', 'text-gray-400 line-through' => $tarea->hecha]) }}">{{ $tarea->titulo }}</p>
                     @if ($tarea->vence)
-                        <p class="{{ class_list(['text-xs', 'text-red-600' => $tarea->vencida(), 'text-gray-500' => ! $tarea->vencida()]) }}">Vence el {{ $tarea->vence->format('d/m/Y') }}</p>
+                        <p class="{{ class_list(['text-xs', 'text-red-600' => $tarea->vencida(), 'text-gray-500' => ! $tarea->vencida()]) }}">{{ __('Vence el :fecha', ['fecha' => format_date($tarea->vence, 'short')]) }}</p>
                     @endif
                 </div>
-                <x-button :href="route('tareas.edit', ['id' => $tarea->id])" variant="ghost" size="sm">Editar</x-button>
-                <x-button type="button" variant="ghost" size="sm" class="text-red-600 hover:bg-red-50" data-modal-open="borrar-{{ $tarea->id }}">Borrar</x-button>
-                <x-modal id="borrar-{{ $tarea->id }}" title="¿Borrar esta tarea?">
-                    «{{ $tarea->titulo }}» se borra para siempre.
+                <x-button :href="route('tareas.edit', ['id' => $tarea->id])" variant="ghost" size="sm">{{ __('Editar') }}</x-button>
+                <x-button type="button" variant="ghost" size="sm" class="text-red-600 hover:bg-red-50" data-modal-open="borrar-{{ $tarea->id }}">{{ __('Borrar') }}</x-button>
+                <x-modal id="borrar-{{ $tarea->id }}" :title="__('¿Borrar esta tarea?')">
+                    {{ __('«:titulo» se borra para siempre.', ['titulo' => $tarea->titulo]) }}
                     <x-slot:actions>
-                        <x-button type="button" variant="ghost" data-modal-close>Cancelar</x-button>
+                        <x-button type="button" variant="ghost" data-modal-close>{{ __('Cancelar') }}</x-button>
                         <x-form :action="route('tareas.destroy', ['id' => $tarea->id])" method="DELETE">
-                            <x-button type="submit" variant="danger">Borrar</x-button>
+                            <x-button type="submit" variant="danger">{{ __('Borrar') }}</x-button>
                         </x-form>
                     </x-slot:actions>
                 </x-modal>
             </li>
         @empty
-            <li class="px-4 py-10 text-center text-gray-500">No hay tareas aquí. Crea la primera.</li>
+            <li class="px-4 py-10 text-center text-gray-500">{{ __('No hay tareas aquí. Crea la primera.') }}</li>
         @endforeach
     </ul>
 
