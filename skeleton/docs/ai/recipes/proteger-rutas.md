@@ -20,6 +20,34 @@ $router->group(['middleware' => 'auth'], static function (Router $router): void 
 
 Las peticiones JSON de invitados reciben 401 en lugar de la redirección.
 
+## Solo con el correo verificado
+
+En proyectos `--auth` las páginas privadas llevan además `verified`: quien no
+abrió el enlace del correo va a `/verificar-correo` (en JSON, 403).
+
+```php
+$router->group(['middleware' => ['auth', 'verified']], static function (Router $router): void {
+    $router->resource('clientes', ClienteController::class);
+});
+```
+
+En tests, `User::factory()->create()` ya viene verificado; para probar el
+caso contrario usa `User::factory()->sinVerificar()->create()`.
+
+## Enlaces firmados (sin sesión)
+
+Para un enlace que se manda por correo y debe funcionar sin iniciar sesión
+(darse de baja, descargar una factura), firma la ruta y protégela con
+`signed`. Si alguien cambia un parámetro o el enlace venció, responde 403.
+
+```php
+$router->get('/facturas/{id}/descargar', [FacturaController::class, 'descargar'])
+    ->name('facturas.descargar')
+    ->middleware('signed');
+
+$enlace = signed_route('facturas.descargar', ['id' => $factura->id], 60 * 24); // vence en un día
+```
+
 ## Cada usuario ve solo lo suyo
 
 1. Migración nueva con la columna del dueño:
@@ -84,3 +112,5 @@ Los tests que ya existían para esas rutas ahora necesitan `actingAs($usuario)`.
 - Proteger solo el listado: `show`, `edit`, `update` y `destroy` también.
 - Responder 403 a registros ajenos revela que existen; 404 no.
 - Comprobar `auth()->check()` a mano en cada método: usa el middleware.
+- Armar a mano un enlace "secreto" con el id: cualquiera lo adivina. Usa
+  `signed_route()`.

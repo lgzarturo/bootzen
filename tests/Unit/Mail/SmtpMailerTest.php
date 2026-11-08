@@ -31,7 +31,14 @@ function fakeSmtp(array $options = []): array
 
     return [
         'port' => $port,
-        'read' => static function () use ($log): array {
+        'read' => static function () use ($log, $process): array {
+            // El cliente cierra sin esperar la respuesta a QUIT: hay que dejar que el servidor termine de
+            // anotar lo que recibió (con la máquina cargada puede tardar) antes de leer el log
+            $deadline = microtime(true) + 5;
+            while (proc_get_status($process)['running'] && microtime(true) < $deadline) {
+                usleep(10_000);
+            }
+
             $lines = file($log, FILE_IGNORE_NEW_LINES) ?: [];
 
             return array_map(static fn (string $line): array => json_decode($line, true, 512, JSON_THROW_ON_ERROR), $lines);

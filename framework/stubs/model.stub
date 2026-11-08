@@ -12,7 +12,7 @@ use BootZen\Database\Model;
  * @property int $id
 [[properties]] * @property \DateTimeImmutable|null $created_at
  * @property \DateTimeImmutable|null $updated_at
- */
+[[factory]] */
 final class [[Class]] extends Model
 {
     protected static string $table = '[[table]]';

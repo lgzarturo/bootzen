@@ -116,7 +116,12 @@ jobs:
           test "$(curl -sS -o /dev/null -w '%{http_code}' -c jar -b jar -d 'nombre=Ana' http://127.0.0.1:8001/registro)" = "419"
           curl -fsS -o /dev/null -w '%{redirect_url}' -c jar -b jar --data-urlencode "_token=$token" \
             -d 'nombre=Ana&email=ana@ejemplo.com&password=secreto-largo&password_confirmation=secreto-largo' \
-            http://127.0.0.1:8001/registro | grep -q '/tareas'
+            http://127.0.0.1:8001/registro | grep -q '/verificar-correo'
+          # Sin verificar el correo, las tareas responden 403; el enlace llega por correo (MAIL_DRIVER=log)
+          test "$(curl -sS -o /dev/null -w '%{http_code}' -c jar -b jar -H 'Accept: application/json' http://127.0.0.1:8001/tareas)" = "403"
+          link=$(grep -ho 'https\?://[^ ]*/verificar-correo/[^ "]*' storage/logs/*.log | tail -1 | sed 's#^https\?://[^/]*##')
+          test -n "$link"
+          curl -fsS -o /dev/null -c jar -b jar "http://127.0.0.1:8001$link"
           curl -fsS -c jar -b jar http://127.0.0.1:8001/panel | grep -q 'Hola, Ana'
           curl -fsS -c jar -b jar -H 'Accept: application/json' http://127.0.0.1:8001/tareas | grep -q '"total":0'
           # El seeder de la demo reutiliza a Ana y le crea 50 tareas con sus factories

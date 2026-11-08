@@ -597,9 +597,14 @@ demás y el panel necesita los roles.
 - **Criterio**: el test generado por `make:resource` y los del demo usan
   factories; `db:seed` del demo crea 50 tareas con datos creíbles.
 
-#### 9.2 Autenticación completa (L, v2.6.0)
+#### 9.2 Autenticación completa (L, v2.6.0 y v2.7.0)
 
 Todo como parte del scaffold `--auth`, con soporte mínimo en el framework.
+Se divide en dos releases (decisión del usuario): v2.6.0 con recordarme y
+verificación de correo; v2.7.0 con roles, permisos y políticas. La
+verificación se pide por ruta (middleware `verified`), un usuario tiene un
+solo rol y las políticas se encuentran por convención (`App\Policies\TareaPolicy`),
+con el rol de permiso `'*'` pasando todas.
 
 - **Recordarme**: casilla en el login, cookie firmada con selector y
   validador (el validador se guarda con hash en una tabla `remember_tokens`,
@@ -624,7 +629,7 @@ Todo como parte del scaffold `--auth`, con soporte mínimo en el framework.
   cerrar el navegador, y un usuario sin rol `admin` recibe 403 en una ruta
   `role:admin`. Todo con tests en el scaffold.
 
-#### 9.3 URLs traducidas (S, v2.7.0)
+#### 9.3 URLs traducidas (S, v2.8.0)
 
 - `lang/en/rutas.php` traduce segmentos de URL
   (`'precios' => 'prices'`, `'tareas' => 'tasks'`); `localized()` los aplica
@@ -638,7 +643,7 @@ Todo como parte del scaffold `--auth`, con soporte mínimo en el framework.
 - **Criterio**: el demo responde en `/en/tasks` y `/en/sign-up`, el
   `hreflang` apunta a esas URLs y las de español no cambian.
 
-#### 9.4 Panel de administración (M, v2.8.0)
+#### 9.4 Panel de administración (M, v2.9.0)
 
 - `make:admin Cliente` genera un CRUD bajo `/admin/clientes` (nombres
   `admin.clientes.*`) protegido con `auth` y `role:admin`, reutilizando los

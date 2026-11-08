@@ -34,8 +34,9 @@ final class RegisterController
         ]);
 
         auth()->login($user);
+        EmailVerificationController::sendLink($user);
 
-
-        return redirect(home_url())->with('status', __('¡Hola, :nombre! Tu cuenta está lista.', ['nombre' => $user->nombre]));
+        return redirect(route('verification.notice'))
+            ->with('status', __('¡Hola, :nombre! Te enviamos un enlace para verificar tu correo.', ['nombre' => $user->nombre]));
     }
 }

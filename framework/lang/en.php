@@ -45,6 +45,7 @@ return [
     'Ocurrió un error inesperado. Inténtalo de nuevo más tarde.' => 'An unexpected error occurred. Please try again later.',
     'Registro no encontrado.' => 'Record not found.',
     'Necesitas iniciar sesión.' => 'You need to log in.',
+    'Verifica tu correo para continuar.' => 'Verify your email to continue.',
     'Demasiadas peticiones. Intenta de nuevo en :seconds segundos.' => 'Too many requests. Try again in :seconds seconds.',
     'La sesión expiró. Recarga la página e inténtalo de nuevo.' => 'Your session expired. Reload the page and try again.',
 

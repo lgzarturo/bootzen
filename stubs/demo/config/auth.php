@@ -16,4 +16,11 @@ return [
 
     // Minutos que dura un enlace de recuperación de contraseña
     'reset_expire' => 60,
+
+    // Minutos que dura el enlace para verificar el correo
+    'verify_expire' => 60 * 24,
+
+    // "Recordarme": días que dura la sesión en el dispositivo y nombre de la cookie
+    'remember_days' => 30,
+    'remember_cookie' => 'bootzen_remember',
 ];

@@ -30,6 +30,15 @@ final class UserFactory extends Factory
             'nombre' => fake()->name(),
             'email' => fake()->unique()->email(),
             'password' => self::$hash ??= Hash::make(self::PASSWORD),
+            'email_verified_at' => date('Y-m-d H:i:s'),
         ];
+    }
+
+    /**
+     * Usuarios que todavía no verifican su correo: User::factory()->sinVerificar()->create().
+     */
+    public function sinVerificar(): self
+    {
+        return $this->state(['email_verified_at' => null]);
     }
 }

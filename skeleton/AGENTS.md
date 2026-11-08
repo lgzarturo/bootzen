@@ -184,8 +184,10 @@ return static function (Router $router): void {
 - Los formularios HTML envían PUT, PATCH o DELETE con un POST y el campo
   oculto `_method`.
 - Middleware disponibles: `auth` (solo usuarios), `guest` (solo invitados),
-  `throttle:max,minutos`, `cors` y `locale` (idioma, ver Idiomas). Grupos:
-  `web` (todas las rutas de `web.php`) y `api` (todas las de `api.php`).
+  `throttle:max,minutos`, `cors`, `locale` (idioma, ver Idiomas), `verified`
+  (correo verificado) y `signed` (enlaces de `signed_route()`). Grupos: `web`
+  (sesión, "recordarme" y CSRF; todas las rutas de `web.php`) y `api` (todas
+  las de `api.php`).
 
 ### Controladores
 
@@ -337,13 +339,23 @@ auth()->id();                             // id sin consultar la base
 auth()->check();                          // true si hay sesión iniciada
 auth()->attempt(['email' => $email, 'password' => $password]); // true si coincide e inicia sesión
 auth()->login($usuario);                  // inicia sesión (cambia el id de sesión)
+auth()->attempt($credenciales, $request->boolean('remember')); // "recordarme" 30 días en este dispositivo
 auth()->logout();
+auth()->logoutOtherDevices($password);    // cierra las demás sesiones; false si la contraseña no coincide
+auth()->forgetRememberedDevices($usuario); // borra sus "recordarme" (al restablecer la contraseña)
 redirect(auth()->intended(route('dashboard'))); // vuelve a donde iba antes del login
 $usuario->password = Hash::make($password);     // BootZen\Auth\Hash: Argon2id o bcrypt
 ```
 
 - Protege rutas con `->middleware('auth')`; las de login y registro con
-  `'guest'`.
+  `'guest'`. Con `--auth`, las páginas privadas llevan `['auth', 'verified']`:
+  quien no verificó su correo va a `/verificar-correo`
+  (`App\Controllers\Auth\EmailVerificationController`, correo en
+  `App\Mail\VerificationEmail`).
+- Cambiar la contraseña cierra solas las demás sesiones abiertas.
+- Enlaces que se mandan por correo y funcionan sin sesión:
+  `signed_route('nombre', ['id' => 5], 60)` (minutos) y la ruta con
+  `->middleware('signed')`; un parámetro cambiado o un enlace vencido da 403.
 - Login con límite de intentos: `BootZen\Security\RateLimiter` (`hit`,
   `tooManyAttempts`, `availableIn`, `clear`), ver `LoginController`.
 - Correo: `mailer()->send(new Message($email, 'Asunto', $texto, $html))`, con
@@ -537,6 +549,10 @@ Tarea::factory()->count(3)->state(fn (array $v, int $i) => ['titulo' => "Tarea {
 
 - La factory asigna todas las columnas, también las que no están en
   `$fillable`. Los valores que pasas a `create()` ganan.
+- Estados propios (`public function hechas(): self { return $this->state([...]); }`)
+  se llaman como `Tarea::factory()->hechas()`; para que PHPStan los conozca, el
+  modelo lleva `@method static \Database\Factories\TareaFactory factory()`
+  (`make:resource` ya lo pone).
 - `fake()`: `name()`, `firstName()`, `lastName()`, `email()`, `userName()`,
   `phoneNumber()`, `company()`, `address()`, `city()`, `country()`, `word()`,
   `words(3)`, `sentence()`, `paragraph()`, `text(200)`, `number(1, 10)`,
@@ -718,7 +734,8 @@ it('solo deja entrar a usuarios', function (): void {
 - Peticiones: `get`, `post`, `put`, `patch`, `delete`, `getJson`,
   `postJson`, `putJson`, `deleteJson`; `from('/pagina')` (de dónde viene el
   formulario), `actingAs($usuario)`, `withHeaders([...])`,
-  `followingRedirects()`.
+  `followingRedirects()`, `closeBrowser()` (olvida la cookie de sesión y
+  conserva la de "recordarme") y `cookies()`.
 - Respuesta: `assertOk`, `assertStatus`, `assertCreated`, `assertNoContent`,
   `assertNotFound`, `assertForbidden`, `assertUnauthorized`,
   `assertUnprocessable`, `assertRedirect('/ruta')`, `assertSee` (escapa como
@@ -751,7 +768,8 @@ it('solo deja entrar a usuarios', function (): void {
 - **Sesión** (`session()`): `get`, `put`, `has`, `forget`, `pull`, `flash`,
   `all`, `token`.
 - **Auth** (`auth()`): `user`, `id`, `check`, `guest`, `attempt`, `validate`,
-  `login`, `logout`, `intended`. `Hash::make`, `Hash::check`.
+  `login`, `loginUsingId`, `logout`, `logoutOtherDevices`,
+  `forgetRememberedDevices`, `intended`. `Hash::make`, `Hash::check`.
 - **Vistas**: `view()`, `class_list()`; en componentes `$attributes` con
   `merge`, `class`, `only`, `except`, `has`, `get`.
 - **Model**: `query`, `all`, `find`, `findOrFail`, `where`, `create`, `fill`,
@@ -769,7 +787,8 @@ it('solo deja entrar a usuarios', function (): void {
   `redirect()`, `abort()`, `json_response()`, `download()`, `csrf_token()`,
   `csrf_field()`, `validate_csrf_token()`, `slugify()`, `str_random()`,
   `__()`, `trans_choice()`, `locale()`, `locale_url()`, `hreflang_links()`,
-  `format_date()`, `format_number()`, `format_money()`, `home_url()`, `fake()`.
+  `format_date()`, `format_number()`, `format_money()`, `home_url()`, `fake()`,
+  `signed_route()`.
 
 ## Lo que todavía NO existe
 
@@ -779,7 +798,7 @@ librerías para suplirlas** sin preguntar:
 - `route:cache`: el router compila las rutas en cada petición y es rápido
   igual.
 - Colas en Redis u otros servicios: la cola es `sync` o `database`.
-- "Recordarme", verificación de correo, roles y permisos.
+- Roles, permisos y políticas por modelo.
 - URLs traducidas por idioma (`/en/prices`): `localized()` solo agrega el
   prefijo; los textos sí se traducen.
 

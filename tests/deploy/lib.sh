@@ -19,6 +19,16 @@ expect_status() {
     fi
 }
 
+# Comprueba el código de una petición JSON con las cookies del archivo $3
+expect_json_status() {
+    local status
+    status=$(curl -s -o /dev/null -w '%{http_code}' -c "$3" -b "$3" -H 'Accept: application/json' "$2")
+    if [ "$status" != "$1" ]; then
+        echo "Esperaba $1 en $2 y llegó $status" >&2
+        return 1
+    fi
+}
+
 # Registra un usuario con CSRF y sesión reales, y comprueba que puede ver sus tareas
 register_user() {
     local base=$1 email=$2 jar token
@@ -27,7 +37,10 @@ register_user() {
     test -n "$token"
     curl -fsS -o /dev/null -c "$jar" -b "$jar" --data-urlencode "_token=$token" \
         -d "nombre=Ana&email=$email&password=secreto-largo&password_confirmation=secreto-largo" "$base/registro"
-    curl -fsS -c "$jar" -b "$jar" -H 'Accept: application/json' "$base/tareas" | grep -q '"total":0'
+    # Con sesión pero sin verificar el correo: 403 (un invitado recibiría 401)
+    expect_json_status 403 "$base/tareas" "$jar"
+    curl -fsS -c "$jar" -b "$jar" "$base/verificar-correo" | grep -q "$email"
+
     rm -f "$jar"
 }
 
@@ -39,6 +52,7 @@ login_user() {
     test -n "$token"
     curl -fsS -o /dev/null -c "$jar" -b "$jar" --data-urlencode "_token=$token" \
         -d "email=$email&password=secreto-largo" "$base/login"
-    curl -fsS -c "$jar" -b "$jar" -H 'Accept: application/json' "$base/tareas" | grep -q '"total":'
+    # La sesión sobrevivió: responde 403 por el correo sin verificar, no 401 de invitado
+    expect_json_status 403 "$base/tareas" "$jar"
     rm -f "$jar"
 }

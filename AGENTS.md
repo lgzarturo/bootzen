@@ -74,8 +74,14 @@ The roadmap lives in `plan/04_PLAN-MVP-MONOLITO.md`; progress is tracked in
   `/xx` with route names `xx::name`; `route()` picks the active one).
 - `framework/src/Validation/`: Validator (closed rule list, Spanish
   messages) and ValidationException.
-- `framework/src/Auth/`: Auth (session guard), Hash and PasswordReset.
-- `framework/src/Security/RateLimiter.php` and `framework/src/Mail/`
+- `framework/src/Auth/`: Auth (session guard with remember me and a
+  password-hash fingerprint that logs out other sessions when the password
+  changes, `logoutOtherDevices()`), Hash, PasswordReset and RememberTokens
+  (selector and hashed validator in `remember_tokens`, rotated on use, all
+  of a user's tokens dropped when a stolen copy shows up).
+- `framework/src/Security/SignedUrl.php` (`signed_route()`, signs the route
+  name without locale prefix plus its parameters with APP_KEY) and
+  `framework/src/Security/RateLimiter.php`, and `framework/src/Mail/`
   (Mailer with `log`, `smtp` and `array` drivers; Message with cc, bcc,
   reply-to and attachments; MimeMessage builds the MIME text; SmtpMailer
   speaks SMTP over plain sockets with STARTTLS, implicit TLS and AUTH
@@ -91,7 +97,8 @@ The roadmap lives in `plan/04_PLAN-MVP-MONOLITO.md`; progress is tracked in
   `storage/cache/schedule.json`).
 - `framework/src/Middleware/`: StartSession, VerifyCsrfToken,
   SecurityHeaders, RateLimit (`throttle:max,minutes`), Authenticate (`auth`),
-  RedirectIfAuthenticated (`guest`) and CorsMiddleware.
+  RedirectIfAuthenticated (`guest`), CorsMiddleware, RememberMe (web group),
+  EnsureEmailIsVerified (`verified`) and ValidateSignature (`signed`).
 - `framework/src/Helpers/helpers.php`: global helpers. None of them call
   `exit`: they return a `Response` or throw `HttpException`.
 - `skeleton/`: `app/`, `bin/bootzen`, `bootstrap/app.php`, `config/`,
@@ -109,7 +116,8 @@ The roadmap lives in `plan/04_PLAN-MVP-MONOLITO.md`; progress is tracked in
   (`deploy/docker/scheduler.sh` runs `schedule:run` every minute as
   `www-data`).
 - `stubs/auth/`: files that `--auth` copies over the skeleton (controllers,
-  User model, migration, views, `routes/auth.php`, its own `routes/web.php`,
+  including email verification, User model and UserFactory, migrations,
+  `app/Mail/VerificationEmail.php`, views, `routes/auth.php`, its own `routes/web.php`,
   layout and `config/auth.php`, and `tests/Feature/AuthTest.php`).
 - `stubs/demo/`: files that `--demo` copies after `stubs/auth/` (Tarea model
   and controller, views, `<x-modal>` + `modal.js`, seeder and tests).

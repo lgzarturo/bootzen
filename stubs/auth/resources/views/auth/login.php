@@ -3,6 +3,7 @@
         <x-form :action="route('login.store')">
             <x-input name="email" type="email" :label="__('Correo')" autocomplete="email" required autofocus />
             <x-input name="password" type="password" :label="__('Contraseña')" autocomplete="current-password" required />
+            <x-checkbox name="remember" :label="__('Recordarme en este dispositivo')" />
             <div class="flex items-center justify-between">
                 <a href="{{ route('password.request') }}" class="text-sm text-blue-600 hover:underline">{{ __('¿Olvidaste tu contraseña?') }}</a>
                 <x-button type="submit">{{ __('Entrar') }}</x-button>

@@ -17,6 +17,8 @@ use BootZen\Database\Model;
  * @property \DateTimeImmutable|null $vence
  * @property \DateTimeImmutable|null $created_at
  * @property \DateTimeImmutable|null $updated_at
+ *
+ * @method static \Database\Factories\TareaFactory factory()
  */
 final class Tarea extends Model
 {

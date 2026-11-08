@@ -314,10 +314,10 @@ Notas de i18n (v2.4.0):
 Piezas elegidas por el usuario; un release por pieza. Detalle en el plan.
 
 - [x] 9.1 Factories para tests y seeds (v2.5.0)
-- [ ] 9.2 Autenticación completa: recordarme, verificación de correo, roles y
-  permisos (v2.6.0)
-- [ ] 9.3 URLs traducidas (v2.7.0)
-- [ ] 9.4 Panel de administración con `make:admin` (v2.8.0)
+- [x] 9.2a Recordarme y verificación de correo (v2.6.0)
+- [ ] 9.2b Roles, permisos y políticas (v2.7.0)
+- [ ] 9.3 URLs traducidas (v2.8.0)
+- [ ] 9.4 Panel de administración con `make:admin` (v2.9.0)
 
 Notas de factories (v2.5.0):
 
@@ -332,3 +332,26 @@ Notas de factories (v2.5.0):
 - Verificado: suite del repo, proyecto `--demo` (24 tests y `db:seed` con 50
   tareas), y un proyecto limpio con `make:resource` de siete tipos de campo
   que pasa `bin/bootzen check`.
+
+Notas de recordarme y verificación (v2.6.0):
+
+- Decisiones del usuario: la 9.2 va en dos releases; la verificación se
+  pide por ruta con `verified`; un solo rol por usuario; políticas por
+  convención con el rol `'*'` pasando todas (estas tres últimas, para v2.7.0).
+- "Recordarme" usa selector y validador con hash, rotación en cada uso y
+  borrado de todos los tokens ante una copia robada. Las sesiones guardan
+  una huella del hash de la contraseña: cambiarla cierra las demás, sin
+  tablas extra.
+- Los enlaces firmados firman el nombre de la ruta (sin prefijo de idioma) y
+  sus parámetros, no la URL completa, para que sirvan detrás de proxies, en
+  subcarpetas y en cualquier idioma.
+- Lo que encontraron las pruebas: restablecer la contraseña cerraba las
+  sesiones pero un "recordarme" robado seguía entrando (ahora se borran);
+  PHPStan no veía los estados propios de una factory (ahora el modelo
+  declara su factory con `@method`); el CSS precompilado quedó viejo con las
+  vistas nuevas; un test de SMTP fallaba por una carrera al leer el log del
+  servidor falso (reproducida retrasando el servidor y corregida).
+- Verificado: suite del repo, proyectos `--auth` (19 tests) y `--demo` (28),
+  el flujo HTTP del CI con el enlace sacado del log del correo, y Chromium
+  con Mailpit real: registro, correo por SMTP, enlace, "recordarme" en un
+  navegador nuevo y cerrar las demás sesiones.

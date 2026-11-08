@@ -41,7 +41,7 @@ final class LoginController
             ]);
         }
 
-        if (! auth()->attempt(['email' => $email, 'password' => $datos['password']])) {
+        if (! auth()->attempt(['email' => $email, 'password' => $datos['password']], $request->boolean('remember'))) {
             $this->limiter->hit($clave, 60);
 
             throw ValidationException::withMessages(['email' => 'El correo o la contraseña no son correctos.']);
@@ -57,5 +57,19 @@ final class LoginController
         auth()->logout();
 
         return redirect(route('home'))->with('status', __('Cerraste sesión.'));
+    }
+
+    /**
+     * Cierra la sesión en los demás dispositivos (pide la contraseña). Esta sigue abierta.
+     */
+    public function destroyOthers(Request $request): Response
+    {
+        $datos = $request->validate(['password' => 'required|string']);
+
+        if (! auth()->logoutOtherDevices((string) $datos['password'])) {
+            throw ValidationException::withMessages(['password' => __('La contraseña no es correcta.')]);
+        }
+
+        return back()->with('status', __('Cerraste la sesión en tus otros dispositivos.'));
     }
 }
