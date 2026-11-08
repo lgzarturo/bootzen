@@ -1,5 +1,30 @@
 # CHANGELOG
 
+## [2.8.0] - 2026-11-08
+
+URLs traducidas (fase 9.3): las páginas en inglés ya no viven en
+`/en/tareas` sino en `/en/tasks`.
+
+### Agregado
+
+- `lang/{idioma}/rutas.php` traduce los segmentos fijos de las rutas de
+  `$router->localized()` (`'tareas' => 'tasks'`); los parámetros no cambian.
+  Se escriben las rutas una sola vez en español.
+- La URL sin traducir (`/en/tareas/7?x=1`) redirige con 301 a la traducida,
+  con parámetros y query.
+- Si dos rutas quedan en la misma URL al traducir, la app lo dice al
+  arrancar y nombra el archivo a revisar.
+- `Translator::routeSegments()`; `rutas.php` se carga aparte de los textos.
+- Scaffold `--auth` y demo con URLs en inglés: `/en/sign-up`,
+  `/en/forgot-password`, `/en/verify-email`, `/en/dashboard`,
+  `/en/tasks/{id}/toggle`. `skeleton/lang/en/rutas.php` de ejemplo.
+
+### Cambiado
+
+- `route()`, `hreflang_links()`, `locale_url()` y `signed_route()` dan la
+  URL traducida sin cambios en el código que los usa.
+- En proyectos creados antes no cambia nada hasta crear `lang/en/rutas.php`.
+
 ## [2.7.0] - 2026-11-08
 
 Segunda mitad de la autenticación completa (fase 9.2): roles, permisos y

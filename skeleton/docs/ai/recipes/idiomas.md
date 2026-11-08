@@ -34,6 +34,22 @@ pendiente.
    inglés: los enlaces y redirecciones se quedan en el idioma del usuario
    sin hacer nada más. `make:resource` agrega su ruta dentro de este bloque.
 
+   Para que la URL también esté en inglés (`/en/pricing`), traduce sus
+   segmentos en `lang/en/rutas.php`:
+
+   ```php
+   return [
+       'precios' => 'pricing',
+       'tareas' => 'tasks',   // también /tareas/{id}/edit queda /en/tasks/{id}/edit
+   ];
+   ```
+
+   Las rutas se escriben una sola vez en español; `route()`, `hreflang_links()`,
+   `locale_url()` y `signed_route()` usan la URL traducida solos. La URL sin
+   traducir (`/en/precios`) redirige con 301 a la nueva, así no se pierden
+   enlaces ni posiciones en buscadores. Si dos rutas quedan en la misma URL
+   al traducir, la app avisa al arrancar.
+
 3. Envuelve los textos visibles con `__()`, en vistas y en controladores:
 
    ```php
@@ -126,6 +142,8 @@ it('muestra los pedidos en inglés', function (): void {
   `lang/en.php`: la traducción deja de encontrarse y sale en español.
 - Rutas fuera de `localized()`: en `/en/...` dan 404 y los enlaces en
   inglés mandan a la versión en español.
-- Las rutas (`/precios`) son las mismas en todos los idiomas; solo cambia el
-  prefijo. Si necesitas URLs traducidas, defínelas a mano fuera de
-  `localized()` con `->middleware('locale:en')`.
+- Poner textos en `lang/en/rutas.php` o segmentos en `lang/en.php`: son
+  archivos distintos. `rutas.php` solo traduce partes de URL, sin `/` ni
+  `{parámetros}`.
+- Traducir un segmento que ya se publicó sin pensar en los enlaces: no pasa
+  nada (hay 301), pero en tests usa la URL nueva.

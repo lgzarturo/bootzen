@@ -316,7 +316,7 @@ Piezas elegidas por el usuario; un release por pieza. Detalle en el plan.
 - [x] 9.1 Factories para tests y seeds (v2.5.0)
 - [x] 9.2a Recordarme y verificación de correo (v2.6.0)
 - [x] 9.2b Roles, permisos y políticas (v2.7.0)
-- [ ] 9.3 URLs traducidas (v2.8.0)
+- [x] 9.3 URLs traducidas (v2.8.0)
 - [ ] 9.4 Panel de administración con `make:admin` (v2.9.0)
 
 Notas de factories (v2.5.0):
@@ -370,3 +370,19 @@ Notas de roles, permisos y políticas (v2.7.0):
   no revelar que existen; el admin las puede corregir.
 - Verificado: suite del repo, proyectos `--auth` (20 tests) y `--demo` (30),
   `user:role` y `make:policy` desde la terminal, y MySQL 8.4 real.
+
+Notas de URLs traducidas (v2.8.0):
+
+- Decisiones del usuario: segmentos en `lang/en/rutas.php`; la URL sin
+  traducir redirige con 301; se traducen todas las rutas de `--auth` y del
+  demo.
+- `rutas.php` se carga aparte de los textos: con las claves mezcladas,
+  `'tareas' => 'tasks'` habría cambiado también `__('tareas')`.
+- Solo las rutas GET dejan redirección; un POST a la URL vieja da 404.
+- Lo que encontraron las pruebas: el test del scaffold buscaba el enlace de
+  verificación por el texto `verificar-correo`, que en inglés ya es
+  `verify-email` (ahora busca cualquier enlace firmado).
+- Verificado: suite del repo, proyectos `--auth` (20 tests) y `--demo` (30),
+  `route:list` con las rutas traducidas, y Chromium en inglés: registro
+  desde la URL vieja (301), enlace del correo en `/en/verify-email/...`,
+  tareas en `/en/tasks` y `hreflang` con cada versión.
