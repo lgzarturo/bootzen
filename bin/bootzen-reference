@@ -54,6 +54,7 @@ const BOOTZEN_REFERENCE_SECTIONS = [
         BootZen\Auth\Hash::class,
         BootZen\Auth\PasswordReset::class,
         BootZen\Security\RateLimiter::class,
+        BootZen\Security\SignedUrl::class,
     ],
     'Vistas, correo, caché y log' => [
         BootZen\View\ComponentAttributeBag::class,

@@ -1,5 +1,53 @@
 # CHANGELOG
 
+## [2.6.0] - 2026-11-08
+
+Primera mitad de la autenticación completa (fase 9.2): "recordarme",
+verificación de correo y enlaces firmados.
+
+### Agregado
+
+- "Recordarme": `auth()->attempt($credenciales, $remember)` y
+  `auth()->login($usuario, true)`. Un token por dispositivo en
+  `remember_tokens` con selector y validador (solo se guarda el hash), que se
+  renueva en cada uso; si aparece una copia robada ya usada, se borran todos
+  los tokens del usuario. Middleware `RememberMe` en el grupo `web`.
+- Cambiar la contraseña cierra solas las demás sesiones (cada sesión guarda
+  una huella del hash). `auth()->logoutOtherDevices($password)` y
+  `auth()->forgetRememberedDevices($usuario)`.
+- Enlaces firmados: `signed_route('nombre', $parametros, $minutos)` y el
+  middleware `signed`. Firman el nombre de la ruta y sus parámetros con la
+  `APP_KEY`, así sirven detrás de un proxy, en una subcarpeta y en `/en/`.
+- Middleware `verified` (columna `email_verified_at`): manda a
+  `verification.notice` o responde 403 en JSON.
+- Scaffold `--auth`: casilla "Recordarme", correo de verificación al
+  registrarse (`App\Mail\VerificationEmail`), página "verifica tu correo"
+  con reenvío limitado, enlace firmado que funciona sin sesión, panel y
+  tareas con `['auth', 'verified']`, y "cerrar sesión en los demás
+  dispositivos" en el panel. Restablecer la contraseña verifica el correo y
+  borra los "recordarme". Todo traducido al inglés.
+- `UserFactory` con `email_verified_at` y el estado `sinVerificar()`.
+  `make:resource` agrega `@method static ...Factory factory()` al modelo
+  para que PHPStan vea los estados propios.
+- `TestClient::closeBrowser()` (olvida la cookie de sesión y conserva la de
+  "recordarme") y `cookies()`.
+
+### Cambiado
+
+- El grupo `web` del skeleton es `[StartSession, RememberMe, VerifyCsrfToken]`.
+  Sin cookie de "recordarme" no toca la base. En proyectos creados antes,
+  agrega `RememberMe::class` en `bootstrap/app.php` si usas "recordarme".
+- Proyectos `--auth` existentes: copia la migración
+  `2025_01_02_000000_recordarme_y_verificacion.php` y corre `migrate`; los
+  usuarios ya registrados quedan sin verificar (márcalos con
+  `UPDATE users SET email_verified_at = created_at` si no quieres pedírselo).
+
+### Corregido
+
+- Un test del correo SMTP fallaba a veces con la suite en paralelo: el
+  cliente cierra sin esperar la respuesta a `QUIT` y el test leía el log del
+  servidor falso antes de que terminara de escribirlo.
+
 ## [2.5.0] - 2026-11-08
 
 Primera pieza de la fase 9: factories para tests y seeders, con datos falsos

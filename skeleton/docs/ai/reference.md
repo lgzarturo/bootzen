@@ -50,6 +50,7 @@
 - `redirect(string $url, int $status = 302): Response`: Crea una respuesta de redirección. Debe retornarse desde el handler.
 - `route(string $name, array $parameters = []): string`: Genera el path de una ruta con nombre. Los parámetros sobrantes se agregan como query string.
 - `session(?string $key = null, mixed $default = null): mixed`: Sin argumentos devuelve la sesión; con una clave, su valor (o el valor por defecto si no hay sesión).
+- `signed_route(string $name, array $parameters = [], int $minutes = 60): string`: URL completa y firmada de una ruta con nombre, que vence en $minutes. La ruta lleva ->middleware('signed'); si alguien cambia un parámetro o el enlace venció, responde 403.
 - `slugify(string $text): string`: Convierte un texto en un slug apto para URLs.
 - `storage(?string $disk = null): Storage`: Disco de config/storage.php; sin nombre, el privado por defecto (STORAGE_DISK).
 - `storage_path(string $path = ''): string`: Obtiene la ruta absoluta al directorio storage.
@@ -425,14 +426,17 @@ Datos de sesión. Guarda solo escalares y arrays (los objetos no se restauran).
 
 Guard de sesión. Se obtiene con auth() en rutas que pasan por el grupo web.
 
+- `forgetRememberedDevices(Model $user): void`: Borra los "recordarme" del usuario en todos sus dispositivos. Úsalo al restablecer la contraseña: las sesiones abiertas ya se cierran solas porque cambia la huella, pero una cookie de recordarme volvería a entrar.
 - `user(): ?Model`: Usuario autenticado, o null si es un invitado (o si la petición no tiene sesión, como un 404).
 - `id(): string|int|null`: Id del usuario autenticado, sin consultar la base de datos.
 - `check(): bool`
 - `guest(): bool`
-- `attempt(array $credentials): bool`: Busca al usuario por las credenciales (todas menos password) y verifica la contraseña. Si coincide, inicia sesión. Si el hash está desactualizado, lo rehace.
+- `attempt(array $credentials, bool $remember = false): bool`: Busca al usuario por las credenciales (todas menos password) y verifica la contraseña. Si coincide, inicia sesión. Si el hash está desactualizado, lo rehace.
 - `validate(array $credentials): ?Model`: Devuelve el usuario si las credenciales son correctas, sin iniciar sesión.
-- `login(Model $user): void`: Inicia sesión como el usuario. Cambia el id de la sesión y el token CSRF para evitar fijación de sesión.
-- `logout(): void`: Cierra la sesión: borra todos sus datos y cambia el id.
+- `login(Model $user, bool $remember = false): void`: Inicia sesión como el usuario. Cambia el id de la sesión y el token CSRF para evitar fijación de sesión. Con $remember deja una cookie que vuelve a iniciar la sesión al regresar (necesita la tabla remember_tokens y el middleware RememberMe en el grupo web).
+- `loginUsingId(string|int $id, bool $remember = false): ?Model`: Inicia sesión con el id del usuario; null si no existe.
+- `logout(): void`: Cierra la sesión: borra todos sus datos, cambia el id y olvida la cookie de "recordarme".
+- `logoutOtherDevices(string $password): bool`: Cierra la sesión en los demás dispositivos: pide la contraseña actual, la vuelve a cifrar (las otras sesiones ven otra huella y se cierran) y borra todos los "recordarme". Esta sesión sigue abierta.
 - `intended(string $default = '/'): string`: URL que el usuario intentaba visitar antes de que lo mandaran al login (la guarda el middleware auth).
 
 ### Hash
@@ -459,6 +463,13 @@ Limitador de intentos.
 - `remaining(string $key, int $maxAttempts): int`
 - `availableIn(string $key): int`: Segundos que faltan para que la ventana se reinicie.
 - `clear(string $key): void`: Reinicia los intentos (por ejemplo, después de un login correcto).
+
+### SignedUrl
+
+La firma cubre el nombre de la ruta (sin prefijo de idioma) y todos los parámetros, no el dominio ni la carpeta: el enlace sigue siendo válido detrás de un proxy, en una subcarpeta o en /en/.
+
+- `sign(string $route, array $parameters, int $expires): array`: Parámetros con expires y signature agregados.
+- `check(Request $request, int $now): bool`: Comprueba la firma y el vencimiento de la petición actual (ruta, parámetros y query string).
 
 ## Vistas, correo, caché y log
 
@@ -669,6 +680,8 @@ En los tests del proyecto se obtiene con client() (tests/Pest.php).
 - `withHeaders(array $headers): self`: Agrega cabeceras a todas las peticiones siguientes.
 - `from(string $uri): self`: Simula que el usuario viene de esa página (cabecera Referer): tras un error de validación, la respuesta redirige ahí.
 - `followingRedirects(): self`: Las siguientes peticiones siguen las redirecciones (hasta 5) y devuelven la página final.
+- `closeBrowser(): self`: Simula cerrar el navegador: olvida la cookie de sesión y conserva las demás (como "recordarme").
+- `cookies(): array`: Cookies que el cliente tiene guardadas: nombre => valor.
 - `actingAs(Model $user): self`: Inicia sesión como el usuario sin pasar por el formulario de login.
 - `sessionData(): array`: Datos de la sesión actual del cliente ([] si todavía no hay sesión).
 - `assertAuthenticated(): self`
