@@ -274,7 +274,7 @@ final class Generator
 
         $files = [
             $this->createTableMigration($table, $fields),
-            $this->write("app/Models/{$model}.php", $this->renderModel($model, $table, $fields)),
+            $this->write("app/Models/{$model}.php", $this->renderModel($model, $table, $fields, true)),
             $this->write("app/Controllers/{$model}Controller.php", $this->render('resource/controller', $vars + [
                 'rules' => implode("\n", array_map(
                     static fn (ResourceField $field): string => "            '{$field->name}' => '{$field->rules()}',",
@@ -409,7 +409,7 @@ final class Generator
     /**
      * @param list<ResourceField> $fields
      */
-    private function renderModel(string $class, string $table, array $fields): string
+    private function renderModel(string $class, string $table, array $fields, bool $factory = false): string
     {
         $casts = array_filter(array_map(static fn (ResourceField $field): ?string => $field->cast() === null ? null : "'{$field->name}' => '{$field->cast()}'", $fields));
 
@@ -420,6 +420,8 @@ final class Generator
             'properties' => implode('', array_map(static fn (ResourceField $field): string => " * @property {$field->phpType()} \${$field->name}\n", $fields)),
             'fillable' => implode(', ', array_map(static fn (ResourceField $field): string => "'{$field->name}'", $fields)),
             'casts' => $casts === [] ? '' : "\n    protected static array \$casts = [" . implode(', ', $casts) . "];\n",
+            // Así PHPStan conoce los métodos propios de la factory (estados como ->hechas())
+            'factory' => $factory ? " * @method static \\Database\\Factories\\{$class}Factory factory()\n" : '',
         ]);
     }
 
