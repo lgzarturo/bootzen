@@ -83,12 +83,14 @@ php bin/bootzen db:fresh --seed   # borra todo, migra y siembra (--force en prod
 php bin/bootzen db:backup         # copia consistente de SQLite en storage/backups
 php bin/bootzen make:resource Tarea titulo:string hecha:bool  # CRUD completo (ver abajo)
 php bin/bootzen make:model Cliente --migration   # también: make:controller (--json), make:migration,
-                                  # make:middleware, make:seeder, make:factory, make:test, make:component
+                                  # make:middleware, make:seeder, make:factory, make:policy, make:test,
+                                  # make:component
 php bin/bootzen route:list        # rutas con nombre, middleware y acción
 php bin/bootzen doctor            # revisa PHP, extensiones, permisos, .env y base de datos
 php bin/bootzen config:cache      # configuración en un archivo (producción; config:clear la borra)
 php bin/bootzen key:generate      # APP_KEY en .env
 php bin/bootzen mail:test tu@correo.com  # envía un correo de prueba con la configuración actual
+php bin/bootzen user:role ana@correo.com admin  # cambia el rol (roles en config/auth.php)
 php bin/bootzen make:job EnviarFactura   # job en app/Jobs para dispatch()
 php bin/bootzen queue:table       # migración de la cola (para QUEUE_DRIVER=database)
 php bin/bootzen queue:work        # atiende la cola (--stop-when-empty, --max-time=50)
@@ -137,8 +139,8 @@ con componentes, `database/factories/TareaFactory.php` y
 - Nunca sobrescribe archivos: si algo ya existe, se detiene antes de escribir.
 - Para lo demás: `make:model` (`--migration`, `--table=`), `make:controller`,
   `make:migration crear_facturas` (trae el `CREATE TABLE`), `make:middleware`,
-  `make:seeder`, `make:factory`, `make:test` (`--unit`) y `make:component modal`
-  (`--class`).
+  `make:seeder`, `make:factory`, `make:policy`, `make:test` (`--unit`) y
+  `make:component modal` (`--class`).
 
 ### Rutas
 
@@ -185,7 +187,8 @@ return static function (Router $router): void {
   oculto `_method`.
 - Middleware disponibles: `auth` (solo usuarios), `guest` (solo invitados),
   `throttle:max,minutos`, `cors`, `locale` (idioma, ver Idiomas), `verified`
-  (correo verificado) y `signed` (enlaces de `signed_route()`). Grupos: `web`
+  (correo verificado), `signed` (enlaces de `signed_route()`), `role:admin`
+  (alguno de los roles) y `can:reportes.ver` (permiso del rol). Grupos: `web`
   (sesión, "recordarme" y CSRF; todas las rutas de `web.php`) y `api` (todas
   las de `api.php`).
 
@@ -353,6 +356,17 @@ $usuario->password = Hash::make($password);     // BootZen\Auth\Hash: Argon2id o
   (`App\Controllers\Auth\EmailVerificationController`, correo en
   `App\Mail\VerificationEmail`).
 - Cambiar la contraseña cierra solas las demás sesiones abiertas.
+- **Roles y permisos**: cada usuario tiene un rol (columna `role`, por
+  defecto `usuario`; nunca en `$fillable`). Los permisos de cada rol están en
+  `config/auth.php` (`'admin' => ['*']`, `'editor' => ['tareas.*']`).
+  `can('reportes.ver')`, `$user->hasRole('admin')`, middleware `role:admin` y
+  `can:reportes.ver`. El primer admin: `php bin/bootzen user:role correo admin`.
+- **Políticas**: "cada quien edita lo suyo" va en `app/Policies/TareaPolicy.php`
+  (`make:policy Tarea`), con métodos `view`, `update`, `delete`... que reciben
+  `(User $user, Tarea $tarea)`. En el controlador `authorize('update', $tarea)`
+  (403, o `authorize('update', $tarea, 404)` para no revelar que existe); en
+  vistas `@if (can('update', $tarea))`. El rol con `'*'` pasa todas. Ejemplo
+  completo en `docs/ai/recipes/proteger-rutas.md`.
 - Enlaces que se mandan por correo y funcionan sin sesión:
   `signed_route('nombre', ['id' => 5], 60)` (minutos) y la ruta con
   `->middleware('signed')`; un parámetro cambiado o un enlace vencido da 403.
@@ -788,7 +802,7 @@ it('solo deja entrar a usuarios', function (): void {
   `csrf_field()`, `validate_csrf_token()`, `slugify()`, `str_random()`,
   `__()`, `trans_choice()`, `locale()`, `locale_url()`, `hreflang_links()`,
   `format_date()`, `format_number()`, `format_money()`, `home_url()`, `fake()`,
-  `signed_route()`.
+  `signed_route()`, `can()`, `authorize()`, `gate()`.
 
 ## Lo que todavía NO existe
 
@@ -798,7 +812,6 @@ librerías para suplirlas** sin preguntar:
 - `route:cache`: el router compila las rutas en cada petición y es rápido
   igual.
 - Colas en Redis u otros servicios: la cola es `sync` o `database`.
-- Roles, permisos y políticas por modelo.
 - URLs traducidas por idioma (`/en/prices`): `localized()` solo agrega el
   prefijo; los textos sí se traducen.
 

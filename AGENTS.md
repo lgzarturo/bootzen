@@ -78,7 +78,10 @@ The roadmap lives in `plan/04_PLAN-MVP-MONOLITO.md`; progress is tracked in
   password-hash fingerprint that logs out other sessions when the password
   changes, `logoutOtherDevices()`), Hash, PasswordReset and RememberTokens
   (selector and hashed validator in `remember_tokens`, rotated on use, all
-  of a user's tokens dropped when a stolen copy shows up).
+  of a user's tokens dropped when a stolen copy shows up), Gate (role
+  permissions from `config/auth.php` with `x.*` wildcards, policies found by
+  convention as `App\Policies\{Model}Policy`, a `'*'` role passes all) and
+  the Authorizable trait (`$user->can()`, `hasRole()`).
 - `framework/src/Security/SignedUrl.php` (`signed_route()`, signs the route
   name without locale prefix plus its parameters with APP_KEY) and
   `framework/src/Security/RateLimiter.php`, and `framework/src/Mail/`
@@ -98,7 +101,8 @@ The roadmap lives in `plan/04_PLAN-MVP-MONOLITO.md`; progress is tracked in
 - `framework/src/Middleware/`: StartSession, VerifyCsrfToken,
   SecurityHeaders, RateLimit (`throttle:max,minutes`), Authenticate (`auth`),
   RedirectIfAuthenticated (`guest`), CorsMiddleware, RememberMe (web group),
-  EnsureEmailIsVerified (`verified`) and ValidateSignature (`signed`).
+  EnsureEmailIsVerified (`verified`), ValidateSignature (`signed`),
+  RequireRole (`role:admin,editor`) and RequirePermission (`can:x.y`).
 - `framework/src/Helpers/helpers.php`: global helpers. None of them call
   `exit`: they return a `Response` or throw `HttpException`.
 - `skeleton/`: `app/`, `bin/bootzen`, `bootstrap/app.php`, `config/`,

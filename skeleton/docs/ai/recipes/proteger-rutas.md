@@ -1,6 +1,7 @@
 # Proteger rutas
 
-**Cuándo:** "solo usuarios logueados", "cada usuario ve solo sus registros".
+**Cuándo:** "solo usuarios logueados", "cada usuario ve solo sus registros",
+"solo los admin", "los editores pueden publicar".
 
 Necesita autenticación. Si el proyecto no se creó con `--auth`, crea primero
 el modelo `User`, el login y el registro siguiendo `app/Controllers/Auth` de
@@ -74,15 +75,53 @@ $enlace = signed_route('facturas.descargar', ['id' => $factura->id], 60 * 24); /
        return redirect(route('clientes.show', ['id' => $cliente->id]))->with('status', 'Registro creado.');
    }
 
-   /** Busca el registro solo entre los del usuario: si es de otro, 404. */
-   private function find(int $id): Cliente
+   /** Busca el registro y pide permiso a ClientePolicy: si no puede, 404. */
+   private function find(int $id, string $ability): Cliente
    {
-       return Cliente::where('user_id', auth()->id())->where('id', $id)->firstOrFail();
+       $cliente = Cliente::findOrFail($id);
+       authorize($ability, $cliente, 404);
+
+       return $cliente;
    }
    ```
 
-   Usa `$this->find($id)` en `show`, `edit`, `update` y `destroy`. Nunca
-   tomes `user_id` del formulario.
+   Usa `$this->find($id, 'view')` en `show`, `'update'` en `edit` y `update`
+   y `'delete'` en `destroy`. Nunca tomes `user_id` del formulario.
+
+4. Crea la política: `php bin/bootzen make:policy Cliente` genera
+   `app/Policies/ClientePolicy.php` con `view`, `update` y `delete` que
+   comparan `user_id` con el usuario. BootZen la encuentra por el nombre.
+5. En las vistas, muestra los botones solo a quien puede:
+   `@if (can('update', $cliente)) <x-button ...>Editar</x-button> @endif`.
+
+El admin (rol con `'*'` en `config/auth.php`) pasa todas las políticas: puede
+corregir registros ajenos sin cambiar nada.
+
+## Roles y permisos
+
+Cada usuario tiene un rol (columna `role`, por defecto `usuario`). Los
+permisos de cada rol van en `config/auth.php`:
+
+```php
+'roles' => [
+    'admin' => ['*'],                          // todo
+    'editor' => ['articulos.*', 'reportes.ver'], // articulos.* cubre articulos.publicar
+    'usuario' => [],
+],
+```
+
+```php
+$router->group(['middleware' => ['auth', 'role:admin']], ...);       // solo admin
+$router->get('/reportes', ...)->middleware(['auth', 'can:reportes.ver']);
+if (can('articulos.publicar')) { ... }                             // en controladores y vistas
+$usuario->hasRole('editor');                                        // con el trait Authorizable
+```
+
+- El primer admin se nombra desde la terminal:
+  `php bin/bootzen user:role ana@correo.com admin`.
+- `role` nunca va en `$fillable`: si no, alguien podría registrarse como
+  admin mandando `role=admin` en el formulario.
+- En tests: `User::factory()->admin()->create()`.
 
 ## Test
 
@@ -112,5 +151,8 @@ Los tests que ya existían para esas rutas ahora necesitan `actingAs($usuario)`.
 - Proteger solo el listado: `show`, `edit`, `update` y `destroy` también.
 - Responder 403 a registros ajenos revela que existen; 404 no.
 - Comprobar `auth()->check()` a mano en cada método: usa el middleware.
+- Poner `role` en `$fillable` o leerlo del formulario.
+- Revisar permisos solo en la vista (ocultar el botón): el controlador
+  también lleva `authorize()`.
 - Armar a mano un enlace "secreto" con el id: cualquiera lo adivina. Usa
   `signed_route()`.

@@ -1,5 +1,36 @@
 # CHANGELOG
 
+## [2.7.0] - 2026-11-08
+
+Segunda mitad de la autenticación completa (fase 9.2): roles, permisos y
+políticas.
+
+### Agregado
+
+- Roles con sus permisos en `config/auth.php` (`'admin' => ['*']`,
+  `'editor' => ['tareas.*', 'reportes.ver']`). `can('reportes.ver')`,
+  middleware `role:admin,editor` y `can:reportes.ver`.
+- Políticas por convención: `App\Policies\TareaPolicy` para
+  `App\Models\Tarea`, con métodos como `update(User $user, Tarea $tarea)`.
+  `can('update', $tarea)`, `authorize('update', $tarea)` (403, o 404 para no
+  revelar que el registro existe) y `can('create', Tarea::class)`. Un rol con
+  `'*'` pasa todas.
+- Trait `BootZen\Auth\Authorizable` para el modelo de usuario:
+  `$user->can()` y `$user->hasRole()`.
+- `make:policy Modelo` y `user:role correo rol` (para nombrar al primer
+  admin, valida que el rol exista).
+- Scaffold `--auth`: columna `role` (todos empiezan como `usuario`, fuera de
+  `$fillable`), roles en `config/auth.php` y `UserFactory::admin()`.
+- Demo: `TareaPolicy`; el controlador usa `authorize(..., 404)` y la lista
+  muestra editar y borrar con `can()`. El admin puede corregir tareas ajenas.
+- PHPStan del repo analiza también `stubs/auth/app` y sus factories.
+
+### Cambiado
+
+- Proyectos `--auth` existentes: copia la migración
+  `2025_01_03_000000_agregar_rol_a_usuarios.php`, corre `migrate`, agrega
+  `roles` a `config/auth.php` y `use Authorizable;` al modelo `User`.
+
 ## [2.6.0] - 2026-11-08
 
 Primera mitad de la autenticación completa (fase 9.2): "recordarme",
