@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use BootZen\Auth\Authorizable;
 use BootZen\Database\Model;
 
 /**
@@ -13,6 +14,7 @@ use BootZen\Database\Model;
  * @property string $nombre
  * @property string $email
  * @property string $password
+ * @property string $role
  * @property \DateTimeImmutable|null $email_verified_at
  * @property \DateTimeImmutable|null $created_at
  * @property \DateTimeImmutable|null $updated_at
@@ -21,6 +23,8 @@ use BootZen\Database\Model;
  */
 final class User extends Model
 {
+    use Authorizable;
+
     protected static string $table = 'users';
 
     protected static array $fillable = ['nombre', 'email', 'password'];

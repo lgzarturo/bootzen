@@ -87,6 +87,19 @@ it('no deja ver ni tocar tareas ajenas', function (): void {
     $client->assertDatabaseHas('tareas', ['titulo' => 'Privada', 'hecha' => 0]);
 });
 
+it('deja al admin corregir tareas ajenas (TareaPolicy y el rol con *)', function (): void {
+    $client = client();
+    $ajena = Tarea::factory()->create(['titulo' => 'Con error']);
+    $admin = User::factory()->admin()->create();
+
+    expect($admin->can('update', $ajena))->toBeTrue()
+        ->and(usuario('Beto')->can('update', $ajena))->toBeFalse();
+
+    $client->actingAs($admin)->get('/tareas/' . $ajena->id . '/edit')->assertOk();
+    $client->put('/tareas/' . $ajena->id, ['titulo' => 'Corregida'])->assertRedirect('/tareas');
+    $client->assertDatabaseHas('tareas', ['id' => $ajena->id, 'titulo' => 'Corregida']);
+});
+
 it('responde JSON paginado y filtra por estado', function (): void {
     $client = client();
     $ana = usuario();

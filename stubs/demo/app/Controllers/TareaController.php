@@ -11,7 +11,8 @@ use BootZen\Core\Response;
 use BootZen\Database\ModelQuery;
 
 /**
- * Tareas del usuario con sesión. Todo pasa por $this->tareas(): nadie ve ni toca tareas ajenas.
+ * Tareas del usuario con sesión. El listado muestra solo las suyas; editar, completar y borrar pasan
+ * por TareaPolicy (authorize), así el admin puede corregir cualquiera y los demás reciben 404.
  *
  * GET /tareas responde HTML o, si el cliente pide JSON, la lista paginada:
  * {"data": [...], "total": 3, "per_page": 15, "current_page": 1, "last_page": 1}.
@@ -54,12 +55,12 @@ final class TareaController
 
     public function edit(int $id): Response
     {
-        return view('tareas.edit', ['tarea' => $this->find($id)]);
+        return view('tareas.edit', ['tarea' => $this->find($id, 'update')]);
     }
 
     public function update(Request $request, int $id): Response
     {
-        $this->find($id)->update($request->validate($this->rules()));
+        $this->find($id, 'update')->update($request->validate($this->rules()));
 
         return redirect(route('tareas.index'))->with('status', __('Tarea actualizada.'));
     }
@@ -69,7 +70,7 @@ final class TareaController
      */
     public function completar(int $id): Response
     {
-        $tarea = $this->find($id);
+        $tarea = $this->find($id, 'update');
         $tarea->update(['hecha' => ! $tarea->hecha]);
 
         return back()->with('status', $tarea->hecha ? __('Tarea hecha.') : __('Tarea pendiente otra vez.'));
@@ -77,7 +78,7 @@ final class TareaController
 
     public function destroy(int $id): Response
     {
-        $this->find($id)->delete();
+        $this->find($id, 'delete')->delete();
 
         return redirect(route('tareas.index'))->with('status', __('Tarea borrada.'));
     }
@@ -96,11 +97,14 @@ final class TareaController
     }
 
     /**
-     * Busca la tarea solo entre las del usuario: si es de otro, 404 (no revela que existe).
+     * Busca la tarea y pide permiso a TareaPolicy. Si no puede, 404: no revela que la tarea existe.
      */
-    private function find(int $id): Tarea
+    private function find(int $id, string $ability): Tarea
     {
-        return $this->tareas()->findOrFail($id);
+        $tarea = Tarea::findOrFail($id);
+        authorize($ability, $tarea, 404);
+
+        return $tarea;
     }
 
     /**
