@@ -23,6 +23,7 @@
 - `config(string $key, mixed $default = null): mixed`: Obtiene un valor de configuración con notación de puntos.
 - `csrf_field(): string`: Campo oculto con el token CSRF (lo genera @csrf).
 - `csrf_token(): string`: Token CSRF de la sesión actual ('' si la ruta no tiene sesión).
+- `current_path(): string`: Path de la petición actual ('/admin/productos'), para marcar el enlace activo de un menú.
 - `db(): Connection`: Conexión a la base de datos de la aplicación.
 - `dd(mixed ...$args): never`: Vuelca los valores recibidos y detiene la ejecución lanzando una excepción.
 - `dispatch(Job $job, int $delay = 0): int`: Encola un job; con $delay (segundos) no se ejecuta antes. Con QUEUE_DRIVER=sync se ejecuta en el momento.
@@ -110,6 +111,8 @@ Clase Request
 
 Clase Response
 
+- `::stream(Closure $callback, int $statusCode = 200, array $headers = []): self`: Respuesta que se escribe mientras se genera (echo dentro de $callback): exportaciones grandes sin cargarlas en memoria.
+- `isStreamed(): bool`: Indica si el cuerpo se escribe en streaming.
 - `::json(JsonSerializable|array $data, int $statusCode = 200, array $headers = []): self`: Crea una respuesta JSON
 - `::html(string $html, int $statusCode = 200, array $headers = []): self`: Crea una respuesta HTML
 - `::redirect(string $url, int $statusCode = 302): self`: Crea una respuesta de redirección HTTP
@@ -264,12 +267,14 @@ Consulta de modelos.
 - `whereNotIn(string $column, array $values): self`
 - `whereNull(string $column): self`
 - `whereNotNull(string $column): self`
+- `whereLike(array $columns, string $term): self`: Busca $term dentro de cualquiera de las columnas (ver QueryBuilder::whereLike).
 - `whereRaw(string $sql, array $bindings = []): self`
 - `orderBy(string $column, string $direction = 'asc'): self`
 - `latest(string $column = 'created_at'): self`
 - `limit(int $limit): self`
 - `offset(int $offset): self`
 - `get(): array`
+- `cursor(int $chunk = 500): Generator`: Recorre los modelos en bloques de $chunk filas, sin cargarlos todos en memoria.
 - `first(): ?Model`
 - `firstOrFail(): Model`
 - `find(string|int $id): ?Model`
@@ -295,6 +300,7 @@ Consulta fluida sobre una tabla.
 - `whereNull(string $column): self`
 - `whereNotNull(string $column): self`
 - `whereRaw(string $sql, array $bindings = []): self`: Condición SQL libre con parámetros.
+- `whereLike(array $columns, string $term): self`: Busca $term dentro de cualquiera de las columnas (LIKE '%term%'). Los comodines % y _ que escriba el usuario se buscan literales. Sin columnas o con $term vacío no filtra.
 - `join(string $table, string $first, string $operator, string $second, string $type = 'INNER'): self`
 - `leftJoin(string $table, string $first, string $operator, string $second): self`
 - `orderBy(string $column, string $direction = 'asc'): self`
@@ -302,6 +308,7 @@ Consulta fluida sobre una tabla.
 - `limit(int $limit): self`
 - `offset(int $offset): self`
 - `get(): array`
+- `cursor(int $chunk = 500): Generator`: Recorre los resultados en bloques de $chunk filas (LIMIT/OFFSET), sin cargarlos todos en memoria. Respeta el orden de la consulta; ignora su limit y offset. Sirve para exportar o procesar tablas grandes; dentro del recorrido se pueden hacer otras consultas.
 - `first(): ?array`
 - `find(string|int $id, string $key = 'id'): ?array`
 - `value(string $column): mixed`: Valor de una columna de la primera fila.
@@ -362,6 +369,23 @@ Un valor de definition() puede ser otra factory (se crea antes y se usa su id) o
 - `count(int $count): FactoryBatch`: Varios registros: ->count(10)->create() devuelve una lista.
 - `make(array $attributes = []): Model`: Un modelo con los valores de la definición, sin guardarlo.
 - `create(array $attributes = []): Model`: Crea y guarda un registro.
+
+### Listing
+
+Las columnas que se buscan, ordenan y filtran las decide el código, nunca la petición: un sort o un filtro que no está en la lista se ignora. Los valores van siempre como parámetros.
+
+- `::from(ModelQuery $query, Request $request): self`
+- `search(array $columns): self`: Busca el texto de ?q= en estas columnas.
+- `filters(array $filters): self`: Filtros por columna: 'bool' (filtro[activo]=1|0) o 'date' (filtro[alta_desde] y filtro[alta_hasta], AAAA-MM-DD). Valores inválidos se ignoran.
+- `sortable(array $columns, string $default = 'id', string $direction = 'desc'): self`: Columnas por las que se puede ordenar (?sort=nombre&dir=asc) y el orden por defecto.
+- `paginate(int $perPage = 20): Paginator`: Página actual (?page=) con la búsqueda, el orden y los filtros en los enlaces.
+- `csv(string $filename, array $columns): Response`: Descarga en CSV de todo lo que coincide (no solo la página), escrito por bloques.
+- `term(): string`
+- `sort(): string`
+- `direction(): string`
+- `filter(string $name): string`: Valor de un filtro aplicado (para dejarlo seleccionado en el formulario).
+- `sortUrl(string $column): string`: Query string que ordena por $column (si ya ordena por ella, invierte la dirección).
+- `parameters(): array`: Búsqueda, orden y filtros actuales como parámetros (para enlaces, como el de exportar).
 
 ### FactoryBatch
 

@@ -37,9 +37,13 @@ The roadmap lives in `plan/04_PLAN-MVP-MONOLITO.md`; progress is tracked in
   and their exceptions). Factories live in `database/factories/` under the
   `Database\Factories\` namespace (own autoloader and skeleton composer.json).
 - `framework/src/Console/`: `bin/bootzen` commands (Console), generators
-  (Generator, ResourceField) and `doctor` (Doctor).
+  (Generator, ResourceField; `make:admin` needs `--auth` and writes the
+  `/admin` route group and `config/admin.php`) and `doctor` (Doctor).
+- `framework/src/Admin/Listing.php`: admin lists from the request (search
+  with `whereLike`, whitelisted sort, bool and date filters, paginate with
+  query, streamed CSV through `cursor()` with a formula guard).
 - `framework/stubs/`: templates for `make:*` (`resource/` for
-  `make:resource`). Placeholders look like `[[Model]]`.
+  `make:resource`, `admin/` for `make:admin`). Placeholders look like `[[Model]]`.
 - `framework/src/Testing/`: TestClient and TestResponse, the HTTP test
   helpers projects use through `client()`.
 - `framework/src/Deploy/`: DeployBuilder (`deploy:build` artifact with
@@ -127,7 +131,8 @@ The roadmap lives in `plan/04_PLAN-MVP-MONOLITO.md`; progress is tracked in
   `app/Mail/VerificationEmail.php`, views, `routes/auth.php`, its own `routes/web.php`,
   layout and `config/auth.php`, and `tests/Feature/AuthTest.php`).
 - `stubs/demo/`: files that `--demo` copies after `stubs/auth/` (Tarea model
-  and controller, views, `<x-modal>` + `modal.js`, seeder and tests).
+  and controller, views, `<x-modal>` + `modal.js`, seeder and tests, and an
+  admin panel for users and tasks built with `make:admin` plus edits).
 - AI layer inside every project: `skeleton/AGENTS.md` (with `CLAUDE.md`
   importing it), `skeleton/docs/ai/recipes/*.md`, `skeleton/llms.txt` and the
   skills in `skeleton/.claude/skills/` mirrored in `skeleton/.agents/skills/`

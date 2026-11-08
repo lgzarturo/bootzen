@@ -16,3 +16,4 @@ que conviene evitar. La API completa está en `../reference.md`.
 | [cola-de-trabajos.md](cola-de-trabajos.md) | Trabajo lento o que puede fallar, en segundo plano   |
 | [tareas-programadas.md](tareas-programadas.md) | Algo que corre solo cada cierto tiempo (cron)    |
 | [idiomas.md](idiomas.md)                  | La app en varios idiomas; fechas, números y dinero    |
+| [panel-admin.md](panel-admin.md)          | Panel de administración con búsqueda, filtros y CSV   |
