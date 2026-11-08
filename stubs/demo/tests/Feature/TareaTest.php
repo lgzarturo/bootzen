@@ -4,18 +4,13 @@ declare(strict_types=1);
 
 use App\Models\Tarea;
 use App\Models\User;
-use BootZen\Auth\Hash;
 
 /**
  * Usuario de prueba (créalo después de client(): cada client() trae una base nueva).
  */
 function usuario(string $nombre = 'Ana'): User
 {
-    return User::create([
-        'nombre' => $nombre,
-        'email' => strtolower($nombre) . '@ejemplo.com',
-        'password' => Hash::make('secreto-largo'),
-    ]);
+    return User::factory()->create(['nombre' => $nombre]);
 }
 
 it('manda a los invitados al login', function (): void {
@@ -29,8 +24,8 @@ it('lista solo las tareas del usuario', function (): void {
     $client = client();
     $ana = usuario('Ana');
     $beto = usuario('Beto');
-    Tarea::create(['user_id' => $ana->id, 'titulo' => 'Comprar pan']);
-    Tarea::create(['user_id' => $beto->id, 'titulo' => 'Tarea de Beto']);
+    Tarea::factory()->create(['user_id' => $ana->id, 'titulo' => 'Comprar pan']);
+    Tarea::factory()->create(['user_id' => $beto->id, 'titulo' => 'Tarea de Beto']);
 
     $client->actingAs($ana)->get('/tareas')
         ->assertOk()
@@ -69,7 +64,7 @@ it('valida el título', function (): void {
 it('marca y desmarca una tarea como hecha', function (): void {
     $client = client();
     $ana = usuario();
-    $tarea = Tarea::create(['user_id' => $ana->id, 'titulo' => 'Comprar pan']);
+    $tarea = Tarea::factory()->create(['user_id' => $ana->id, 'hecha' => false]);
 
     $client->actingAs($ana)->from('/tareas')->patch('/tareas/' . $tarea->id . '/completar')
         ->assertRedirect('/tareas')
@@ -82,7 +77,7 @@ it('marca y desmarca una tarea como hecha', function (): void {
 
 it('no deja ver ni tocar tareas ajenas', function (): void {
     $client = client();
-    $ajena = Tarea::create(['user_id' => usuario('Beto')->id, 'titulo' => 'Privada']);
+    $ajena = Tarea::factory()->create(['titulo' => 'Privada', 'hecha' => false]);
     $client->actingAs(usuario('Ana'));
 
     $client->get('/tareas/' . $ajena->id . '/edit')->assertNotFound();
@@ -95,9 +90,9 @@ it('no deja ver ni tocar tareas ajenas', function (): void {
 it('responde JSON paginado y filtra por estado', function (): void {
     $client = client();
     $ana = usuario();
-    foreach (range(1, 7) as $i) {
-        Tarea::create(['user_id' => $ana->id, 'titulo' => "Tarea {$i}", 'hecha' => $i <= 2]);
-    }
+    Tarea::factory()->count(7)
+        ->state(fn (array $valores, int $i): array => ['titulo' => 'Tarea ' . ($i + 1), 'hecha' => $i < 2])
+        ->create(['user_id' => $ana->id]);
 
     $client->actingAs($ana)->getJson('/tareas?per_page=3&page=2')
         ->assertOk()
@@ -120,4 +115,15 @@ it('maneja las tareas en inglés con el prefijo /en', function (): void {
         ->assertRedirect('/en/tareas')
         ->assertSessionHas('status', 'Task created.');
     $client->get('/en/tareas')->assertSee('My tasks')->assertSee('Due ')->assertSee('Delete this task?');
+});
+
+it('el seeder crea a Ana con 50 tareas', function (): void {
+    $client = client();
+    $runner = $client->app->make(BootZen\Database\SeederRunner::class);
+    assert($runner instanceof BootZen\Database\SeederRunner);
+    $runner->run();
+
+    $ana = User::where('email', 'ana@ejemplo.com')->firstOrFail();
+    $client->assertDatabaseCount('tareas', 50);
+    $client->actingAs($ana)->getJson('/tareas')->assertJson(['total' => 50]);
 });

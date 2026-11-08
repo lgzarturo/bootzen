@@ -119,9 +119,9 @@ jobs:
             http://127.0.0.1:8001/registro | grep -q '/tareas'
           curl -fsS -c jar -b jar http://127.0.0.1:8001/panel | grep -q 'Hola, Ana'
           curl -fsS -c jar -b jar -H 'Accept: application/json' http://127.0.0.1:8001/tareas | grep -q '"total":0'
-          # El seeder de la demo reutiliza a Ana y le crea tres tareas
+          # El seeder de la demo reutiliza a Ana y le crea 50 tareas con sus factories
           php bin/bootzen db:seed
-          curl -fsS -c jar -b jar -H 'Accept: application/json' http://127.0.0.1:8001/tareas | grep -q '"total":3'
+          curl -fsS -c jar -b jar -H 'Accept: application/json' http://127.0.0.1:8001/tareas | grep -q '"total":50'
 
       - name: Tailwind standalone y CSS del skeleton al día
         working-directory: ${{ runner.temp }}/apps/demo-auth
