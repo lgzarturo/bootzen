@@ -28,6 +28,13 @@ use InvalidArgumentException;
  */
 final class Translator
 {
+    private const ROUTES_FILE = 'rutas.php';
+
+    /**
+     * @var array<string, array<string, string>> Segmentos de URL por idioma
+     */
+    private array $segments = [];
+
     /**
      * Traducciones cargadas por idioma.
      *
@@ -187,6 +194,44 @@ final class Translator
     }
 
     /**
+     * Traducción de segmentos de URL para $router->localized(), de lang/{locale}/rutas.php:
+     * ['tareas' => 'tasks', 'registro' => 'sign-up']. La app sobrescribe al framework.
+     *
+     * @return array<string, string>
+     * @throws InvalidArgumentException Si el archivo no retorna un array
+     */
+    public function routeSegments(string $locale): array
+    {
+        if (isset($this->segments[$locale])) {
+            return $this->segments[$locale];
+        }
+
+        $segments = [];
+
+        foreach ($this->paths as $path) {
+            $file = $path . '/' . $locale . '/' . self::ROUTES_FILE;
+
+            if (! is_file($file)) {
+                continue;
+            }
+
+            $data = require $file;
+
+            if (! is_array($data)) {
+                throw new InvalidArgumentException("El archivo {$file} debe retornar un array ['segmento en español' => 'traducción'].");
+            }
+
+            foreach ($data as $key => $value) {
+                if (is_string($key) && is_string($value) && preg_match('#^[^/{}]+$#', $key . $value) === 1) {
+                    $segments[$key] = $value;
+                }
+            }
+        }
+
+        return $this->segments[$locale] = $segments;
+    }
+
+    /**
      * @return array<string, string>
      */
     private function load(string $locale): array
@@ -201,7 +246,8 @@ final class Translator
             $files = [$path . '/' . $locale . '.php', ...(glob($path . '/' . $locale . '/*.php') ?: [])];
 
             foreach ($files as $file) {
-                if (! is_file($file)) {
+                // rutas.php traduce segmentos de URL, no textos (lo lee routeSegments())
+                if (! is_file($file) || basename($file) === self::ROUTES_FILE) {
                     continue;
                 }
 

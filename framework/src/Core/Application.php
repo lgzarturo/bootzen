@@ -115,7 +115,7 @@ class Application
         // Idiomas: alias 'locale' y los de APP_LOCALES para $router->localized()
         $translator = $this->container->make(Translator::class);
         if ($translator instanceof Translator) {
-            $this->router->setLocales($translator->locales(), $translator->defaultLocale());
+            $this->router->setLocales($translator->locales(), $translator->defaultLocale(), $translator->routeSegments(...));
         }
         $this->router->aliasMiddleware('locale', SetLocale::class);
         $this->router->aliasMiddleware('signed', ValidateSignature::class);

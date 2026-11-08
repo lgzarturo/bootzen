@@ -22,6 +22,7 @@ namespace BootZen\Core;
 
 use Closure;
 use InvalidArgumentException;
+use LogicException;
 use Stringable;
 use UnexpectedValueException;
 
@@ -60,7 +61,7 @@ class Router
     /**
      * Atributos de los grupos abiertos (prefix, middleware, as).
      *
-     * @var list<array{prefix?: string, middleware?: string|MiddlewareInterface|list<string|MiddlewareInterface>, as?: string}>
+     * @var list<array{prefix?: string, middleware?: string|MiddlewareInterface|list<string|MiddlewareInterface>, as?: string, segments?: string}>
      */
     private array $groupStack = [];
 
@@ -79,6 +80,13 @@ class Router
     private array $locales = ['es'];
 
     private string $defaultLocale = 'es';
+
+    /**
+     * Traducción de segmentos de URL por idioma (lang/{idioma}/rutas.php).
+     *
+     * @var (Closure(string): array<string, string>)|null
+     */
+    private ?Closure $segments = null;
 
     private readonly Pipeline $pipeline;
 
@@ -145,7 +153,7 @@ class Router
      *
      * Atributos: 'prefix' (path), 'middleware' (clase, alias, grupo o lista) y 'as' (prefijo de nombre).
      *
-     * @param array{prefix?: string, middleware?: string|MiddlewareInterface|list<string|MiddlewareInterface>, as?: string} $attributes
+     * @param array{prefix?: string, middleware?: string|MiddlewareInterface|list<string|MiddlewareInterface>, as?: string, segments?: string} $attributes 'segments' es el idioma para traducir el path (lo usa localized())
      * @param Closure(Router): void $callback Registra las rutas del grupo
      * @example $router->group(['prefix' => '/admin', 'as' => 'admin.', 'middleware' => 'auth'], function (Router $router): void {
      *     $router->get('/', [AdminController::class, 'index'])->name('index'); // admin.index
@@ -167,6 +175,9 @@ class Router
      * APP_LOCALES con el suyo (/en/...). Cada grupo fija su idioma con el middleware locale:xx; las
      * rutas de otros idiomas se nombran 'en::nombre' y route('nombre') elige la del idioma activo.
      *
+     * Los segmentos de la URL se traducen con lang/{idioma}/rutas.php ('tareas' => 'tasks': /en/tasks).
+     * La URL sin traducir (/en/tareas) redirige con 301 a la traducida.
+     *
      * @param Closure(Router): void $callback Registra las rutas (se llama una vez por idioma)
      * @example $router->localized(function (Router $router): void {
      *     $router->get('/precios', [PaginaController::class, 'precios'])->name('precios'); // /precios y /en/precios
@@ -178,7 +189,7 @@ class Router
             $this->group(
                 $locale === $this->defaultLocale
                     ? ['middleware' => "locale:{$locale}"]
-                    : ['prefix' => '/' . $locale, 'as' => $locale . '::', 'middleware' => "locale:{$locale}"],
+                    : ['prefix' => '/' . $locale, 'as' => $locale . '::', 'middleware' => "locale:{$locale}", 'segments' => $locale],
                 $callback
             );
         }
@@ -209,11 +220,13 @@ class Router
      *
      * @internal La llama Application con APP_LOCALES y APP_LOCALE.
      * @param list<string> $locales
+     * @param (Closure(string): array<string, string>)|null $segments Traducción de segmentos de URL por idioma
      */
-    public function setLocales(array $locales, string $default): void
+    public function setLocales(array $locales, string $default, ?Closure $segments = null): void
     {
         $this->locales = $locales;
         $this->defaultLocale = $default;
+        $this->segments = $segments;
     }
 
     /**
@@ -416,10 +429,12 @@ class Router
         $prefix = '';
         $namePrefix = '';
         $middleware = [];
+        $locale = null;
 
         foreach ($this->groupStack as $group) {
             $prefix .= '/' . trim($group['prefix'] ?? '', '/');
             $namePrefix .= $group['as'] ?? '';
+            $locale = $group['segments'] ?? $locale;
 
             if (isset($group['middleware'])) {
                 $groupMiddleware = $group['middleware'];
@@ -427,12 +442,49 @@ class Router
             }
         }
 
-        $route = new Route($methods, self::normalizePath($prefix . '/' . $path), $handler, $middleware, $namePrefix);
+        $original = self::normalizePath($prefix . '/' . $path);
+        $translated = $locale === null ? $original : $this->translatePath($original, $locale);
+
+        if ($translated !== $original) {
+            foreach ($this->routes as $existing) {
+                if ($existing->getPath() === $translated && array_intersect($existing->getMethods(), $methods) !== []) {
+                    throw new LogicException("Al traducir {$original} queda {$translated}, que ya usa otra ruta. Revisa lang/{$locale}/rutas.php.");
+                }
+            }
+        }
+
+        $route = new Route($methods, $translated, $handler, $middleware, $namePrefix);
 
         $this->routes[] = $route;
         $this->nameIndex = null;
 
+        // La URL sin traducir sigue funcionando: redirige con 301 (enlaces viejos y buscadores)
+        if ($translated !== $original && in_array('GET', $methods, true)) {
+            $this->routes[] = new Route(['GET', 'HEAD'], $original, static function (Request $request) use ($route): Response {
+                $query = $request->getQuery();
+
+                return Response::redirect($route->url($request->params()) . (is_array($query) && $query !== [] ? '?' . http_build_query($query) : ''), 301);
+            }, [], '');
+        }
+
         return $route;
+    }
+
+    /**
+     * Traduce cada segmento fijo del path (los parámetros {id} no se tocan).
+     */
+    private function translatePath(string $path, string $locale): string
+    {
+        $map = $this->segments === null ? [] : ($this->segments)($locale);
+
+        if ($map === []) {
+            return $path;
+        }
+
+        return implode('/', array_map(
+            static fn (string $segment): string => str_starts_with($segment, '{') ? $segment : ($map[$segment] ?? $segment),
+            explode('/', $path)
+        ));
     }
 
     /**
