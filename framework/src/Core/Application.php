@@ -24,6 +24,7 @@ declare(strict_types=1);
 namespace BootZen\Core;
 
 use BootZen\Auth\Auth;
+use BootZen\Auth\Gate;
 use BootZen\Auth\PasswordReset;
 use BootZen\Auth\RememberTokens;
 use BootZen\Database\Connection;
@@ -36,6 +37,8 @@ use BootZen\Mail\LogMailer;
 use BootZen\Mail\Mailer;
 use BootZen\Mail\SmtpMailer;
 use BootZen\Middleware\EnsureEmailIsVerified;
+use BootZen\Middleware\RequirePermission;
+use BootZen\Middleware\RequireRole;
 use BootZen\Middleware\SetLocale;
 use BootZen\Middleware\ValidateSignature;
 use BootZen\Queue\DatabaseQueue;
@@ -117,6 +120,8 @@ class Application
         $this->router->aliasMiddleware('locale', SetLocale::class);
         $this->router->aliasMiddleware('signed', ValidateSignature::class);
         $this->router->aliasMiddleware('verified', EnsureEmailIsVerified::class);
+        $this->router->aliasMiddleware('role', RequireRole::class);
+        $this->router->aliasMiddleware('can', RequirePermission::class);
 
         // URLs temporales de archivos privados de discos sin URLs propias (local, FTP, SFTP)
         $this->router->get(UrlSigner::PATH, [FileController::class, 'show']);
@@ -372,6 +377,17 @@ class Application
                 is_string($model) ? $model : 'App\\Models\\User',
                 fn (): RememberTokens => new RememberTokens($this->connectionFrom($container), max(1, (int) $this->config->get('auth.remember_days', 30)))
             );
+        });
+
+        $this->container->singleton(Gate::class, function (Container $container): Gate {
+            $roles = $this->config->get('auth.roles', []);
+            $clean = [];
+
+            foreach (is_array($roles) ? $roles : [] as $role => $permissions) {
+                $clean[(string) $role] = array_values(array_filter(is_array($permissions) ? $permissions : [], 'is_string'));
+            }
+
+            return new Gate($clean, $container);
         });
 
         $this->container->bind(PasswordReset::class, fn (Container $container): PasswordReset => new PasswordReset(

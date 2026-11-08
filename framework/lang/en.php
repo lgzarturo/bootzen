@@ -46,6 +46,7 @@ return [
     'Registro no encontrado.' => 'Record not found.',
     'Necesitas iniciar sesión.' => 'You need to log in.',
     'Verifica tu correo para continuar.' => 'Verify your email to continue.',
+    'No tienes permiso para hacer esto.' => 'You do not have permission to do this.',
     'Demasiadas peticiones. Intenta de nuevo en :seconds segundos.' => 'Too many requests. Try again in :seconds seconds.',
     'La sesión expiró. Recarga la página e inténtalo de nuevo.' => 'Your session expired. Reload the page and try again.',
 
