@@ -44,7 +44,8 @@ it('convierte entre formatos de nombre', function (): void {
 it('genera la rebanada completa de make:resource', function (): void {
     $files = $this->generator->resource('Task', ['title:string', 'done:bool', 'notes:text:nullable', 'due:date:nullable']);
 
-    expect($files)->toHaveCount(9)
+    expect($files)->toHaveCount(10)
+        ->and($files)->toContain('database/factories/TaskFactory.php')
         ->and($files[0])->toMatch('#^database/migrations/\d{4}_\d{2}_\d{2}_\d{6}_crear_tasks\.php$#')
         ->and(end($files))->toBe('routes/web.php (ruta agregada)');
 
@@ -53,6 +54,15 @@ it('genera la rebanada completa de make:resource', function (): void {
     }
     assertValidPhp($this->project . '/tests/Feature/TaskTest.php');
     assertValidPhp($this->project . '/routes/web.php');
+    assertValidPhp($this->project . '/database/factories/TaskFactory.php');
+
+    expect(file_get_contents($this->project . '/database/factories/TaskFactory.php'))
+        ->toContain("'title' => fake()->sentence(3),")
+        ->toContain("'done' => fake()->boolean(),")
+        ->toContain("'due' => fake()->date(),")
+        ->and(file_get_contents($this->project . '/tests/Feature/TaskTest.php'))
+        ->toContain('$task = Task::factory()->create();')
+        ->toContain('->assertSee($task->title)');
 
     $compiler = new ViewCompiler();
     foreach (['index', 'create', 'edit', 'show'] as $view) {
@@ -207,3 +217,20 @@ it('rechaza nombres inválidos', function (Closure $generate, string $message): 
 it('falla con un mensaje claro si falta una plantilla', function (): void {
     (new Generator($this->project, 'sqlite', $this->project . '/sin-stubs'))->seeder('Uno');
 })->throws(RuntimeException::class, 'No se encontró la plantilla');
+
+it('genera una factory vacía con make:factory y valores falsos según el nombre del campo', function (): void {
+    expect($this->generator->factory('ClienteFactory'))->toBe(['database/factories/ClienteFactory.php']);
+    assertValidPhp($this->project . '/database/factories/ClienteFactory.php');
+
+    expect(file_get_contents($this->project . '/database/factories/ClienteFactory.php'))
+        ->toContain('final class ClienteFactory extends Factory')
+        ->toContain('protected string $model = Cliente::class;')
+        ->and(array_map(
+            static fn (string $field): string => BootZen\Console\ResourceField::parse($field)->fake(),
+            ['nombre', 'telefono', 'ciudad', 'direccion_fiscal', 'correo:email', 'notas:text', 'edad:int', 'precio:float', 'creado:datetime']
+        ))->toBe([
+            'fake()->name()', 'fake()->phoneNumber()', 'fake()->city()', 'fake()->address()', 'fake()->unique()->email()',
+            'fake()->paragraph()', 'fake()->number(1, 100)', 'fake()->decimal(1, 1000)', 'fake()->dateTime()',
+        ])
+        ->and(fn () => $this->generator->factory('Cliente'))->toThrow(RuntimeException::class);
+});

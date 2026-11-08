@@ -41,7 +41,7 @@ final class DeployBuilder
      * Rutas que se copian (carpetas o archivos), relativas al proyecto.
      */
     private const INCLUDE = [
-        'app', 'bootstrap', 'bin/bootzen', 'config', 'database/migrations', 'database/seeds', 'framework', 'lang',
+        'app', 'bootstrap', 'bin/bootzen', 'config', 'database/migrations', 'database/seeds', 'database/factories', 'framework', 'lang',
         'public', 'resources/views', 'routes', 'storage', '.env.example', '.htaccess', 'composer.json',
     ];
 

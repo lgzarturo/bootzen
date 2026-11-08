@@ -213,6 +213,26 @@ final class ResourceField
     }
 
     /**
+     * Expresión PHP con un valor falso para la factory generada, según el tipo y el nombre del campo.
+     */
+    public function fake(): string
+    {
+        return match ($this->type) {
+            'string' => preg_match('/(^|_)(nombre|name)$/', $this->name) === 1 ? 'fake()->name()'
+                : (preg_match('/(telefono|phone)/', $this->name) === 1 ? 'fake()->phoneNumber()'
+                : (preg_match('/(ciudad|city)/', $this->name) === 1 ? 'fake()->city()'
+                : (preg_match('/(direccion|address)/', $this->name) === 1 ? 'fake()->address()' : 'fake()->sentence(3)'))),
+            'text' => 'fake()->paragraph()',
+            'email' => 'fake()->unique()->email()',
+            'int' => 'fake()->number(1, 100)',
+            'float' => 'fake()->decimal(1, 1000)',
+            'bool' => 'fake()->boolean()',
+            'date' => 'fake()->date()',
+            default => 'fake()->dateTime()',
+        };
+    }
+
+    /**
      * Indica si el valor se guarda tal cual llega (sirve para assertDatabaseHas en los tests).
      */
     public function isPlainText(): bool
