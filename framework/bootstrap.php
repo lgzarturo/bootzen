@@ -4,7 +4,8 @@
  * bootstrap.php
  *
  * Punto de carga del framework BootZen. Registra el autoloader PSR-4 para los
- * namespaces BootZen\ (framework/src) y App\ (app/) y carga los helpers globales.
+ * namespaces BootZen\ (framework/src), App\ (app/) y Database\Factories\ (database/factories) y carga
+ * los helpers globales.
  *
  * No depende de Composer: un proyecto funciona en producción sin vendor/.
  * Si vendor/autoload.php existe (entorno de desarrollo), también se carga.
@@ -26,6 +27,7 @@ spl_autoload_register(static function (string $class): void {
     $prefixes = [
         'BootZen\\' => __DIR__ . '/src/',
         'App\\' => BOOTZEN_BASE_PATH . '/app/',
+        'Database\\Factories\\' => BOOTZEN_BASE_PATH . '/database/factories/',
     ];
 
     foreach ($prefixes as $prefix => $directory) {

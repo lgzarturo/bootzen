@@ -45,6 +45,7 @@ use BootZen\Session\SessionStore;
 use BootZen\Storage\FileController;
 use BootZen\Storage\StorageManager;
 use BootZen\Storage\UrlSigner;
+use BootZen\Support\Fake;
 use BootZen\Translation\Translator;
 use BootZen\Validation\Validator;
 use BootZen\View\View;
@@ -393,6 +394,16 @@ class Application
                 [dirname(__DIR__, 2) . '/lang', $this->basePath('lang')]
             );
         });
+
+        // Datos falsos: en tests con semilla fija, así un test que falla falla siempre igual
+        $this->container->singleton(Fake::class, fn (Container $container): Fake => new Fake(
+            $this->config->get('app.env') === 'testing' || env('APP_ENV') === 'testing' ? 20260101 : null,
+            static function () use ($container): string {
+                $translator = $container->make(Translator::class);
+
+                return $translator instanceof Translator ? $translator->locale() : 'es';
+            }
+        ));
 
         $this->container->singleton(StorageManager::class, function (): StorageManager {
             $key = $this->config->get('app.key');

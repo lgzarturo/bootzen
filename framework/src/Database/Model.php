@@ -206,6 +206,27 @@ abstract class Model implements JsonSerializable
     }
 
     /**
+     * Factory del modelo: database/factories/{Modelo}Factory.php (make:factory la crea).
+     *
+     * @return Factory<static>
+     * @throws LogicException Si la factory no existe
+     * @example Tarea::factory()->count(10)->create(['user_id' => $ana->id]);
+     */
+    public static function factory(): Factory
+    {
+        $position = strrpos(static::class, '\\');
+        $name = $position === false ? static::class : substr(static::class, $position + 1);
+        $class = 'Database\\Factories\\' . $name . 'Factory';
+
+        if (! class_exists($class) || ! is_subclass_of($class, Factory::class)) {
+            throw new LogicException("No existe la factory {$class} (database/factories/{$name}Factory.php). Créala con: php bin/bootzen make:factory {$name}");
+        }
+
+        /** @var Factory<static> */
+        return new $class();
+    }
+
+    /**
      * Crea una instancia a partir de una fila de la base de datos.
      *
      * @param array<string, mixed> $row
