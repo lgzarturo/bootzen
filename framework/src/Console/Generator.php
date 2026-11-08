@@ -149,6 +149,23 @@ final class Generator
     }
 
     /**
+     * Factory en database/factories para Modelo::factory(). Con $fields (de make:resource) trae un
+     * valor falso por campo.
+     *
+     * @param list<ResourceField> $fields
+     * @return list<string>
+     */
+    public function factory(string $name, array $fields = []): array
+    {
+        $model = self::className(preg_replace('/Factory$/', '', $name) ?? $name);
+        $definition = $fields === []
+            ? "            // 'nombre' => fake()->name(),"
+            : implode("\n", array_map(static fn (ResourceField $field): string => "            '{$field->name}' => {$field->fake()},", $fields));
+
+        return [$this->write("database/factories/{$model}Factory.php", $this->render('factory', ['Model' => $model, 'definition' => $definition]))];
+    }
+
+    /**
      * @return list<string>
      */
     public function seeder(string $name): array
@@ -246,6 +263,7 @@ final class Generator
             "app/Models/{$model}.php",
             "app/Controllers/{$model}Controller.php",
             "tests/Feature/{$model}Test.php",
+            "database/factories/{$model}Factory.php",
             ...array_map(static fn (string $view): string => "resources/views/{$route}/{$view}.php", ['index', 'create', 'edit', 'show']),
         ];
         foreach ($targets as $target) {
@@ -269,6 +287,7 @@ final class Generator
             $files[] = $this->write("resources/views/{$route}/{$view}.php", $this->render('resource/' . $view, $vars + $this->viewParts($fields, $vars['singular'])));
         }
 
+        $files[] = $this->factory($model, $fields)[0];
         $files[] = $this->write("tests/Feature/{$model}Test.php", $this->render('resource/test', $vars + $this->testParts($fields, $vars)));
         $files[] = $this->addResourceRoute($route, $model . 'Controller');
 
@@ -337,7 +356,7 @@ final class Generator
         $has = static fn (bool $updated): string => $plain === [] ? '' : "\n        ->assertDatabaseHas('{$vars['table']}', ["
             . implode(', ', array_map(static fn (ResourceField $field): string => "'{$field->name}' => '" . addslashes($field->sample($updated)) . "'", $plain))
             . '])';
-        $display = array_values(array_filter($fields, static fn (ResourceField $field): bool => in_array($field->type, ['string', 'email'], true)))[0] ?? null;
+        $display = array_values(array_filter($fields, static fn (ResourceField $field): bool => ! $field->nullable && in_array($field->type, ['string', 'email'], true)))[0] ?? null;
 
         $validation = '';
         if ($required !== []) {
@@ -360,8 +379,8 @@ final class Generator
         return [
             'data' => $data(false),
             'updatedData' => $data(true),
-            'seeIndex' => $display === null ? '' : "->assertSee('" . addslashes($display->sample()) . "')",
-            'seeEdit' => $display === null ? '' : "->assertSee('" . addslashes($display->sample()) . "')",
+            'seeIndex' => $display === null ? '' : "->assertSee(\${$vars['singular']}->{$display->name})",
+            'seeEdit' => $display === null ? '' : "->assertSee(\${$vars['singular']}->{$display->name})",
             'hasCreated' => $has(false),
             'hasUpdated' => $plain === [] ? '' : "\n    \$client" . str_replace("\n        ", "\n        ", $has(true)) . ";\n",
             'validationTest' => $validation,

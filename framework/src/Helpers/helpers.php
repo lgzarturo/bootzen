@@ -31,6 +31,7 @@ use BootZen\Queue\Queue;
 use BootZen\Session\Session;
 use BootZen\Storage\Storage;
 use BootZen\Storage\StorageManager;
+use BootZen\Support\Fake;
 use BootZen\Translation\Formatter;
 use BootZen\Translation\Translator;
 use BootZen\View\HtmlString;
@@ -323,6 +324,31 @@ if (! function_exists('mailer')) {
         }
 
         return $mailer instanceof MailService ? $mailer : new MailService($mailer, static fn (): Queue => queue());
+    }
+}
+
+if (! function_exists('fake')) {
+    /**
+     * Datos falsos (nombres, correos, textos, números, fechas) en el idioma activo. En tests la
+     * semilla es fija: cada client() empieza con la misma secuencia.
+     *
+     * @example 'titulo' => fake()->sentence(), 'email' => fake()->unique()->email()
+     */
+    function fake(): Fake
+    {
+        if (! Application::hasInstance()) {
+            static $fallback = null;
+
+            return $fallback ??= new Fake();
+        }
+
+        $fake = app(Fake::class);
+
+        if (! $fake instanceof Fake) {
+            throw new LogicException('El servicio Fake debe ser una instancia de ' . Fake::class . '.');
+        }
+
+        return $fake;
     }
 }
 

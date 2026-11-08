@@ -1,0 +1,28 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Database\Factories;
+
+use App\Models\[[Model]];
+use BootZen\Database\Factory;
+
+/**
+ * Datos de ejemplo de [[Model]] para tests y seeders:
+ * [[Model]]::factory()->create(), ->count(10)->create(), ->state([...])->make().
+ *
+ * Una relación se escribe con la factory del padre: 'user_id' => User::factory().
+ *
+ * @extends Factory<[[Model]]>
+ */
+final class [[Model]]Factory extends Factory
+{
+    protected string $model = [[Model]]::class;
+
+    public function definition(): array
+    {
+        return [
+[[definition]]
+        ];
+    }
+}

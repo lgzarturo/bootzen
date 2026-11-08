@@ -20,7 +20,7 @@ function [[camel]]Data(bool $updated = false): array
 
 it('lista los registros', function (): void {
     $client = client();
-    [[Model]]::create([[camel]]Data());
+    $[[singular]] = [[Model]]::factory()->create();
 
     $client->get('/[[route]]')->assertOk()[[seeIndex]];
 });
@@ -41,7 +41,7 @@ it('crea un registro', function (): void {
 [[validationTest]]
 it('muestra, edita y actualiza un registro', function (): void {
     $client = client();
-    $[[singular]] = [[Model]]::create([[camel]]Data());
+    $[[singular]] = [[Model]]::factory()->create();
 
     $client->get('/[[route]]/' . $[[singular]]->id)->assertOk();
     $client->get('/[[route]]/' . $[[singular]]->id . '/edit')->assertOk()[[seeEdit]];
@@ -52,7 +52,7 @@ it('muestra, edita y actualiza un registro', function (): void {
 
 it('borra un registro', function (): void {
     $client = client();
-    $[[singular]] = [[Model]]::create([[camel]]Data());
+    $[[singular]] = [[Model]]::factory()->create();
 
     $client->delete('/[[route]]/' . $[[singular]]->id)->assertRedirect('/[[route]]');
     $client->assertDatabaseCount('[[table]]', 0);

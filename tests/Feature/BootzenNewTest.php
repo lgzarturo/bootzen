@@ -134,5 +134,5 @@ it('crea la app de demostración con --demo (incluye --auth)', function (): void
     [$status, $output] = runCommand(escapeshellarg(PHP_BINARY) . ' -r ' . escapeshellarg($script), $project);
 
     expect($status)->toBe(0, $output)
-        ->and(json_decode($output, true)['total'] ?? null)->toBe(3);
+        ->and(json_decode($output, true)['total'] ?? null)->toBe(50);
 });
