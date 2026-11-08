@@ -28,6 +28,7 @@ use BootZen\Mail\Mailer;
 use BootZen\Mail\MailService;
 use BootZen\Queue\Job;
 use BootZen\Queue\Queue;
+use BootZen\Security\SignedUrl;
 use BootZen\Session\Session;
 use BootZen\Storage\Storage;
 use BootZen\Storage\StorageManager;
@@ -692,6 +693,26 @@ if (! function_exists('route')) {
         }
 
         return $router->url($name, $parameters);
+    }
+}
+
+if (! function_exists('signed_route')) {
+    /**
+     * URL completa y firmada de una ruta con nombre, que vence en $minutes. La ruta lleva
+     * ->middleware('signed'); si alguien cambia un parámetro o el enlace venció, responde 403.
+     *
+     * @param array<string, scalar> $parameters
+     * @example signed_route('verification.verify', ['id' => $user->id, 'hash' => sha1($user->email)], 60 * 24)
+     */
+    function signed_route(string $name, array $parameters = [], int $minutes = 60): string
+    {
+        $signer = app(SignedUrl::class);
+
+        if (! $signer instanceof SignedUrl) {
+            throw new LogicException('El servicio SignedUrl debe ser una instancia de ' . SignedUrl::class . '.');
+        }
+
+        return url(route($name, $signer->sign($name, $parameters, time() + max(1, $minutes) * 60)));
     }
 }
 

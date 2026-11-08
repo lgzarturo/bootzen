@@ -33,6 +33,11 @@ final class Auth
     private const SESSION_KEY = '_auth_id';
 
     /**
+     * Huella del hash de la contraseña: si la contraseña cambia, las demás sesiones se cierran solas.
+     */
+    private const HASH_KEY = '_auth_hash';
+
+    /**
      * Hash de relleno para verificar cuando el usuario no existe y tardar lo mismo.
      */
     private static ?string $dummyHash = null;
@@ -45,11 +50,36 @@ final class Auth
     private ?Session $loadedFor = null;
 
     /**
+     * Borra los "recordarme" del usuario en todos sus dispositivos. Úsalo al restablecer la contraseña:
+     * las sesiones abiertas ya se cierran solas porque cambia la huella, pero una cookie de recordarme
+     * volvería a entrar.
+     *
+     * @example auth()->forgetRememberedDevices($user);
+     */
+    public function forgetRememberedDevices(Model $user): void
+    {
+        $key = $user->getKey();
+
+        if ($key !== null && $this->rememberTokens !== null) {
+            $this->tokens()->forgetUser($key);
+        }
+    }
+
+    /**
+     * Cookie de "recordarme" pendiente para la respuesta: null nada, '' borrarla, texto ponerla.
+     */
+    private ?string $queuedCookie = null;
+
+    /**
      * @param Closure(): ?Session $session Sesión de la petición actual (null fuera del grupo web)
      * @param string $model Clase del modelo de usuario
+     * @param (Closure(): RememberTokens)|null $rememberTokens Tokens de "recordarme" (tabla remember_tokens)
      */
-    public function __construct(private readonly Closure $session, private readonly string $model)
-    {
+    public function __construct(
+        private readonly Closure $session,
+        private readonly string $model,
+        private readonly ?Closure $rememberTokens = null
+    ) {
     }
 
     /**
@@ -65,7 +95,21 @@ final class Auth
 
         if ($this->loadedFor !== $session) {
             $id = $session->get(self::SESSION_KEY);
-            $this->user = is_int($id) || is_string($id) ? $this->model()::find($id) : null;
+            $user = is_int($id) || is_string($id) ? $this->model()::find($id) : null;
+            $stored = $session->get(self::HASH_KEY);
+            $current = $user === null ? null : self::fingerprint($user);
+
+            if ($user !== null && is_string($stored) && $current !== null && ! hash_equals($stored, $current)) {
+                // La contraseña cambió desde que esta sesión inició: se cierra
+                $session->forget(self::SESSION_KEY);
+                $session->forget(self::HASH_KEY);
+                $user = null;
+            } elseif ($user !== null && ! is_string($stored) && $current !== null) {
+                // Sesiones anteriores a la huella: se la pone sin cerrarlas
+                $session->put(self::HASH_KEY, $current);
+            }
+
+            $this->user = $user;
             $this->loadedFor = $session;
         }
 
@@ -97,8 +141,9 @@ final class Auth
      * Si coincide, inicia sesión. Si el hash está desactualizado, lo rehace.
      *
      * @param array<string, mixed> $credentials Por ejemplo ['email' => ..., 'password' => ...]
+     * @param bool $remember Mantener la sesión en este dispositivo aunque se cierre el navegador
      */
-    public function attempt(array $credentials): bool
+    public function attempt(array $credentials, bool $remember = false): bool
     {
         $user = $this->validate($credentials);
 
@@ -106,7 +151,7 @@ final class Auth
             return false;
         }
 
-        $this->login($user);
+        $this->login($user, $remember);
 
         return true;
     }
@@ -153,29 +198,111 @@ final class Auth
     }
 
     /**
-     * Inicia sesión como el usuario. Cambia el id de la sesión y el token CSRF para evitar fijación de sesión.
+     * Inicia sesión como el usuario. Cambia el id de la sesión y el token CSRF para evitar fijación de
+     * sesión. Con $remember deja una cookie que vuelve a iniciar la sesión al regresar (necesita la
+     * tabla remember_tokens y el middleware RememberMe en el grupo web).
      */
-    public function login(Model $user): void
+    public function login(Model $user, bool $remember = false): void
     {
         $session = $this->session();
         $session->regenerate();
         $session->regenerateToken();
         $session->put(self::SESSION_KEY, $user->getKey());
 
+        $fingerprint = self::fingerprint($user);
+        if ($fingerprint !== null) {
+            $session->put(self::HASH_KEY, $fingerprint);
+        }
+
+        $key = $user->getKey();
+        if ($remember && $key !== null) {
+            $this->queuedCookie = $this->tokens()->issue($key);
+        }
+
         $this->user = $user;
         $this->loadedFor = $session;
     }
 
     /**
-     * Cierra la sesión: borra todos sus datos y cambia el id.
+     * Inicia sesión con el id del usuario; null si no existe.
+     */
+    public function loginUsingId(int|string $id, bool $remember = false): ?Model
+    {
+        $user = $this->model()::find($id);
+
+        if ($user !== null) {
+            $this->login($user, $remember);
+        }
+
+        return $user;
+    }
+
+    /**
+     * Cierra la sesión: borra todos sus datos, cambia el id y olvida la cookie de "recordarme".
      */
     public function logout(): void
     {
         $session = $this->session();
         $session->invalidate();
 
+        $this->queuedCookie = '';
         $this->user = null;
         $this->loadedFor = $session;
+    }
+
+    /**
+     * Cierra la sesión en los demás dispositivos: pide la contraseña actual, la vuelve a cifrar (las otras
+     * sesiones ven otra huella y se cierran) y borra todos los "recordarme". Esta sesión sigue abierta.
+     *
+     * @return bool false si la contraseña no es correcta
+     * @example if (! auth()->logoutOtherDevices($request->input('password'))) { throw ValidationException::withMessages([...]); }
+     */
+    public function logoutOtherDevices(string $password): bool
+    {
+        $user = $this->user();
+        $hash = $user?->getAttribute('password');
+        $key = $user?->getKey();
+
+        if ($user === null || $key === null || ! is_string($hash) || ! Hash::check($password, $hash)) {
+            return false;
+        }
+
+        $user->setAttribute('password', Hash::make($password));
+        $user->save();
+
+        $this->session()->put(self::HASH_KEY, (string) self::fingerprint($user));
+
+        if ($this->rememberTokens !== null) {
+            $this->tokens()->forgetUser($key);
+        }
+
+        return true;
+    }
+
+    /**
+     * Cookie de "recordarme" pendiente para la respuesta (null nada, '' borrarla) y la limpia.
+     *
+     * @internal Lo usa el middleware RememberMe.
+     */
+    public function pullQueuedCookie(): ?string
+    {
+        $cookie = $this->queuedCookie;
+        $this->queuedCookie = null;
+
+        return $cookie;
+    }
+
+    /**
+     * @internal Lo usa el middleware RememberMe.
+     * @throws LogicException Si no hay tokens configurados
+     */
+    public function tokens(): RememberTokens
+    {
+        if ($this->rememberTokens === null) {
+            throw new LogicException('"Recordarme" necesita la tabla remember_tokens: corre las migraciones del scaffold --auth.');
+        }
+
+        return ($this->rememberTokens)();
     }
 
     /**
@@ -196,6 +323,13 @@ final class Auth
         return ($this->session)() ?? throw new LogicException(
             'auth() necesita sesión para iniciar o cerrar sesión: usa la ruta dentro del grupo web (StartSession).'
         );
+    }
+
+    private static function fingerprint(Model $user): ?string
+    {
+        $hash = $user->getAttribute('password');
+
+        return is_string($hash) && $hash !== '' ? substr(hash('sha256', $hash), 0, 32) : null;
     }
 
     /**

@@ -25,6 +25,7 @@ namespace BootZen\Core;
 
 use BootZen\Auth\Auth;
 use BootZen\Auth\PasswordReset;
+use BootZen\Auth\RememberTokens;
 use BootZen\Database\Connection;
 use BootZen\Database\Migrator;
 use BootZen\Database\Model;
@@ -34,10 +35,13 @@ use BootZen\Mail\ArrayMailer;
 use BootZen\Mail\LogMailer;
 use BootZen\Mail\Mailer;
 use BootZen\Mail\SmtpMailer;
+use BootZen\Middleware\EnsureEmailIsVerified;
 use BootZen\Middleware\SetLocale;
+use BootZen\Middleware\ValidateSignature;
 use BootZen\Queue\DatabaseQueue;
 use BootZen\Queue\Queue;
 use BootZen\Queue\SyncQueue;
+use BootZen\Security\SignedUrl;
 use BootZen\Session\ArraySessionStore;
 use BootZen\Session\FileSessionStore;
 use BootZen\Session\Session;
@@ -111,6 +115,8 @@ class Application
             $this->router->setLocales($translator->locales(), $translator->defaultLocale());
         }
         $this->router->aliasMiddleware('locale', SetLocale::class);
+        $this->router->aliasMiddleware('signed', ValidateSignature::class);
+        $this->router->aliasMiddleware('verified', EnsureEmailIsVerified::class);
 
         // URLs temporales de archivos privados de discos sin URLs propias (local, FTP, SFTP)
         $this->router->get(UrlSigner::PATH, [FileController::class, 'show']);
@@ -357,11 +363,15 @@ class Application
         $this->container->singleton(Auth::class, function (Container $container): Auth {
             $model = $this->config->get('auth.model', 'App\\Models\\User');
 
-            return new Auth(static function () use ($container): ?Session {
-                $session = $container->bound(Session::class) ? $container->make(Session::class) : null;
+            return new Auth(
+                static function () use ($container): ?Session {
+                    $session = $container->bound(Session::class) ? $container->make(Session::class) : null;
 
-                return $session instanceof Session ? $session : null;
-            }, is_string($model) ? $model : 'App\\Models\\User');
+                    return $session instanceof Session ? $session : null;
+                },
+                is_string($model) ? $model : 'App\\Models\\User',
+                fn (): RememberTokens => new RememberTokens($this->connectionFrom($container), max(1, (int) $this->config->get('auth.remember_days', 30)))
+            );
         });
 
         $this->container->bind(PasswordReset::class, fn (Container $container): PasswordReset => new PasswordReset(
@@ -425,6 +435,16 @@ class Application
             }
 
             return new FileController($storage, is_string($key) && $key !== '' ? new UrlSigner($key, $this->urlPath()) : null);
+        });
+
+        $this->container->singleton(SignedUrl::class, function (): SignedUrl {
+            $key = $this->config->get('app.key');
+
+            if (! is_string($key) || $key === '') {
+                throw new LogicException('Los enlaces firmados necesitan APP_KEY. Genérala con: php bin/bootzen key:generate');
+            }
+
+            return new SignedUrl($key);
         });
 
         $this->container->singleton(DatabaseQueue::class, fn (Container $container): DatabaseQueue => new DatabaseQueue(

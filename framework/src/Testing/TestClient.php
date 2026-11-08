@@ -224,6 +224,28 @@ final class TestClient
     }
 
     /**
+     * Simula cerrar el navegador: olvida la cookie de sesión y conserva las demás (como "recordarme").
+     *
+     * @example $client->closeBrowser()->get('/panel')->assertOk(); // entra con la cookie de recordarme
+     */
+    public function closeBrowser(): self
+    {
+        unset($this->cookies[$this->cookieName()]);
+
+        return $this;
+    }
+
+    /**
+     * Cookies que el cliente tiene guardadas: nombre => valor.
+     *
+     * @return array<string, string>
+     */
+    public function cookies(): array
+    {
+        return $this->cookies;
+    }
+
+    /**
      * Inicia sesión como el usuario sin pasar por el formulario de login.
      */
     public function actingAs(Model $user): self
