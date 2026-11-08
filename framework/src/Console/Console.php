@@ -74,6 +74,7 @@ final class Console
         'mail:test' => 'Envía un correo de prueba con la configuración actual (mail:test tu@correo.com)',
         'user:role' => 'Cambia el rol de un usuario: user:role ana@correo.com admin (roles en config/auth.php)',
         'make:resource' => 'CRUD completo: make:resource Task title:string done:bool (--table=nombre)',
+        'make:admin' => 'Panel de administración: make:admin Producto nombre:string precio:float (necesita --auth)',
         'make:controller' => 'Controlador con su vista: make:controller Factura (--json: sin vista, responde JSON)',
         'make:model' => 'Modelo: make:model Factura (--migration crea su tabla, --table=nombre)',
         'make:migration' => 'Migración: make:migration crear_facturas (trae el CREATE TABLE)',
@@ -157,6 +158,11 @@ final class Console
                     array_slice($arguments, 1),
                     $this->stringOption($options, 'table')
                 ), 'Siguiente: php bin/bootzen migrate y composer check.'),
+                'make:admin' => $this->make(fn (Generator $g): array => $g->admin(
+                    $this->argument($arguments, 0, 'make:admin Producto nombre:string precio:float'),
+                    array_slice($arguments, 1),
+                    $this->stringOption($options, 'table')
+                ), 'Siguiente: php bin/bootzen migrate, composer check y entra a /admin con un usuario admin (user:role).'),
                 'make:controller' => $this->make(fn (Generator $g): array => $g->controller(
                     $this->argument($arguments, 0, 'make:controller Factura'),
                     isset($options['json'])

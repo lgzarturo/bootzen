@@ -1,0 +1,89 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Controllers\Admin;
+
+use App\Models\[[Model]];
+use BootZen\Admin\Listing;
+use BootZen\Core\Request;
+use BootZen\Core\Response;
+
+/**
+ * Panel de [[Model]] (make:admin). Rutas en el grupo /admin de routes/web.php (auth, verified y
+ * role:admin). Búsqueda, orden y filtros los decide listado(); cámbialos ahí.
+ */
+final class [[Model]]Controller
+{
+    public function index(Request $request): Response
+    {
+        $listado = $this->listado($request);
+
+        return view('admin.[[view]].index', ['[[plural]]' => $listado->paginate(20), 'listado' => $listado]);
+    }
+
+    /**
+     * CSV con todo lo que coincide con la búsqueda y los filtros (no solo la página).
+     */
+    public function export(Request $request): Response
+    {
+        return $this->listado($request)->csv('[[route]]-' . date('Y-m-d') . '.csv', [
+            'id' => 'ID',
+[[csvColumns]]
+        ]);
+    }
+
+    public function create(): Response
+    {
+        return view('admin.[[view]].create');
+    }
+
+    public function store(Request $request): Response
+    {
+        [[Model]]::create($request->validate($this->rules()));
+
+        return redirect(route('admin.[[route]].index'))->with('status', __('Registro creado.'));
+    }
+
+    public function edit(int $id): Response
+    {
+        return view('admin.[[view]].edit', ['[[singular]]' => [[Model]]::findOrFail($id)]);
+    }
+
+    public function update(Request $request, int $id): Response
+    {
+        [[Model]]::findOrFail($id)->update($request->validate($this->rules()));
+
+        return redirect(route('admin.[[route]].index'))->with('status', __('Registro actualizado.'));
+    }
+
+    public function destroy(int $id): Response
+    {
+        [[Model]]::findOrFail($id)->delete();
+
+        return redirect(route('admin.[[route]].index'))->with('status', __('Registro borrado.'));
+    }
+
+    /**
+     * @return Listing<[[Model]]>
+     */
+    private function listado(Request $request): Listing
+    {
+        return Listing::from([[Model]]::query(), $request)
+            ->search([[searchable]])
+            ->filters([[filters]])
+            ->sortable([[sortable]]);
+    }
+
+    /**
+     * Reglas de validación para crear y actualizar.
+     *
+     * @return array<string, string>
+     */
+    private function rules(): array
+    {
+        return [
+[[rules]]
+        ];
+    }
+}

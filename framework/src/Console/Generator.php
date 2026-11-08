@@ -307,6 +307,225 @@ final class Generator
     }
 
     /**
+     * Panel de administración de un modelo: controlador en app/Controllers/Admin, vistas en
+     * resources/views/admin, test y rutas en el grupo /admin (auth, verified y role:admin). Si el modelo
+     * no existe, crea también su migración, modelo y factory. Necesita el scaffold --auth.
+     *
+     * @param list<string> $definitions Campos como en make:resource
+     * @return list<string>
+     * @throws InvalidArgumentException Si faltan campos o se repiten
+     * @throws RuntimeException Si el proyecto no tiene --auth o algún archivo ya existe
+     */
+    public function admin(string $name, array $definitions, ?string $table = null): array
+    {
+        if (! is_file($this->basePath . '/app/Models/User.php') || ! is_file($this->basePath . '/routes/auth.php')) {
+            throw new RuntimeException('make:admin necesita usuarios y el rol admin del scaffold --auth. Crea el proyecto con: bootzen-new mi-app --auth');
+        }
+
+        if ($definitions === []) {
+            throw new InvalidArgumentException('Indica los campos: make:admin Producto nombre:string precio:float');
+        }
+
+        $model = self::className($name);
+        $fields = array_map(ResourceField::parse(...), $definitions);
+        $names = array_map(static fn (ResourceField $field): string => $field->name, $fields);
+
+        if (count($names) !== count(array_unique($names))) {
+            throw new InvalidArgumentException('Hay campos repetidos en la lista.');
+        }
+
+        $plural = $table !== null ? Str::studly($table) : Str::plural($model);
+        $table = $this->tableName($model, $table);
+        $route = Str::kebab($plural);
+        $modelExists = is_file($this->basePath . "/app/Models/{$model}.php");
+        $vars = [
+            'Model' => $model,
+            'route' => $route,
+            'view' => $route,
+            'table' => $table,
+            'singular' => Str::camel($model),
+            'plural' => Str::camel($plural),
+            'Title' => Str::headline($plural),
+            'Heading' => Str::headline($model),
+        ];
+
+        $targets = [
+            "app/Controllers/Admin/{$model}Controller.php",
+            "tests/Feature/Admin{$model}Test.php",
+            ...array_map(static fn (string $view): string => "resources/views/admin/{$route}/{$view}.php", ['index', 'create', 'edit']),
+            ...($modelExists ? [] : ["database/factories/{$model}Factory.php"]),
+        ];
+        foreach ($targets as $target) {
+            if (file_exists($this->basePath . '/' . $target)) {
+                throw new RuntimeException("Ya existe {$target}. Bórralo o elige otro nombre.");
+            }
+        }
+
+        $files = [];
+
+        if (! $modelExists) {
+            $files[] = $this->createTableMigration($table, $fields);
+            $files[] = $this->write("app/Models/{$model}.php", $this->renderModel($model, $table, $fields, true));
+            $files[] = $this->factory($model, $fields)[0];
+        }
+
+        $searchable = array_values(array_filter($fields, static fn (ResourceField $field): bool => in_array($field->type, ['string', 'email', 'text'], true)));
+        $filterable = array_values(array_filter($fields, static fn (ResourceField $field): bool => in_array($field->type, ['bool', 'date', 'datetime'], true)));
+        $sortable = array_values(array_filter($fields, static fn (ResourceField $field): bool => $field->type !== 'text'));
+        $list = static fn (array $items): string => '[' . implode(', ', array_map(static fn (string $item): string => "'{$item}'", $items)) . ']';
+
+        $files[] = $this->write("app/Controllers/Admin/{$model}Controller.php", $this->render('admin/controller', $vars + [
+            'rules' => implode("\n", array_map(static fn (ResourceField $field): string => "            '{$field->name}' => '{$field->rules()}',", $fields)),
+            'csvColumns' => implode("\n", array_map(static fn (ResourceField $field): string => "            '{$field->name}' => __('{$field->label()}'),", $fields)),
+            'searchable' => $list(array_map(static fn (ResourceField $field): string => $field->name, $searchable)),
+            'filters' => '[' . implode(', ', array_map(static fn (ResourceField $field): string => "'{$field->name}' => '" . ($field->type === 'bool' ? 'bool' : 'date') . "'", $filterable)) . ']',
+            'sortable' => $list(['id', ...array_map(static fn (ResourceField $field): string => $field->name, $sortable), 'created_at']),
+        ]));
+
+        $listed = array_slice($fields, 0, 5);
+        $parts = $this->viewParts($fields, $vars['singular']);
+        $files[] = $this->write("resources/views/admin/{$route}/index.php", $this->render('admin/index', $vars + [
+            'headers' => implode("\n", array_map(
+                static fn (ResourceField $field): string => $field->type === 'text'
+                    ? "                    <th class=\"px-4 py-3 font-medium\">{{ __('{$field->label()}') }}</th>"
+                    : "                    <th class=\"px-4 py-3 font-medium\"><x-admin.sort-link :listado=\"\$listado\" column=\"{$field->name}\" :label=\"__('{$field->label()}')\" /></th>",
+                $listed
+            )),
+            'cells' => implode("\n", array_map(
+                static fn (ResourceField $field): string => "                    <td class=\"px-4 py-3\">{$field->display($vars['singular'])}</td>",
+                $listed
+            )),
+            'colspan' => (string) (count($listed) + 2),
+            'filterInputs' => implode("\n", array_map(static fn (ResourceField $field): string => self::filterInput($field), $filterable)),
+        ]));
+        // En el panel las etiquetas de los campos se traducen con __()
+        $translated = static fn (string $html): string => (string) preg_replace('/ label="([^"]+)"/', " :label=\"__('$1')\"", $html);
+        $files[] = $this->write("resources/views/admin/{$route}/create.php", $this->render('admin/create', $vars + ['fields' => $translated($parts['fields'])]));
+        $files[] = $this->write("resources/views/admin/{$route}/edit.php", $this->render('admin/edit', $vars + ['editFields' => $translated($parts['editFields'])]));
+
+        $files[] = $this->write("tests/Feature/Admin{$model}Test.php", $this->render('admin/test', $vars + [
+            'data' => $this->testParts($fields, $vars + ['camel' => $vars['singular']])['data'],
+            'seeIndex' => ($display = array_values(array_filter($fields, static fn (ResourceField $field): bool => ! $field->nullable && in_array($field->type, ['string', 'email'], true)))[0] ?? null) === null
+                ? '' : "->assertSee(\${$vars['singular']}->{$display->name})",
+        ]));
+
+        // Una sola vez: layout, componente de orden y config/admin.php
+        foreach ([
+            'resources/views/components/layouts/admin.php' => 'admin/layout',
+            'resources/views/components/admin/sort-link.php' => 'admin/sort-link',
+            'config/admin.php' => 'admin/config',
+        ] as $path => $stub) {
+            if (! file_exists($this->basePath . '/' . $path)) {
+                $files[] = $this->write($path, $this->render($stub, []));
+            }
+        }
+
+        $files[] = $this->addAdminMenu($route, Str::headline($plural));
+        $files[] = $this->addAdminRoutes($route, $model);
+
+        return $files;
+    }
+
+    private static function filterInput(ResourceField $field): string
+    {
+        if ($field->type === 'bool') {
+            return <<<HTML
+                        <label class="flex flex-col gap-1 text-sm text-gray-600">
+                            {{ __('{$field->label()}') }}
+                            <select name="filtro[{$field->name}]" class="rounded-lg border border-gray-300 px-3 py-2 text-gray-900">
+                                <option value="">{{ __('Todos') }}</option>
+                                <option value="1" @if (\$listado->filter('{$field->name}') === '1') selected @endif>{{ __('Sí') }}</option>
+                                <option value="0" @if (\$listado->filter('{$field->name}') === '0') selected @endif>{{ __('No') }}</option>
+                            </select>
+                        </label>
+                HTML;
+        }
+
+        return <<<HTML
+                    <label class="flex flex-col gap-1 text-sm text-gray-600">
+                        {{ __('{$field->label()}') }} {{ __('desde') }}
+                        <input type="date" name="filtro[{$field->name}_desde]" value="{{ \$listado->filter('{$field->name}_desde') }}" class="rounded-lg border border-gray-300 px-3 py-2 text-gray-900">
+                    </label>
+                    <label class="flex flex-col gap-1 text-sm text-gray-600">
+                        {{ __('hasta') }}
+                        <input type="date" name="filtro[{$field->name}_hasta]" value="{{ \$listado->filter('{$field->name}_hasta') }}" class="rounded-lg border border-gray-300 px-3 py-2 text-gray-900">
+                    </label>
+            HTML;
+    }
+
+    /**
+     * Agrega el recurso al menú de config/admin.php.
+     */
+    private function addAdminMenu(string $route, string $label): string
+    {
+        $file = $this->basePath . '/config/admin.php';
+        $contents = (string) file_get_contents($file);
+        $marker = '        // make:admin agrega aquí cada recurso';
+        $line = "        ['route' => 'admin.{$route}.index', 'label' => '{$label}'],";
+
+        if (str_contains($contents, "'admin.{$route}.index'")) {
+            return 'config/admin.php (ya estaba en el menú)';
+        }
+
+        if (! str_contains($contents, $marker)) {
+            throw new RuntimeException("No se pudo editar config/admin.php. Agrega a mano en 'menu': {$line}");
+        }
+
+        file_put_contents($file, str_replace($marker, $line . "\n" . $marker, $contents));
+
+        return 'config/admin.php (menú)';
+    }
+
+    /**
+     * Agrega las rutas al grupo /admin de routes/web.php (lo crea si no existe).
+     */
+    private function addAdminRoutes(string $route, string $model): string
+    {
+        $file = $this->basePath . '/routes/web.php';
+        $contents = is_file($file) ? (string) file_get_contents($file) : '';
+        $lines = "        \$router->get('/{$route}/exportar', [Admin\\{$model}Controller::class, 'export'])->name('{$route}.export');\n"
+            . "        \$router->resource('{$route}', Admin\\{$model}Controller::class, ['except' => ['show']]);";
+        $group = "\$router->group(['prefix' => '/admin'";
+
+        if (! str_contains($contents, $group)) {
+            $closing = strrpos($contents, '};');
+
+            if ($closing === false) {
+                throw new RuntimeException("No se pudo editar routes/web.php. Agrega a mano un grupo /admin con:\n{$lines}");
+            }
+
+            $block = "\n    // Panel de administración (make:admin): solo admins con el correo verificado\n"
+                . "    \$router->group(['prefix' => '/admin', 'as' => 'admin.', 'middleware' => ['auth', 'verified', 'role:admin']], static function (Router \$router): void {\n"
+                . "    });\n";
+            $contents = rtrim(substr($contents, 0, $closing)) . "\n" . $block . substr($contents, $closing);
+        }
+
+        $start = (int) strpos($contents, $group);
+        $end = strpos($contents, "\n    });", $start);
+
+        if ($end === false) {
+            throw new RuntimeException("No se pudo editar el grupo /admin de routes/web.php. Agrega a mano:\n{$lines}");
+        }
+
+        $contents = substr($contents, 0, $end) . "\n" . $lines . substr($contents, $end);
+
+        // use App\Controllers\Admin; junto a los demás, en orden
+        $use = 'use App\\Controllers\\Admin;';
+        preg_match_all('/^use [^;]+;$/m', $contents, $matches);
+        if (! in_array($use, $matches[0], true)) {
+            $sorted = [...$matches[0], $use];
+            sort($sorted);
+            $contents = $matches[0] === []
+                ? (string) preg_replace('/^(declare\(strict_types=1\);\n)/m', "$1\n{$use}\n", $contents, 1)
+                : str_replace(implode("\n", $matches[0]), implode("\n", $sorted), $contents);
+        }
+
+        file_put_contents($file, $contents);
+
+        return 'routes/web.php (rutas /admin)';
+    }
+
+    /**
      * Partes de las vistas que dependen de los campos.
      *
      * @param list<ResourceField> $fields

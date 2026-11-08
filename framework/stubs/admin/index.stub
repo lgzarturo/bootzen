@@ -1,0 +1,53 @@
+<x-layouts.admin :title="__('[[Title]]')">
+    <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <h1 class="text-2xl font-bold">{{ __('[[Title]]') }}</h1>
+        <div class="flex gap-2">
+            <x-button :href="route('admin.[[route]].export') . '?' . http_build_query($listado->parameters())" variant="ghost">{{ __('Exportar CSV') }}</x-button>
+            <x-button :href="route('admin.[[route]].create')">{{ __('Nuevo') }}</x-button>
+        </div>
+    </div>
+
+    <form method="GET" class="mb-4 flex flex-wrap items-end gap-3 rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-200">
+        <input type="hidden" name="sort" value="{{ $listado->sort() }}">
+        <input type="hidden" name="dir" value="{{ $listado->direction() }}">
+        <label class="flex flex-col gap-1 text-sm text-gray-600">
+            {{ __('Buscar') }}
+            <input type="search" name="q" value="{{ $listado->term() }}" class="rounded-lg border border-gray-300 px-3 py-2 text-gray-900">
+        </label>
+[[filterInputs]]
+        <x-button type="submit">{{ __('Filtrar') }}</x-button>
+        <a href="{{ route('admin.[[route]].index') }}" class="py-2 text-sm text-gray-600 hover:underline">{{ __('Limpiar') }}</a>
+    </form>
+
+    <div class="overflow-x-auto rounded-xl bg-white shadow-sm ring-1 ring-gray-200">
+        <table class="min-w-full divide-y divide-gray-200 text-sm">
+            <thead class="bg-gray-50 text-left text-gray-600">
+                <tr>
+                    <th class="px-4 py-3 font-medium"><x-admin.sort-link :listado="$listado" column="id" label="ID" /></th>
+[[headers]]
+                    <th class="px-4 py-3"></th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+            @foreach ($[[plural]] as $[[singular]])
+                <tr>
+                    <td class="px-4 py-3 text-gray-500">{{ $[[singular]]->id }}</td>
+[[cells]]
+                    <td class="px-4 py-3 text-right whitespace-nowrap">
+                        <x-button :href="route('admin.[[route]].edit', ['id' => $[[singular]]->id])" variant="ghost" size="sm">{{ __('Editar') }}</x-button>
+                        <x-form :action="route('admin.[[route]].destroy', ['id' => $[[singular]]->id])" method="DELETE" class="inline" data-confirm="{{ __('¿Borrar este registro? No se puede deshacer.') }}">
+                            <x-button type="submit" variant="ghost" size="sm" class="text-red-600 hover:bg-red-50">{{ __('Borrar') }}</x-button>
+                        </x-form>
+                    </td>
+                </tr>
+            @empty
+                <tr>
+                    <td colspan="[[colspan]]" class="px-4 py-8 text-center text-gray-500">{{ __('No hay registros que coincidan.') }}</td>
+                </tr>
+            @endforeach
+            </tbody>
+        </table>
+    </div>
+
+    <x-pagination :paginator="$[[plural]]" />
+</x-layouts.admin>
