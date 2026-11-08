@@ -166,6 +166,18 @@ final class Generator
     }
 
     /**
+     * Política de un modelo en app/Policies (Gate la encuentra por el nombre).
+     *
+     * @return list<string>
+     */
+    public function policy(string $name): array
+    {
+        $model = self::className(preg_replace('/Policy$/', '', $name) ?? $name);
+
+        return [$this->write("app/Policies/{$model}Policy.php", $this->render('policy', ['Model' => $model, 'variable' => Str::camel($model)]))];
+    }
+
+    /**
      * @return list<string>
      */
     public function seeder(string $name): array

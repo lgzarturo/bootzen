@@ -17,12 +17,14 @@ declare(strict_types=1);
 
 namespace BootZen\Console;
 
+use BootZen\Auth\Gate;
 use BootZen\Core\Application;
 use BootZen\Core\Config;
 use BootZen\Core\Logger;
 use BootZen\Core\Route;
 use BootZen\Database\Connection;
 use BootZen\Database\Migrator;
+use BootZen\Database\Model;
 use BootZen\Database\SeederRunner;
 use BootZen\Deploy\DeployBuilder;
 use BootZen\Deploy\FrameworkUpdater;
@@ -70,6 +72,7 @@ final class Console
         'schedule:run' => 'Ejecuta las tareas de routes/schedule.php que tocan (desde cron, cada minuto)',
         'schedule:list' => 'Lista las tareas programadas y cuándo corren',
         'mail:test' => 'Envía un correo de prueba con la configuración actual (mail:test tu@correo.com)',
+        'user:role' => 'Cambia el rol de un usuario: user:role ana@correo.com admin (roles en config/auth.php)',
         'make:resource' => 'CRUD completo: make:resource Task title:string done:bool (--table=nombre)',
         'make:controller' => 'Controlador con su vista: make:controller Factura (--json: sin vista, responde JSON)',
         'make:model' => 'Modelo: make:model Factura (--migration crea su tabla, --table=nombre)',
@@ -77,6 +80,7 @@ final class Console
         'make:middleware' => 'Middleware en app/Middleware',
         'make:seeder' => 'Seeder en database/seeds',
         'make:factory' => 'Factory en database/factories: make:factory Tarea (para Tarea::factory())',
+        'make:policy' => 'Política en app/Policies: make:policy Tarea (quién puede ver, editar o borrar cada registro)',
         'make:job' => 'Job en app/Jobs para encolar con dispatch()',
         'make:test' => 'Test de feature en tests/Feature (--unit para tests/Unit)',
         'make:component' => 'Componente <x-nombre> en resources/views/components (--class si tiene lógica)',
@@ -147,6 +151,7 @@ final class Console
                 'db:fresh' => $this->fresh($options),
                 'db:backup' => $this->backup(),
                 'mail:test' => $this->mailTest($this->argument($arguments, 0, 'mail:test tu@correo.com')),
+                'user:role' => $this->userRole($this->argument($arguments, 0, 'user:role ana@correo.com admin'), $this->argument($arguments, 1, 'user:role ana@correo.com admin')),
                 'make:resource' => $this->make(fn (Generator $g): array => $g->resource(
                     $this->argument($arguments, 0, 'make:resource Task title:string done:bool'),
                     array_slice($arguments, 1),
@@ -163,6 +168,7 @@ final class Console
                 )),
                 'make:migration' => $this->make(fn (Generator $g): array => $g->migration($this->argument($arguments, 0, 'make:migration crear_facturas'))),
                 'make:middleware' => $this->make(fn (Generator $g): array => $g->middleware($this->argument($arguments, 0, 'make:middleware SoloAdmins'))),
+                'make:policy' => $this->make(fn (Generator $g): array => $g->policy($this->argument($arguments, 0, 'make:policy Tarea')), 'Úsala con authorize(\'update\', $modelo) en el controlador y can() en las vistas.'),
                 'make:factory' => $this->make(fn (Generator $g): array => $g->factory($this->argument($arguments, 0, 'make:factory Tarea')), 'Úsala con Modelo::factory()->create() en tests y seeders.'),
                 'make:seeder' => $this->make(fn (Generator $g): array => $g->seeder($this->argument($arguments, 0, 'make:seeder ClientesSeeder'))),
                 'make:job' => $this->make(fn (Generator $g): array => $g->job($this->argument($arguments, 0, 'make:job EnviarFactura')), 'Encólalo con dispatch(new ...) desde un controlador.'),
@@ -641,6 +647,35 @@ final class Console
         }
 
         return $schedule;
+    }
+
+    /**
+     * Cambia el rol de un usuario (por ejemplo, para nombrar al primer admin).
+     */
+    private function userRole(string $email, string $role): int
+    {
+        $gate = $this->app->make(Gate::class);
+        $model = $this->app->config()->get('auth.model', 'App\\Models\\User');
+
+        if (! $gate instanceof Gate || ! is_string($model) || ! is_subclass_of($model, Model::class)) {
+            throw new \LogicException('No se encontró el modelo de usuario (config/auth.php, model).');
+        }
+
+        if (! in_array($role, $gate->roles(), true)) {
+            throw new \InvalidArgumentException("El rol [{$role}] no está en config/auth.php (roles). Roles: " . implode(', ', $gate->roles()) . '.');
+        }
+
+        $user = $model::where('email', strtolower($email))->first();
+
+        if ($user === null) {
+            throw new \InvalidArgumentException("No hay un usuario con el correo {$email}.");
+        }
+
+        $user->setAttribute('role', $role);
+        $user->save();
+        $this->line($user->getAttribute('email') . " ahora tiene el rol {$role}.");
+
+        return 0;
     }
 
     private function mailTest(string $to): int

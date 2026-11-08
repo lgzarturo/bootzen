@@ -1,0 +1,49 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Policies;
+
+use App\Models\[[Model]];
+use App\Models\User;
+
+/**
+ * Quién puede hacer qué con cada [[Model]]. Se usa con authorize('update', $[[variable]]) en el
+ * controlador y can('update', $[[variable]]) en las vistas. Un rol con '*' en config/auth.php (admin)
+ * pasa sin preguntarle a la política.
+ *
+ * Si [[Model]] no tiene user_id, cambia las reglas de abajo.
+ */
+final class [[Model]]Policy
+{
+    public function viewAny(User $user): bool
+    {
+        return true;
+    }
+
+    public function create(User $user): bool
+    {
+        return true;
+    }
+
+    public function view(User $user, [[Model]] $[[variable]]): bool
+    {
+        return $this->owns($user, $[[variable]]);
+    }
+
+    public function update(User $user, [[Model]] $[[variable]]): bool
+    {
+        return $this->owns($user, $[[variable]]);
+    }
+
+    public function delete(User $user, [[Model]] $[[variable]]): bool
+    {
+        return $this->owns($user, $[[variable]]);
+    }
+
+    private function owns(User $user, [[Model]] $[[variable]]): bool
+    {
+        // Como texto: según la base, los ids llegan como número o como cadena
+        return (string) $[[variable]]->getAttribute('user_id') === (string) $user->id;
+    }
+}

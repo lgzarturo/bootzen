@@ -234,3 +234,13 @@ it('genera una factory vacía con make:factory y valores falsos según el nombre
         ])
         ->and(fn () => $this->generator->factory('Cliente'))->toThrow(RuntimeException::class);
 });
+
+it('genera una política con make:policy', function (): void {
+    expect($this->generator->policy('TareaPolicy'))->toBe(['app/Policies/TareaPolicy.php']);
+    assertValidPhp($this->project . '/app/Policies/TareaPolicy.php');
+
+    expect(file_get_contents($this->project . '/app/Policies/TareaPolicy.php'))
+        ->toContain('final class TareaPolicy')
+        ->toContain('public function update(User $user, Tarea $tarea): bool')
+        ->toContain("(string) \$tarea->getAttribute('user_id') === (string) \$user->id");
+});
