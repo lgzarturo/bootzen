@@ -1,5 +1,35 @@
 # CHANGELOG
 
+## [2.5.0] - 2026-11-08
+
+Primera pieza de la fase 9: factories para tests y seeders, con datos falsos
+propios y sin librerías.
+
+### Agregado
+
+- `Modelo::factory()` con factories en `database/factories/`
+  (`Database\Factories\TareaFactory`): `create()`, `make()`,
+  `count(20)->create()`, `state([...])` o `state(fn ($valores, $i) => ...)`,
+  `afterCreating()` y relaciones con otra factory
+  (`'user_id' => User::factory()`). Los lotes se guardan en una transacción.
+- `fake()`: nombres, correos (en dominios `example.*`), teléfonos,
+  empresas, direcciones, frases, párrafos, números, decimales, fechas,
+  `randomElement()`, `uuid()` y `unique()`, en español o inglés según el
+  idioma activo. En tests la semilla es fija.
+- `make:factory Modelo`. `make:resource` genera la factory con un valor falso
+  por campo y su test la usa.
+- `--auth` trae `UserFactory`; `--demo` trae `TareaFactory` y su seeder
+  crea 50 tareas.
+
+### Cambiado
+
+- `deploy:build` incluye `database/factories/` (los seeders pueden usarlas
+  en el servidor).
+- El autoloader del framework y el `composer.json` del skeleton cargan
+  `Database\Factories\`. En proyectos creados antes, `framework:update`
+  trae el autoloader; agrega la línea a `composer.json` si usas PHPStan con
+  factories.
+
 ## [2.4.0] - 2026-11-07
 
 Última pieza de la fase 8: la app en varios idiomas, con URLs pensadas para

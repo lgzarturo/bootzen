@@ -56,6 +56,7 @@ aplicación monolítica construida con BootZen.
 | `config/database.php`      | Conexión: SQLite por defecto, MySQL opcional                  |
 | `database/migrations/`     | Migraciones con SQL directo, en orden de nombre de archivo    |
 | `database/seeds/`          | Datos de ejemplo: `DatabaseSeeder.php` y los que llame        |
+| `database/factories/`      | Factories: `TareaFactory.php` para `Tarea::factory()` (tests y seeders) |
 | `database/app.sqlite`      | Base SQLite local (fuera de git)                              |
 | `tests/`                   | Tests con Pest (`Feature/` y `Unit/`)                         |
 | `docs/ai/`                 | Recetas (`recipes/`) y referencia de la API (`reference.md`)  |
@@ -82,7 +83,7 @@ php bin/bootzen db:fresh --seed   # borra todo, migra y siembra (--force en prod
 php bin/bootzen db:backup         # copia consistente de SQLite en storage/backups
 php bin/bootzen make:resource Tarea titulo:string hecha:bool  # CRUD completo (ver abajo)
 php bin/bootzen make:model Cliente --migration   # también: make:controller (--json), make:migration,
-                                  # make:middleware, make:seeder, make:test, make:component
+                                  # make:middleware, make:seeder, make:factory, make:test, make:component
 php bin/bootzen route:list        # rutas con nombre, middleware y acción
 php bin/bootzen doctor            # revisa PHP, extensiones, permisos, .env y base de datos
 php bin/bootzen config:cache      # configuración en un archivo (producción; config:clear la borra)
@@ -122,7 +123,8 @@ composer check
 
 Crea la migración, el modelo, el controlador con validación, la ruta
 `resource` en `routes/web.php`, las vistas `index`, `create`, `edit` y `show`
-con componentes, y `tests/Feature/TareaTest.php`. El resultado pasa
+con componentes, `database/factories/TareaFactory.php` y
+`tests/Feature/TareaTest.php`. El resultado pasa
 `composer check` sin tocar nada; después ajústalo a lo que pide la tarea.
 
 - Tipos: `string`, `text`, `email`, `int`, `float`, `bool`, `date` y
@@ -135,7 +137,8 @@ con componentes, y `tests/Feature/TareaTest.php`. El resultado pasa
 - Nunca sobrescribe archivos: si algo ya existe, se detiene antes de escribir.
 - Para lo demás: `make:model` (`--migration`, `--table=`), `make:controller`,
   `make:migration crear_facturas` (trae el `CREATE TABLE`), `make:middleware`,
-  `make:seeder`, `make:test` (`--unit`) y `make:component modal` (`--class`).
+  `make:seeder`, `make:factory`, `make:test` (`--unit`) y `make:component modal`
+  (`--class`).
 
 ### Rutas
 
@@ -503,6 +506,46 @@ db()->transaction(function ($db): void { /* varias escrituras */ });
 que extiende `BootZen\Database\Seeder`; `$this->call('Otro')` ejecuta
 `database/seeds/Otro.php`.
 
+**Factories.** Datos de ejemplo para tests y seeders, en
+`database/factories/{Modelo}Factory.php` (`make:factory Tarea`; `make:resource`
+ya la crea):
+
+```php
+// database/factories/TareaFactory.php
+final class TareaFactory extends Factory
+{
+    protected string $model = Tarea::class;
+
+    public function definition(): array
+    {
+        return [
+            'user_id' => User::factory(),          // crea al dueño si no le pasas user_id
+            'titulo' => fake()->sentence(),
+            'hecha' => fake()->boolean(30),         // 30% de las veces true
+            'vence' => fake()->date('now', '+1 month'),
+        ];
+    }
+}
+```
+
+```php
+$tarea = Tarea::factory()->create();                                // una, con su usuario
+Tarea::factory()->count(20)->create(['user_id' => $ana->id]);      // lista de 20
+Tarea::factory()->state(['hecha' => true])->make();                // sin guardar
+Tarea::factory()->count(3)->state(fn (array $v, int $i) => ['titulo' => "Tarea {$i}"])->create();
+```
+
+- La factory asigna todas las columnas, también las que no están en
+  `$fillable`. Los valores que pasas a `create()` ganan.
+- `fake()`: `name()`, `firstName()`, `lastName()`, `email()`, `userName()`,
+  `phoneNumber()`, `company()`, `address()`, `city()`, `country()`, `word()`,
+  `words(3)`, `sentence()`, `paragraph()`, `text(200)`, `number(1, 10)`,
+  `decimal(1, 100)`, `boolean(30)`, `date()`, `dateTime()`,
+  `randomElement([...])`, `uuid()`, `url()`. `fake()->unique()->email()` no
+  repite. Salen en el idioma activo; los correos usan `example.com`.
+- En tests la semilla es fija: cada `client()` da los mismos valores, así un
+  test que falla falla siempre igual.
+
 ### Request
 
 ```php
@@ -665,7 +708,7 @@ it('valida el título', function (): void {
 
 it('solo deja entrar a usuarios', function (): void {
     $client = client();
-    $usuario = User::create([...]);           // los modelos van después de client()
+    $usuario = User::factory()->create();     // los modelos van después de client()
 
     $client->get('/panel')->assertRedirect('/login');
     $client->actingAs($usuario)->get('/panel')->assertOk()->assertSee('Hola');
@@ -713,7 +756,7 @@ it('solo deja entrar a usuarios', function (): void {
   `merge`, `class`, `only`, `except`, `has`, `get`.
 - **Model**: `query`, `all`, `find`, `findOrFail`, `where`, `create`, `fill`,
   `save`, `update`, `delete`, `refresh`, `toArray`, `getKey`, `isDirty`,
-  `hasMany`, `belongsTo`.
+  `hasMany`, `belongsTo`, `factory`.
 - **Consultas** (QueryBuilder y ModelQuery): `select`, `selectRaw`, `where`,
   `orWhere`, `whereIn`, `whereNotIn`, `whereNull`, `whereNotNull`, `whereRaw`,
   `join`, `leftJoin`, `orderBy`, `latest`, `limit`, `offset`, `get`, `first`,
@@ -726,15 +769,13 @@ it('solo deja entrar a usuarios', function (): void {
   `redirect()`, `abort()`, `json_response()`, `download()`, `csrf_token()`,
   `csrf_field()`, `validate_csrf_token()`, `slugify()`, `str_random()`,
   `__()`, `trans_choice()`, `locale()`, `locale_url()`, `hreflang_links()`,
-  `format_date()`, `format_number()`, `format_money()`, `home_url()`.
+  `format_date()`, `format_number()`, `format_money()`, `home_url()`, `fake()`.
 
 ## Lo que todavía NO existe
 
 Estas piezas todavía no vienen en BootZen; **no las inventes ni instales
 librerías para suplirlas** sin preguntar:
 
-- Factories de datos falsos (en los tests se crean los registros con
-  `Modelo::create()`).
 - `route:cache`: el router compila las rutas en cada petición y es rápido
   igual.
 - Colas en Redis u otros servicios: la cola es `sync` o `database`.

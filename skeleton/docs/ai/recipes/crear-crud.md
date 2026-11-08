@@ -30,8 +30,20 @@
 - `app/Models/Cliente.php`
 - `app/Controllers/ClienteController.php`
 - `resources/views/clientes/{index,create,edit,show}.php`
+- `database/factories/ClienteFactory.php` (datos de ejemplo: `Cliente::factory()`)
 - `tests/Feature/ClienteTest.php`
 - La línea `$router->resource('clientes', ClienteController::class);` en `routes/web.php`
+
+## Datos de ejemplo
+
+La factory trae un valor falso por campo (`fake()->name()`, `fake()->unique()->email()`...).
+Ajústala si un campo tiene valores fijos (`fake()->randomElement(['alta', 'baja'])`) y úsala
+en tests y en `database/seeds/DatabaseSeeder.php`:
+
+```php
+Cliente::factory()->count(30)->create();                 // seeder
+$cliente = Cliente::factory()->create(['email' => 'ana@example.com']); // test
+```
 
 ## Email único que ignora el registro al editar
 

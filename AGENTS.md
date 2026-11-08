@@ -33,7 +33,9 @@ The roadmap lives in `plan/04_PLAN-MVP-MONOLITO.md`; progress is tracked in
   directive list, ComponentAttributeBag, HtmlString, Component, ViewException).
 - `framework/src/Database/`: data layer (Connection over PDO for SQLite and
   MySQL, QueryBuilder, Paginator, Model, ModelQuery, Migration, Migrator,
-  Seeder, SeederRunner and their exceptions).
+  Seeder, SeederRunner, Factory and FactoryBatch for `Model::factory()`,
+  and their exceptions). Factories live in `database/factories/` under the
+  `Database\Factories\` namespace (own autoloader and skeleton composer.json).
 - `framework/src/Console/`: `bin/bootzen` commands (Console), generators
   (Generator, ResourceField) and `doctor` (Doctor).
 - `framework/stubs/`: templates for `make:*` (`resource/` for
@@ -57,6 +59,8 @@ The roadmap lives in `plan/04_PLAN-MVP-MONOLITO.md`; progress is tracked in
   metadata stripped, 40 MP limit) and `Quietly.php` (captures PHP warnings
   into error messages).
 - `framework/src/Support/Str.php`: name conversion and English plurals.
+- `framework/src/Support/Fake.php`: fake data for factories (`fake()`), es
+  and en by active locale, `unique()`, fixed seed when `APP_ENV=testing`.
 - `framework/src/Frontend/Tailwind.php`: Tailwind v4 standalone CLI download
   (SHA-256 verified) and build arguments.
 - `framework/src/Session/`: Session, SessionStore, FileSessionStore and

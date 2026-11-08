@@ -27,6 +27,7 @@
 - `download(string $filePath, ?string $fileName = null): Response`: Crea una respuesta que fuerza la descarga de un archivo. Debe retornarse desde el handler.
 - `e(Stringable|string|int|float|bool|null $value): string`: Escapa un valor para salida segura en HTML.
 - `env(string $key, mixed $default = null): mixed`: Obtiene el valor de una variable de entorno.
+- `fake(): Fake`: Datos falsos (nombres, correos, textos, números, fechas) en el idioma activo. En tests la semilla es fija: cada client() empieza con la misma secuencia.
 - `file_url(string $path, ?string $disk = null): string`: URL pública de un archivo guardado con storePublic() (o del disco indicado).
 - `format_bytes(int $bytes, int $precision = 2): string`: Formatea una cantidad de bytes en una cadena legible (KB, MB, etc.).
 - `format_date(DateTimeInterface|string $date, string $style = 'medium', bool $withTime = false): string`: Fecha en el idioma activo: short (07/11/2026), medium (7 nov 2026) o long (7 de noviembre de 2026).
@@ -233,6 +234,7 @@ Modelo base.
 - `::findOrFail(string|int $id): static`
 - `::where(string $column, mixed $operator, mixed $value = null): ModelQuery`: Inicia una consulta con una condición. Con dos argumentos el operador es '='.
 - `::create(array $attributes): static`: Crea y guarda un registro con los valores de $fillable.
+- `::factory(): Factory`: Factory del modelo: database/factories/{Modelo}Factory.php (make:factory la crea).
 - `::hydrate(array $row): static`: Crea una instancia a partir de una fila de la base de datos.
 - `fill(array $attributes): static`: Asigna valores de $fillable; el resto se ignora (por ejemplo _token o campos ajenos).
 - `save(): bool`: Inserta o actualiza el registro. Solo se envían las columnas que cambiaron.
@@ -345,6 +347,53 @@ Página de resultados.
 - `getIterator(): Traversable`
 - `toArray(): array`
 - `jsonSerialize(): array`
+
+### Factory
+
+Un valor de definition() puede ser otra factory (se crea antes y se usa su id) o un closure que recibe los demás valores ya resueltos. A diferencia de Modelo::create(), la factory asigna todas las columnas, también las que no están en $fillable (user_id, role...).
+
+- `definition(): array`: Valores de una fila de ejemplo. Usa fake() para que cada registro sea distinto.
+- `state(Closure|array $state): static`: Cambia valores de la definición. Un closure recibe los valores y la posición en count().
+- `afterCreating(Closure $callback): static`: Ejecuta $callback con cada modelo recién guardado (por ejemplo, para crearle registros hijos).
+- `count(int $count): FactoryBatch`: Varios registros: ->count(10)->create() devuelve una lista.
+- `make(array $attributes = []): Model`: Un modelo con los valores de la definición, sin guardarlo.
+- `create(array $attributes = []): Model`: Crea y guarda un registro.
+
+### FactoryBatch
+
+- `state(Closure|array $state): self`: Igual que Factory::state(), para todos los registros del lote.
+- `make(array $attributes = []): array`: Arma los modelos sin guardarlos.
+- `create(array $attributes = []): array`: Crea y guarda los registros en una transacción.
+
+### Fake
+
+Con semilla los valores se repiten igual en cada corrida (en los tests la semilla es fija). Los correos usan dominios reservados para pruebas (example.com), así nunca le llega nada a nadie.
+
+- `seed(int $seed): self`: Reinicia la secuencia: con la misma semilla salen los mismos valores.
+- `unique(): self`: El siguiente valor no repite ninguno que este mismo método ya haya dado con unique(). Si ya no quedan valores distintos, el método lanza InvalidArgumentException.
+- `firstName(): string`
+- `lastName(): string`
+- `name(): string`: Nombre y apellido.
+- `email(): string`: Correo en un dominio reservado para pruebas (example.com, example.org o example.net).
+- `userName(): string`
+- `phoneNumber(): string`
+- `company(): string`
+- `city(): string`
+- `country(): string`
+- `address(): string`
+- `word(): string`
+- `words(int $count = 3): array`
+- `sentence(int $words = 4): string`: Frase corta con sentido aparente, buena para títulos: 'Revisar la factura de ventas'. $words es el mínimo de palabras.
+- `paragraph(int $sentences = 3): string`: Varias frases terminadas en punto.
+- `text(int $maxLength = 200): string`: Texto de hasta $maxLength caracteres, cortado en una palabra completa.
+- `number(int $min = 0, int $max = 100): int`: Entero entre $min y $max (incluidos).
+- `decimal(float $min = 0.0, float $max = 1000.0, int $decimals = 2): float`: Decimal entre $min y $max con $decimals decimales.
+- `boolean(int $chance = 50): bool`: true con probabilidad $chance (porcentaje).
+- `date(string $from = '-1 year', string $to = 'now'): string`: Fecha 'Y-m-d' entre $from y $to (cualquier texto que entienda strtotime).
+- `dateTime(string $from = '-1 year', string $to = 'now'): string`: Fecha y hora 'Y-m-d H:i:s' entre $from y $to.
+- `randomElement(array $items): mixed`: Un elemento al azar de la lista.
+- `uuid(): string`: UUID versión 4.
+- `url(): string`: URL en un dominio reservado para pruebas.
 
 ## Sesión, autenticación y seguridad
 

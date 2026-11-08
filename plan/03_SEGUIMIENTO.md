@@ -313,8 +313,22 @@ Notas de i18n (v2.4.0):
 
 Piezas elegidas por el usuario; un release por pieza. Detalle en el plan.
 
-- [ ] 9.1 Factories para tests y seeds (v2.5.0)
+- [x] 9.1 Factories para tests y seeds (v2.5.0)
 - [ ] 9.2 Autenticación completa: recordarme, verificación de correo, roles y
   permisos (v2.6.0)
 - [ ] 9.3 URLs traducidas (v2.7.0)
 - [ ] 9.4 Panel de administración con `make:admin` (v2.8.0)
+
+Notas de factories (v2.5.0):
+
+- Decisiones del usuario: `Tarea::factory()` por convención; métodos de
+  `fake()` en inglés con datos en el idioma activo; semilla fija en tests;
+  las factories viajan con `deploy:build`.
+- `count()` devuelve un `FactoryBatch` aparte para que `create()` tenga un
+  tipo claro (un modelo o una lista) y PHPStan no se queje en los proyectos.
+- Lo que encontró la prueba real: las frases en español salían con errores
+  de género ("con el reunión"); ahora el objeto lleva su artículo y el
+  complemento va sin él.
+- Verificado: suite del repo, proyecto `--demo` (24 tests y `db:seed` con 50
+  tareas), y un proyecto limpio con `make:resource` de siete tipos de campo
+  que pasa `bin/bootzen check`.

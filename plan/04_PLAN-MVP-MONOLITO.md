@@ -614,9 +614,11 @@ Todo como parte del scaffold `--auth`, con soporte mínimo en el framework.
   `@can`-equivalente sin directiva nueva (`@if (can('...'))`), middleware
   `role:admin` y `can:tareas.borrar`, y `authorize('...')` que lanza 403.
   Sin tablas de roles: un MVP no las necesita y se pueden agregar después.
-- Pregunta abierta para el inicio de la pieza: si "dueño del registro"
-  (cada quien edita lo suyo) entra como política (`policy`) o se queda como
-  hoy, con `where('user_id', ...)` en el controlador.
+- **Políticas** (decisión del usuario): "cada quien edita lo suyo" tiene un
+  mecanismo propio. Una clase por modelo en `app/Policies/` con métodos
+  como `update(User $user, Tarea $tarea): bool`, que `can('update', $tarea)`
+  y `authorize('update', $tarea)` consultan; `make:policy` la genera y
+  `make:resource` la usa. Los detalles se preguntan al iniciar la pieza.
 - **Criterio**: en un proyecto `--auth`, un usuario nuevo no entra al panel
   hasta verificar el correo (probado con Mailpit), "recordarme" sobrevive a
   cerrar el navegador, y un usuario sin rol `admin` recibe 403 en una ruta

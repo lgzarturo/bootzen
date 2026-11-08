@@ -44,6 +44,9 @@ const BOOTZEN_REFERENCE_SECTIONS = [
         BootZen\Database\QueryBuilder::class,
         BootZen\Database\Connection::class,
         BootZen\Database\Paginator::class,
+        BootZen\Database\Factory::class,
+        BootZen\Database\FactoryBatch::class,
+        BootZen\Support\Fake::class,
     ],
     'Sesión, autenticación y seguridad' => [
         BootZen\Session\Session::class,
