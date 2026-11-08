@@ -115,6 +115,13 @@ it('consulta con el query builder usando backticks y parámetros', function (): 
         ->and($this->db->table('tareas')->orderBy('id')->paginate(2, 2)->items()[0]['titulo'])->toBe('Café')
         ->and($this->db->table('tareas')->where('titulo', 'Pan')->update(['hecha' => true]))->toBe(1)
         ->and($this->db->table('tareas')->where('hecha', true)->delete())->toBe(2);
+
+    // whereLike con % y _ literales (ESCAPE '!') y cursor() por bloques
+    $this->db->table('tareas')->insert(['titulo' => '100% listo_ya', 'hecha' => false, 'proyecto_id' => $proyecto]);
+    expect($this->db->table('tareas')->whereLike(['titulo'], '0% l')->pluck('titulo'))->toBe(['100% listo_ya'])
+        ->and($this->db->table('tareas')->whereLike(['titulo'], 'o_y')->pluck('titulo'))->toBe(['100% listo_ya'])
+        ->and($this->db->table('tareas')->whereLike(['titulo'], 'caf')->pluck('titulo'))->toBe(['Café'])
+        ->and(iterator_to_array($this->db->table('tareas')->orderBy('id')->cursor(1), false))->toHaveCount(2);
 });
 
 it('guarda y lee modelos con casts y claves foráneas', function (): void {

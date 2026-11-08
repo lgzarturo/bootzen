@@ -94,6 +94,19 @@ final class ModelQuery
     }
 
     /**
+     * Busca $term dentro de cualquiera de las columnas (ver QueryBuilder::whereLike).
+     *
+     * @param list<string> $columns
+     * @return self<TModel>
+     */
+    public function whereLike(array $columns, string $term): self
+    {
+        $this->query->whereLike($columns, $term);
+
+        return $this;
+    }
+
+    /**
      * @param list<mixed> $bindings
      * @return self<TModel>
      */
@@ -150,6 +163,19 @@ final class ModelQuery
     public function get(): array
     {
         return array_map($this->model::hydrate(...), $this->query->get());
+    }
+
+    /**
+     * Recorre los modelos en bloques de $chunk filas, sin cargarlos todos en memoria.
+     *
+     * @return \Generator<int, TModel>
+     * @example foreach (Pedido::query()->orderBy('id')->cursor() as $pedido) { ... }
+     */
+    public function cursor(int $chunk = 500): \Generator
+    {
+        foreach ($this->query->cursor($chunk) as $row) {
+            yield $this->model::hydrate($row);
+        }
     }
 
     /**
