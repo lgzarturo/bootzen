@@ -32,17 +32,21 @@
                         <p class="{{ class_list(['text-xs', 'text-red-600' => $tarea->vencida(), 'text-gray-500' => ! $tarea->vencida()]) }}">{{ __('Vence el :fecha', ['fecha' => format_date($tarea->vence, 'short')]) }}</p>
                     @endif
                 </div>
-                <x-button :href="route('tareas.edit', ['id' => $tarea->id])" variant="ghost" size="sm">{{ __('Editar') }}</x-button>
-                <x-button type="button" variant="ghost" size="sm" class="text-red-600 hover:bg-red-50" data-modal-open="borrar-{{ $tarea->id }}">{{ __('Borrar') }}</x-button>
-                <x-modal id="borrar-{{ $tarea->id }}" :title="__('¿Borrar esta tarea?')">
-                    {{ __('«:titulo» se borra para siempre.', ['titulo' => $tarea->titulo]) }}
-                    <x-slot:actions>
-                        <x-button type="button" variant="ghost" data-modal-close>{{ __('Cancelar') }}</x-button>
-                        <x-form :action="route('tareas.destroy', ['id' => $tarea->id])" method="DELETE">
-                            <x-button type="submit" variant="danger">{{ __('Borrar') }}</x-button>
-                        </x-form>
-                    </x-slot:actions>
-                </x-modal>
+                @if (can('update', $tarea))
+                    <x-button :href="route('tareas.edit', ['id' => $tarea->id])" variant="ghost" size="sm">{{ __('Editar') }}</x-button>
+                @endif
+                @if (can('delete', $tarea))
+                    <x-button type="button" variant="ghost" size="sm" class="text-red-600 hover:bg-red-50" data-modal-open="borrar-{{ $tarea->id }}">{{ __('Borrar') }}</x-button>
+                    <x-modal id="borrar-{{ $tarea->id }}" :title="__('¿Borrar esta tarea?')">
+                        {{ __('«:titulo» se borra para siempre.', ['titulo' => $tarea->titulo]) }}
+                        <x-slot:actions>
+                            <x-button type="button" variant="ghost" data-modal-close>{{ __('Cancelar') }}</x-button>
+                            <x-form :action="route('tareas.destroy', ['id' => $tarea->id])" method="DELETE">
+                                <x-button type="submit" variant="danger">{{ __('Borrar') }}</x-button>
+                            </x-form>
+                        </x-slot:actions>
+                    </x-modal>
+                @endif
             </li>
         @empty
             <li class="px-4 py-10 text-center text-gray-500">{{ __('No hay tareas aquí. Crea la primera.') }}</li>

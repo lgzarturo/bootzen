@@ -31,7 +31,16 @@ final class UserFactory extends Factory
             'email' => fake()->unique()->email(),
             'password' => self::$hash ??= Hash::make(self::PASSWORD),
             'email_verified_at' => date('Y-m-d H:i:s'),
+            'role' => 'usuario',
         ];
+    }
+
+    /**
+     * Administradores (rol con '*' en config/auth.php): User::factory()->admin()->create().
+     */
+    public function admin(): self
+    {
+        return $this->state(['role' => 'admin']);
     }
 
     /**

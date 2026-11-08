@@ -10,6 +10,13 @@ return [
     // Modelo de usuario (necesita las columnas email y password)
     'model' => 'App\Models\User',
 
+    // Roles y sus permisos. '*' puede todo (también lo que piden las políticas de app/Policies).
+    // 'tareas.*' cubre 'tareas.borrar'. Cambia el rol con: php bin/bootzen user:role correo admin
+    'roles' => [
+        'admin' => ['*'],
+        'usuario' => [],
+    ],
+
     // A dónde va un usuario autenticado que entra a una página de invitados (login, registro): nombre de
     // ruta (respeta el idioma de $router->localized()) o ruta que empieza con /
     'home' => 'tareas.index',

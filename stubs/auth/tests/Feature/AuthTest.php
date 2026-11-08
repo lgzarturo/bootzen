@@ -64,7 +64,8 @@ it('registra una cuenta y pide verificar el correo', function (): void {
 
     $client->post('/registro', registro())->assertRedirect('/verificar-correo');
 
-    $client->assertAuthenticated()->assertDatabaseHas('users', ['email' => 'ana@ejemplo.com', 'email_verified_at' => null]);
+    // Todos empiezan como 'usuario': el admin se nombra con php bin/bootzen user:role
+    $client->assertAuthenticated()->assertDatabaseHas('users', ['email' => 'ana@ejemplo.com', 'email_verified_at' => null, 'role' => 'usuario']);
     $client->get('/panel')->assertRedirect('/verificar-correo');
     $client->get('/verificar-correo')->assertOk()->assertSee('Te enviamos un enlace a ana@ejemplo.com.');
 
@@ -262,4 +263,12 @@ it('atiende en inglés con el prefijo /en', function (): void {
 
     $client->from('/en/login')->post('/en/login', ['email' => 'ana@ejemplo.com', 'password' => 'incorrecta']);
     $client->get('/en/login')->assertSee('The email or password is incorrect.')->assertSee('Forgot your password?');
+});
+
+it('no deja elegir el rol desde el formulario de registro', function (): void {
+    $client = client();
+
+    $client->post('/registro', registro() + ['role' => 'admin']);
+
+    expect(User::where('email', 'ana@ejemplo.com')->firstOrFail()->role)->toBe('usuario');
 });

@@ -622,8 +622,10 @@ con el rol de permiso `'*'` pasando todas.
 - **Políticas** (decisión del usuario): "cada quien edita lo suyo" tiene un
   mecanismo propio. Una clase por modelo en `app/Policies/` con métodos
   como `update(User $user, Tarea $tarea): bool`, que `can('update', $tarea)`
-  y `authorize('update', $tarea)` consultan; `make:policy` la genera y
-  `make:resource` la usa. Los detalles se preguntan al iniciar la pieza.
+  y `authorize('update', $tarea)` consultan; `make:policy` la genera. Al
+  implementarlo, `make:resource` quedó sin política: sus CRUD no tienen
+  dueño (`user_id`) y una política de dueño los rompería; la receta
+  `proteger-rutas.md` muestra cómo agregarla.
 - **Criterio**: en un proyecto `--auth`, un usuario nuevo no entra al panel
   hasta verificar el correo (probado con Mailpit), "recordarme" sobrevive a
   cerrar el navegador, y un usuario sin rol `admin` recibe 403 en una ruta

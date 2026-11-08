@@ -315,7 +315,7 @@ Piezas elegidas por el usuario; un release por pieza. Detalle en el plan.
 
 - [x] 9.1 Factories para tests y seeds (v2.5.0)
 - [x] 9.2a Recordarme y verificación de correo (v2.6.0)
-- [ ] 9.2b Roles, permisos y políticas (v2.7.0)
+- [x] 9.2b Roles, permisos y políticas (v2.7.0)
 - [ ] 9.3 URLs traducidas (v2.8.0)
 - [ ] 9.4 Panel de administración con `make:admin` (v2.9.0)
 
@@ -355,3 +355,18 @@ Notas de recordarme y verificación (v2.6.0):
   el flujo HTTP del CI con el enlace sacado del log del correo, y Chromium
   con Mailpit real: registro, correo por SMTP, enlace, "recordarme" en un
   navegador nuevo y cerrar las demás sesiones.
+
+Notas de roles, permisos y políticas (v2.7.0):
+
+- Decisiones del usuario: todos empiezan como `usuario` y el primer admin se
+  nombra con `user:role`; permisos con comodín (`tareas.*`); el demo usa
+  `TareaPolicy`.
+- `make:resource` no genera política (cambio frente al plan): sus CRUD no
+  tienen dueño y una política de dueño los rompería. La receta
+  `proteger-rutas.md` lleva el paso a paso con `make:policy`.
+- `role` queda fuera de `$fillable` y un test del scaffold comprueba que el
+  registro ignora `role=admin`.
+- El demo sigue respondiendo 404 a tareas ajenas (`authorize(..., 404)`) para
+  no revelar que existen; el admin las puede corregir.
+- Verificado: suite del repo, proyectos `--auth` (20 tests) y `--demo` (30),
+  `user:role` y `make:policy` desde la terminal, y MySQL 8.4 real.

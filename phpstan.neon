@@ -9,6 +9,8 @@ parameters:
         - skeleton/bootstrap
         - skeleton/config
         - skeleton/routes
+        - stubs/auth/app
+        - stubs/auth/database/factories
         - bin/bootzen-new
     bootstrapFiles:
         - framework/bootstrap.php

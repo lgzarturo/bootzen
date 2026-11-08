@@ -14,9 +14,11 @@
 - `array_group_by(array $array, callable $keySelector): array`: Agrupa los elementos de un arreglo según una función clave.
 - `asset(string $path): string`: Path de un recurso público con versión según su fecha de modificación: '/assets/app.css?v=...'.
 - `auth(): Auth`: Autenticación con sesión: user(), id(), check(), attempt(), login(), logout().
+- `authorize(string $ability, Model|string|null $subject = null, int $status = 403): void`: Corta la petición con 403 si el usuario no puede hacer $ability. Con $status = 404 no revela que el registro existe.
 - `back(int $status = 302): Response`: Redirige a la última página vista (o a '/' si no hay una). Debe retornarse desde el handler.
 - `base_path(string $path = ''): string`: Obtiene la ruta absoluta a la raíz del proyecto.
 - `cache(): Cache`: Devuelve la caché de archivos de la aplicación.
+- `can(string $ability, Model|string|null $subject = null): bool`: Indica si el usuario con sesión puede hacer $ability: con un modelo decide su política (app/Policies/TareaPolicy.php); sin modelo, los permisos de su rol (config/auth.php).
 - `class_list(array $classes): string`: Arma una lista de clases CSS con condiciones, útil para Tailwind en las vistas.
 - `config(string $key, mixed $default = null): mixed`: Obtiene un valor de configuración con notación de puntos.
 - `csrf_field(): string`: Campo oculto con el token CSRF (lo genera @csrf).
@@ -34,6 +36,7 @@
 - `format_money(int|float $amount, ?string $currency = null): string`: Cantidad en la moneda indicada (por defecto APP_CURRENCY) con el formato del idioma activo.
 - `format_number(int|float $number, int $decimals = 0): string`: Número con los separadores del idioma activo.
 - `formatter(): Formatter`: Formateador de números, moneda y fechas para el idioma activo (lo usan format_number(), format_money() y format_date()).
+- `gate(): Gate`: Permisos y políticas (Gate).
 - `get_client_ip(): string`: Obtiene la IP pública del cliente considerando proxies y cabeceras.
 - `home_url(): string`: URL a donde va un usuario autenticado: config auth.home, que puede ser un nombre de ruta ('dashboard', respeta el idioma de $router->localized()) o una ruta ('/panel').
 - `hreflang_links(): HtmlString`: Etiquetas <link rel="alternate" hreflang> de la página actual en cada idioma (para SEO). Vacío si la página no es de $router->localized(). Va en el <head> del layout.
@@ -452,6 +455,23 @@ Necesita la tabla password_resets (email, token, created_at) que crea la migraci
 - `create(string $email): string`: Crea un token nuevo para el correo (reemplaza al anterior) y lo devuelve en claro.
 - `isValid(string $email, string $token): bool`: Indica si el token corresponde al correo y no expiró.
 - `delete(string $email): void`: Borra el token del correo (después de usarlo).
+
+### Gate
+
+Orden de la decisión: 1. Sin usuario, no. 2. Si su rol tiene '*', sí (el admin pasa todo, también las políticas). 3. Si hay un modelo y su política tiene el método $ability, decide la política. 4. Si no, decide la lista de permisos del rol ('tareas.*' cubre 'tareas.borrar').
+
+- `allows(?Model $user, string $ability, Model|string|null $subject = null): bool`: Indica si el usuario puede hacer $ability (sobre $subject, si se da).
+- `authorize(?Model $user, string $ability, Model|string|null $subject = null, int $status = 403): void`: Lanza 403 (o $status, por ejemplo 404 para no revelar que el registro existe) si no puede.
+- `hasRole(?Model $user, string ...$roles): bool`: Indica si el usuario tiene alguno de los roles.
+- `roles(): array`: Roles definidos en config/auth.php.
+- `permissions(Model $user): array`: Permisos del rol del usuario.
+
+### Authorizable
+
+Usa la columna role y los permisos de config/auth.php (roles).
+
+- `can(string $ability, Model|string|null $subject = null): bool`: Indica si este usuario puede hacer $ability (sobre $subject, si se da).
+- `hasRole(string ...$roles): bool`: Indica si tiene alguno de los roles.
 
 ### RateLimiter
 

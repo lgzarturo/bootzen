@@ -53,6 +53,8 @@ const BOOTZEN_REFERENCE_SECTIONS = [
         BootZen\Auth\Auth::class,
         BootZen\Auth\Hash::class,
         BootZen\Auth\PasswordReset::class,
+        BootZen\Auth\Gate::class,
+        BootZen\Auth\Authorizable::class,
         BootZen\Security\RateLimiter::class,
         BootZen\Security\SignedUrl::class,
     ],

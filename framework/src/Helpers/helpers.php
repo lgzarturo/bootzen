@@ -19,11 +19,13 @@
 declare(strict_types=1);
 
 use BootZen\Auth\Auth;
+use BootZen\Auth\Gate;
 use BootZen\Core\Application;
 use BootZen\Core\Cache;
 use BootZen\Core\HttpException;
 use BootZen\Core\Logger;
 use BootZen\Core\Response;
+use BootZen\Database\Model;
 use BootZen\Mail\Mailer;
 use BootZen\Mail\MailService;
 use BootZen\Queue\Job;
@@ -693,6 +695,51 @@ if (! function_exists('route')) {
         }
 
         return $router->url($name, $parameters);
+    }
+}
+
+if (! function_exists('can')) {
+    /**
+     * Indica si el usuario con sesión puede hacer $ability: con un modelo decide su política
+     * (app/Policies/TareaPolicy.php); sin modelo, los permisos de su rol (config/auth.php).
+     *
+     * @param Model|class-string<Model>|null $subject
+     * @example if (can('update', $tarea)) { ... } // en vistas va igual dentro de la directiva if
+     */
+    function can(string $ability, Model|string|null $subject = null): bool
+    {
+        return gate()->allows(auth()->user(), $ability, $subject);
+    }
+}
+
+if (! function_exists('authorize')) {
+    /**
+     * Corta la petición con 403 si el usuario no puede hacer $ability. Con $status = 404 no revela
+     * que el registro existe.
+     *
+     * @param Model|class-string<Model>|null $subject
+     * @throws HttpException
+     * @example authorize('update', $tarea);
+     */
+    function authorize(string $ability, Model|string|null $subject = null, int $status = 403): void
+    {
+        gate()->authorize(auth()->user(), $ability, $subject, $status);
+    }
+}
+
+if (! function_exists('gate')) {
+    /**
+     * Permisos y políticas (Gate).
+     */
+    function gate(): Gate
+    {
+        $gate = app(Gate::class);
+
+        if (! $gate instanceof Gate) {
+            throw new LogicException('El servicio Gate debe ser una instancia de ' . Gate::class . '.');
+        }
+
+        return $gate;
     }
 }
 
