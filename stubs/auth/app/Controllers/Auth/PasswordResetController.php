@@ -12,6 +12,7 @@ use BootZen\Core\Response;
 use BootZen\Mail\MailException;
 use BootZen\Mail\Message;
 use BootZen\Validation\ValidationException;
+use DateTimeImmutable;
 
 /**
  * Recuperación de contraseña: pide el correo, envía un enlace con un token y permite elegir una nueva.
@@ -76,8 +77,14 @@ final class PasswordResetController
             throw ValidationException::withMessages(['email' => __('El enlace no es válido o ya venció. Pide uno nuevo.')]);
         }
 
-        $user->update(['password' => Hash::make((string) $datos['password'])]);
+        // El enlace llegó a su correo: también queda verificado
+        $user->email_verified_at ??= new DateTimeImmutable();
+        $user->password = Hash::make((string) $datos['password']);
+        $user->save();
         $this->resets->delete($email);
+
+        // Las sesiones abiertas se cierran solas al cambiar la contraseña; los "recordarme" se borran aquí
+        auth()->forgetRememberedDevices($user);
 
         return redirect(route('login'))->with('status', __('Tu contraseña se actualizó. Ya puedes iniciar sesión.'));
     }

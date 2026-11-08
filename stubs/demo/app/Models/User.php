@@ -14,8 +14,11 @@ use BootZen\Database\ModelQuery;
  * @property string $nombre
  * @property string $email
  * @property string $password
+ * @property \DateTimeImmutable|null $email_verified_at
  * @property \DateTimeImmutable|null $created_at
  * @property \DateTimeImmutable|null $updated_at
+ *
+ * @method static \Database\Factories\UserFactory factory()
  */
 final class User extends Model
 {
@@ -24,6 +27,8 @@ final class User extends Model
     protected static array $fillable = ['nombre', 'email', 'password'];
 
     protected static array $hidden = ['password'];
+
+    protected static array $casts = ['email_verified_at' => 'datetime'];
 
     /**
      * @return ModelQuery<Tarea>

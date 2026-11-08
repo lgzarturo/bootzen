@@ -28,8 +28,8 @@ return static function (Router $router): void {
         // Registro, login, logout y recuperación de contraseña
         (require __DIR__ . '/auth.php')($router);
 
-        // Páginas solo para usuarios autenticados
-        $router->group(['middleware' => 'auth'], static function (Router $router): void {
+        // Páginas solo para usuarios autenticados con el correo verificado
+        $router->group(['middleware' => ['auth', 'verified']], static function (Router $router): void {
             $router->get('/panel', [DashboardController::class, 'index'])->name('dashboard');
         });
     });

@@ -14,6 +14,7 @@ use BootZen\Middleware\Authenticate;
 use BootZen\Middleware\CorsMiddleware;
 use BootZen\Middleware\RateLimit;
 use BootZen\Middleware\RedirectIfAuthenticated;
+use BootZen\Middleware\RememberMe;
 use BootZen\Middleware\SecurityHeaders;
 use BootZen\Middleware\StartSession;
 use BootZen\Middleware\VerifyCsrfToken;
@@ -23,14 +24,15 @@ $app = new Application(dirname(__DIR__));
 // Middleware global (todas las peticiones)
 $app->addGlobalMiddleware(SecurityHeaders::class);
 
-// Alias para usar en rutas: ->middleware('auth'), ->middleware('throttle:60,1')
+// Alias para usar en rutas: ->middleware('auth'), ->middleware('throttle:60,1'). También existen, sin
+// registrarlos: 'verified' (correo verificado), 'signed' (enlaces de signed_route()) y 'locale'
 $app->aliasMiddleware('auth', Authenticate::class);
 $app->aliasMiddleware('guest', RedirectIfAuthenticated::class);
 $app->aliasMiddleware('throttle', RateLimit::class);
 $app->aliasMiddleware('cors', CorsMiddleware::class);
 
-// Grupos: web (sesión y CSRF) para páginas y formularios; api (CORS y límite) para JSON sin sesión
-$app->middlewareGroup('web', [StartSession::class, VerifyCsrfToken::class]);
+// Grupos: web (sesión, "recordarme" y CSRF) para páginas y formularios; api (CORS y límite) para JSON sin sesión
+$app->middlewareGroup('web', [StartSession::class, RememberMe::class, VerifyCsrfToken::class]);
 $app->middlewareGroup('api', ['cors', 'throttle:60,1']);
 
 $app->routes(static function (Router $router): void {

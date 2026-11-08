@@ -39,15 +39,36 @@ return [
     'password confirmation' => 'password confirmation',
 
     // Mensajes
-    '¡Hola, :nombre! Tu cuenta está lista.' => 'Hi, :nombre! Your account is ready.',
+    '¡Hola, :nombre! Te enviamos un enlace para verificar tu correo.' => 'Hi, :nombre! We sent you a link to verify your email.',
     'Hola, :nombre' => 'Hi, :nombre',
-    'Esta página solo la ven los usuarios con sesión iniciada (middleware auth).' => 'Only logged in users can see this page (auth middleware).',
+    'Esta página solo la ven los usuarios con sesión iniciada y el correo verificado (middleware auth y verified).' => 'Only logged in users with a verified email can see this page (auth and verified middleware).',
     'Cerraste sesión.' => 'You have logged out.',
     'El correo o la contraseña no son correctos.' => 'The email or password is incorrect.',
     'Demasiados intentos. Intenta de nuevo en :seconds segundos.' => 'Too many attempts. Try again in :seconds seconds.',
     'Si el correo está registrado, te enviamos un enlace para cambiar la contraseña.' => 'If the email is registered, we sent you a link to change your password.',
     'El enlace no es válido o ya venció. Pide uno nuevo.' => 'The link is invalid or has expired. Request a new one.',
     'Tu contraseña se actualizó. Ya puedes iniciar sesión.' => 'Your password was updated. You can log in now.',
+
+    // Recordarme y sesiones
+    'Recordarme en este dispositivo' => 'Remember me on this device',
+    'Sesiones' => 'Sessions',
+    'Si iniciaste sesión en otro equipo y ya no lo usas, ciérrala desde aquí.' => "If you logged in on another device you no longer use, log it out from here.",
+    'Contraseña actual' => 'Current password',
+    'Cerrar sesión en los demás dispositivos' => 'Log out other devices',
+    'La contraseña no es correcta.' => 'The password is incorrect.',
+    'Cerraste la sesión en tus otros dispositivos.' => 'You logged out of your other devices.',
+
+    // Verificación de correo
+    'Verifica tu correo' => 'Verify your email',
+    'Te enviamos un enlace a :email. Ábrelo para activar tu cuenta.' => 'We sent a link to :email. Open it to activate your account.',
+    'Si no lo ves, revisa la carpeta de spam o pide otro.' => "If you don't see it, check your spam folder or request another one.",
+    'Reenviar enlace' => 'Resend link',
+    'Te enviamos un enlace nuevo. Revisa tu correo.' => 'We sent you a new link. Check your email.',
+    'Tu correo quedó verificado.' => 'Your email is verified.',
+    'Tu correo quedó verificado. Ya puedes iniciar sesión.' => 'Your email is verified. You can log in now.',
+    '¡Hola, :nombre!' => 'Hi, :nombre!',
+    'Abre este enlace para verificar tu correo (vence en :horas horas):' => 'Open this link to verify your email (it expires in :horas hours):',
+    'Si no creaste una cuenta, ignora este correo.' => "If you didn't create an account, ignore this email.",
 
     // Correo de recuperación
     'Recupera tu contraseña' => 'Reset your password',
