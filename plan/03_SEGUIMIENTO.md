@@ -317,7 +317,7 @@ Piezas elegidas por el usuario; un release por pieza. Detalle en el plan.
 - [x] 9.2a Recordarme y verificación de correo (v2.6.0)
 - [x] 9.2b Roles, permisos y políticas (v2.7.0)
 - [x] 9.3 URLs traducidas (v2.8.0)
-- [ ] 9.4 Panel de administración con `make:admin` (v2.9.0)
+- [x] 9.4 Panel de administración con `make:admin` (v2.9.0)
 
 Notas de factories (v2.5.0):
 
@@ -386,3 +386,25 @@ Notas de URLs traducidas (v2.8.0):
   `route:list` con las rutas traducidas, y Chromium en inglés: registro
   desde la URL vieja (301), enlace del correo en `/en/verify-email/...`,
   tareas en `/en/tasks` y `hreflang` con cada versión.
+
+Notas del panel de administración (v2.9.0):
+
+- Decisiones del usuario: `make:admin` solo con `--auth`; la lista trae
+  búsqueda, orden, filtros y exportación a CSV; el demo trae usuarios y
+  tareas.
+- El listado vive en `BootZen\Admin\Listing` para que cada controlador
+  generado quede corto y editable; búsqueda, orden y filtros solo aceptan
+  columnas de listas blancas escritas en el código.
+- El CSV se escribe por bloques (`cursor()` con LIMIT/OFFSET, que funciona
+  igual en SQLite y MySQL y deja hacer otras consultas a mitad) y antepone
+  un apóstrofo a los valores que Excel ejecutaría como fórmula.
+- El panel de tareas del demo se generó con `make:admin` sobre el modelo
+  existente y se ajustó a mano (dueño en una sola consulta, tareas nuevas a
+  nombre del admin), como haría un proyecto real.
+- Verificado: suite del repo, `make:admin` en un proyecto `--auth` limpio
+  que pasa `bin/bootzen check` sin tocar nada (criterio de la fase), demo
+  con 38 tests, `whereLike` y `cursor` en MySQL 8.4 real, y Chromium:
+  filtros, orden, CSV con lo filtrado, edición de usuarios y vista en
+  celular.
+
+Con esto la fase 9 queda completa.

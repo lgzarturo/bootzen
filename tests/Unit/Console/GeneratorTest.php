@@ -244,3 +244,53 @@ it('genera una política con make:policy', function (): void {
         ->toContain('public function update(User $user, Tarea $tarea): bool')
         ->toContain("(string) \$tarea->getAttribute('user_id') === (string) \$user->id");
 });
+
+it('make:admin pide el scaffold --auth', function (): void {
+    expect(fn () => $this->generator->admin('Producto', ['nombre:string']))->toThrow(RuntimeException::class, 'make:admin necesita usuarios y el rol admin del scaffold --auth');
+});
+
+it('make:admin genera el panel con búsqueda, filtros, orden, rutas y menú', function (): void {
+    writeFile($this->project . '/app/Models/User.php', '<?php');
+    writeFile($this->project . '/routes/auth.php', '<?php');
+    writeFile($this->project . '/routes/web.php', (string) file_get_contents(dirname(__DIR__, 3) . '/stubs/auth/routes/web.php'));
+
+    $files = $this->generator->admin('Producto', ['nombre:string', 'precio:float', 'activo:bool', 'alta:date:nullable', 'notas:text:nullable']);
+
+    expect($files)->toContain('app/Controllers/Admin/ProductoController.php', 'resources/views/components/layouts/admin.php', 'config/admin.php', 'database/factories/ProductoFactory.php')
+        ->and(($this->read)('app/Controllers/Admin/ProductoController.php'))
+        ->toContain("->search(['nombre', 'notas'])")
+        ->toContain("->filters(['activo' => 'bool', 'alta' => 'date'])")
+        ->toContain("->sortable(['id', 'nombre', 'precio', 'activo', 'alta', 'created_at'])")
+        ->toContain("'precio' => __('Precio'),")
+        ->and(($this->read)('resources/views/admin/productos/index.php'))
+        ->toContain('name="filtro[activo]"')
+        ->toContain('name="filtro[alta_desde]"')
+        ->toContain('<x-admin.sort-link :listado="$listado" column="precio"')
+        ->toContain("{{ __('Notas') }}</th>")
+        ->and(($this->read)('config/admin.php'))->toContain("['route' => 'admin.productos.index', 'label' => 'Productos'],")
+        ->and(($this->read)('routes/web.php'))->toContain("\$router->resource('productos', Admin\\ProductoController::class, ['except' => ['show']]);")
+        ->toContain("'middleware' => ['auth', 'verified', 'role:admin']")
+        ->toContain('use App\\Controllers\\Admin;');
+
+    foreach (['app/Controllers/Admin/ProductoController.php', 'routes/web.php', 'config/admin.php', 'tests/Feature/AdminProductoTest.php'] as $file) {
+        assertValidPhp($this->project . '/' . $file);
+    }
+
+    $compiler = new ViewCompiler();
+    foreach (['admin/productos/index', 'admin/productos/create', 'admin/productos/edit', 'components/layouts/admin', 'components/admin/sort-link'] as $view) {
+        writeFile($this->project . '/compiled.php', $compiler->compile(($this->read)("resources/views/{$view}.php")));
+        assertValidPhp($this->project . '/compiled.php');
+    }
+
+    // Un segundo recurso sobre un modelo que ya existe: no crea migración ni modelo, y se suma al grupo y al menú
+    writeFile($this->project . '/app/Models/Cliente.php', '<?php');
+    $segundo = $this->generator->admin('Cliente', ['nombre:string'], 'clientes');
+
+    expect($segundo)->not->toContain('app/Models/Cliente.php')
+        ->and(array_filter($segundo, static fn (string $file): bool => str_contains($file, 'migrations')))->toBe([])
+        ->and(substr_count(($this->read)('routes/web.php'), "\$router->group(['prefix' => '/admin'"))->toBe(1)
+        ->and(($this->read)('routes/web.php'))->toContain("\$router->resource('clientes', Admin\\ClienteController::class")
+        ->and(($this->read)('config/admin.php'))->toContain("'admin.clientes.index'")
+        ->and(fn () => $this->generator->admin('Cliente', ['nombre:string'], 'clientes'))->toThrow(RuntimeException::class, 'Ya existe');
+    assertValidPhp($this->project . '/routes/web.php');
+});

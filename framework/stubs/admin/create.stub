@@ -1,0 +1,11 @@
+<x-layouts.admin :title="__('Nuevo') . ': ' . __('[[Heading]]')">
+    <x-card :title="__('Nuevo') . ': ' . __('[[Heading]]')" class="max-w-2xl">
+        <x-form :action="route('admin.[[route]].store')">
+[[fields]]
+            <div class="flex items-center gap-3">
+                <x-button type="submit">{{ __('Guardar') }}</x-button>
+                <x-button :href="route('admin.[[route]].index')" variant="ghost">{{ __('Cancelar') }}</x-button>
+            </div>
+        </x-form>
+    </x-card>
+</x-layouts.admin>

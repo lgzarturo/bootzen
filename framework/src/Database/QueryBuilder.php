@@ -165,6 +165,28 @@ final class QueryBuilder
         return $this->pushWhere('AND', "({$sql})", $bindings);
     }
 
+    /**
+     * Busca $term dentro de cualquiera de las columnas (LIKE '%term%'). Los comodines % y _ que escriba
+     * el usuario se buscan literales. Sin columnas o con $term vacío no filtra.
+     *
+     * @param list<string> $columns
+     * @example ->whereLike(['nombre', 'email'], $request->input('q', ''))
+     */
+    public function whereLike(array $columns, string $term): self
+    {
+        $term = trim($term);
+
+        if ($term === '' || $columns === []) {
+            return $this;
+        }
+
+        // '!' como escape: funciona igual en SQLite y MySQL (la barra invertida no)
+        $pattern = '%' . strtr($term, ['!' => '!!', '%' => '!%', '_' => '!_']) . '%';
+        $conditions = array_map(fn (string $column): string => "{$this->column($column)} LIKE ? ESCAPE '!'", $columns);
+
+        return $this->pushWhere('AND', '(' . implode(' OR ', $conditions) . ')', array_fill(0, count($columns), $pattern));
+    }
+
     public function join(string $table, string $first, string $operator, string $second, string $type = 'INNER'): self
     {
         $type = strtoupper($type);
@@ -231,6 +253,34 @@ final class QueryBuilder
     public function get(): array
     {
         return $this->connection->select($this->toSql(), $this->getBindings());
+    }
+
+    /**
+     * Recorre los resultados en bloques de $chunk filas (LIMIT/OFFSET), sin cargarlos todos en memoria.
+     * Respeta el orden de la consulta; ignora su limit y offset. Sirve para exportar o procesar tablas
+     * grandes; dentro del recorrido se pueden hacer otras consultas.
+     *
+     * @return \Generator<int, array<string, mixed>>
+     * @example foreach (db()->table('pedidos')->orderBy('id')->cursor() as $fila) { ... }
+     */
+    public function cursor(int $chunk = 500): \Generator
+    {
+        $chunk = max(1, $chunk);
+
+        for ($offset = 0; ; $offset += $chunk) {
+            $query = clone $this;
+            $query->limit = $chunk;
+            $query->offset = $offset;
+            $rows = $query->get();
+
+            foreach ($rows as $row) {
+                yield $row;
+            }
+
+            if (count($rows) < $chunk) {
+                return;
+            }
+        }
     }
 
     /**

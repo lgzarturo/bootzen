@@ -34,6 +34,20 @@ return [
     'vence' => 'due date',
     'hecha' => 'done',
 
+    // Panel de administración
+    'Usuarios' => 'Users',
+    'Dueño' => 'Owner',
+    'Rol' => 'Role',
+    'Verificado' => 'Verified',
+    'Correo verificado' => 'Email verified',
+    'Alta' => 'Created',
+    'Nombre o correo' => 'Name or email',
+    'Usuario (id)' => 'User (id)',
+    'Tarea' => 'Task',
+    'Hecha' => 'Done',
+    'No puedes cambiar tu propio rol.' => 'You cannot change your own role.',
+    'Usuario actualizado.' => 'User updated.',
+
     // Mensajes
     'Tarea creada.' => 'Task created.',
     'Tarea actualizada.' => 'Task updated.',

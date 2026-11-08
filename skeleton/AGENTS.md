@@ -15,7 +15,8 @@ aplicación monolítica construida con BootZen.
 
 - **Recetas** en `docs/ai/recipes/`: crear un CRUD, proteger rutas, endpoint
   JSON, componente (con un modal), migraciones, subir archivos, enviar
-  correos, cola, tareas programadas e idiomas. Paso a paso, con tests.
+  correos, cola, tareas programadas, idiomas y panel de administración.
+  Paso a paso, con tests.
   Úsalas antes de improvisar.
 - **Referencia** en `docs/ai/reference.md`: todas las firmas públicas de
   BootZen, generadas desde el código. Si dudas de un método, búscalo ahí.
@@ -46,6 +47,8 @@ aplicación monolítica construida con BootZen.
 | `storage/`                 | Logs, sesiones, cachés y backups (escribible, fuera de git)   |
 | `config/session.php`       | Sesión (archivos en `storage/sessions`), cookie y CSRF        |
 | `config/auth.php`          | Modelo de usuario y página de inicio tras el login (`home_url()`) |
+| `config/admin.php`         | Menú del panel `/admin` (lo crea `make:admin`)                |
+| `app/Controllers/Admin/`   | Controladores del panel de administración (`make:admin`)      |
 | `config/security.php`      | Content-Security-Policy y HSTS                                |
 | `app/Jobs/`                | Jobs para la cola (`make:job`), se encolan con `dispatch()`   |
 | `routes/schedule.php`      | Tareas programadas; las ejecuta `schedule:run` desde cron     |
@@ -82,6 +85,7 @@ php bin/bootzen db:seed           # datos de ejemplo (--class=Nombre)
 php bin/bootzen db:fresh --seed   # borra todo, migra y siembra (--force en producción)
 php bin/bootzen db:backup         # copia consistente de SQLite en storage/backups
 php bin/bootzen make:resource Tarea titulo:string hecha:bool  # CRUD completo (ver abajo)
+php bin/bootzen make:admin Producto nombre:string precio:float # panel /admin (con --auth)
 php bin/bootzen make:model Cliente --migration   # también: make:controller (--json), make:migration,
                                   # make:middleware, make:seeder, make:factory, make:policy, make:test,
                                   # make:component
@@ -137,6 +141,10 @@ con componentes, `database/factories/TareaFactory.php` y
   `make:resource Ciudad nombre:string --table=ciudades` nombra la tabla, las
   rutas, las vistas y la variable en plural como `ciudades`.
 - Nunca sobrescribe archivos: si algo ya existe, se detiene antes de escribir.
+- Panel de administración: `make:admin Producto nombre:string activo:bool`
+  (proyectos `--auth`) genera lista con búsqueda, filtros, orden y CSV, alta,
+  edición y borrado en `/admin/productos`, solo para `role:admin`. Receta:
+  `docs/ai/recipes/panel-admin.md`.
 - Para lo demás: `make:model` (`--migration`, `--table=`), `make:controller`,
   `make:migration crear_facturas` (trae el `CREATE TABLE`), `make:middleware`,
   `make:seeder`, `make:factory`, `make:policy`, `make:test` (`--unit`) y
@@ -526,6 +534,10 @@ db()->transaction(function ($db): void { /* varias escrituras */ });
 
 - Los valores siempre van como parámetros; para expresiones usa `selectRaw`
   y `whereRaw` con `?`.
+- Buscador: `->whereLike(['nombre', 'email'], $texto)` (los `%` y `_` del
+  usuario se buscan literales).
+- Tablas grandes: `foreach (Pedido::query()->orderBy('id')->cursor() as $p)`
+  recorre por bloques sin cargar todo.
 - `update()` y `delete()` sin `where` fallan a propósito.
 
 **Seeders.** `database/seeds/DatabaseSeeder.php` retorna una clase anónima
@@ -598,6 +610,7 @@ $request->file('foto')?->resize(1600)->storePublic('clientes');  // 'uploads/cli
 return Response::html($html);
 return Response::json(['data' => $items], 201);
 return Response::noContent();
+return Response::stream(function (): void { echo 'línea'; }, 200, ['content-type' => 'text/plain']); // se escribe al enviarse
 return redirect(route('tareas.index')); // retorna un Response: siempre con return
 abort(404, 'Tarea no encontrada');      // lanza HttpException, corta la petición
 abort(403);
@@ -778,7 +791,7 @@ it('solo deja entrar a usuarios', function (): void {
   `filled`, `boolean`, `integer`, `param`, `params`, `getRoute`, `getMethod`, `getPath`,
   `getQuery`, `getBody`, `getHeader`, `getFile`, `getCookie`, `wantsJson`,
   `isJson`, `isAjax`, `isSecure`, `getClientIp`.
-- **Response**: `html`, `json`, `redirect`, `noContent`, `with`,
+- **Response**: `html`, `json`, `redirect`, `noContent`, `stream`, `with`,
   `withErrors`, `withInput`, `withHeader`, `withHeaders`, `withCookie`,
   `withStatus`.
 - **Sesión** (`session()`): `get`, `put`, `has`, `forget`, `pull`, `flash`,
@@ -795,7 +808,7 @@ it('solo deja entrar a usuarios', function (): void {
   `orWhere`, `whereIn`, `whereNotIn`, `whereNull`, `whereNotNull`, `whereRaw`,
   `join`, `leftJoin`, `orderBy`, `latest`, `limit`, `offset`, `get`, `first`,
   `firstOrFail`, `find`, `value`, `pluck`, `count`, `exists`, `paginate`,
-  `insert`, `update`, `delete`.
+  `whereLike`, `cursor`, `insert`, `update`, `delete`.
 - **Helpers**: `db()`, `auth()`, `session()`, `old()`, `back()`, `mailer()`,
   `storage()`, `file_url()`, `temporary_url()`, `dispatch()`, `queue()`,
   `config()`, `env()`, `route()`, `url()`, `asset()`, `app()`, `logger()`,
@@ -804,7 +817,7 @@ it('solo deja entrar a usuarios', function (): void {
   `csrf_field()`, `validate_csrf_token()`, `slugify()`, `str_random()`,
   `__()`, `trans_choice()`, `locale()`, `locale_url()`, `hreflang_links()`,
   `format_date()`, `format_number()`, `format_money()`, `home_url()`, `fake()`,
-  `signed_route()`, `can()`, `authorize()`, `gate()`.
+  `signed_route()`, `can()`, `authorize()`, `gate()`, `current_path()`.
 
 ## Lo que todavía NO existe
 

@@ -698,6 +698,18 @@ if (! function_exists('route')) {
     }
 }
 
+if (! function_exists('current_path')) {
+    /**
+     * Path de la petición actual ('/admin/productos'), para marcar el enlace activo de un menú.
+     *
+     * @example class_list(['font-bold' => str_starts_with(current_path(), '/admin/productos')])
+     */
+    function current_path(): string
+    {
+        return translator()->currentPath();
+    }
+}
+
 if (! function_exists('can')) {
     /**
      * Indica si el usuario con sesión puede hacer $ability: con un modelo decide su política

@@ -45,6 +45,7 @@ const BOOTZEN_REFERENCE_SECTIONS = [
         BootZen\Database\Connection::class,
         BootZen\Database\Paginator::class,
         BootZen\Database\Factory::class,
+        BootZen\Admin\Listing::class,
         BootZen\Database\FactoryBatch::class,
         BootZen\Support\Fake::class,
     ],

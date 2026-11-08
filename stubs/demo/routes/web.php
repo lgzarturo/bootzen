@@ -13,6 +13,7 @@
 
 declare(strict_types=1);
 
+use App\Controllers\Admin;
 use App\Controllers\DashboardController;
 use App\Controllers\HomeController;
 use App\Controllers\TareaController;
@@ -37,5 +38,14 @@ return static function (Router $router): void {
             $router->resource('tareas', TareaController::class, ['except' => ['show']]);
             $router->patch('/tareas/{id}/completar', [TareaController::class, 'completar'])->name('tareas.completar');
         });
+    });
+
+    // Panel de administración (make:admin): solo admins con el correo verificado
+    $router->group(['prefix' => '/admin', 'as' => 'admin.', 'middleware' => ['auth', 'verified', 'role:admin']], static function (Router $router): void {
+        $router->get('/', static fn () => redirect(route('admin.usuarios.index')))->name('home');
+        $router->get('/usuarios/exportar', [Admin\UserController::class, 'export'])->name('usuarios.export');
+        $router->resource('usuarios', Admin\UserController::class, ['only' => ['index', 'edit', 'update']]);
+        $router->get('/tareas/exportar', [Admin\TareaController::class, 'export'])->name('tareas.export');
+        $router->resource('tareas', Admin\TareaController::class, ['except' => ['show']]);
     });
 };

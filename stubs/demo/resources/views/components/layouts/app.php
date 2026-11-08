@@ -28,6 +28,9 @@
     <x-navigation :brand="config('app.name')" :items="auth()->check() ? [['href' => route('tareas.index'), 'label' => __('Tareas')]] : [['href' => route('home'), 'label' => __('Inicio')]]">
         <x-slot:actions>
 @if (auth()->check())
+@if (gate()->hasRole(auth()->user(), 'admin'))
+            <a href="{{ route('admin.home') }}" class="text-sm font-medium text-gray-700 hover:text-blue-600">{{ __('Administración') }}</a>
+@endif
             <a href="{{ route('dashboard') }}" class="text-sm font-medium text-gray-700 hover:text-blue-600">{{ auth()->user()?->getAttribute('nombre') }}</a>
             <form action="{{ route('logout') }}" method="POST">
                 @csrf

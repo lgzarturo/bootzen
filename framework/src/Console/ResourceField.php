@@ -187,7 +187,7 @@ final class ResourceField
         $value = '$' . $variable . '->' . $this->name;
 
         return match ($this->type) {
-            'bool' => "{{ {$value} ? 'Sí' : 'No' }}",
+            'bool' => "{{ {$value} ? __('Sí') : __('No') }}",
             'date' => "{{ {$value}?->format('Y-m-d') }}",
             'datetime' => "{{ {$value}?->format('Y-m-d H:i') }}",
             'text' => "<span class=\"whitespace-pre-line\">{{ {$value} }}</span>",

@@ -94,6 +94,13 @@ class Response
     ];
 
     /**
+     * Función que escribe el cuerpo poco a poco (Response::stream); null si el cuerpo es un texto.
+     *
+     * @var (\Closure(): void)|null
+     */
+    private ?\Closure $stream = null;
+
+    /**
      * Constructor de Response
      *
      * @param int $statusCode Código de estado HTTP (por defecto 200)
@@ -107,6 +114,30 @@ class Response
         $this->body = $body;
         $this->headers = array_change_key_case($headers, CASE_LOWER);
         $this->cookies = [];
+    }
+
+    /**
+     * Respuesta que se escribe mientras se genera (echo dentro de $callback): exportaciones grandes sin
+     * cargarlas en memoria.
+     *
+     * @param \Closure(): void $callback Escribe el cuerpo con echo o fwrite(STDOUT)
+     * @param array<string, string> $headers
+     * @example return Response::stream(function (): void { foreach ($filas as $f) { echo $f, "\n"; } }, 200, ['content-type' => 'text/plain']);
+     */
+    public static function stream(\Closure $callback, int $statusCode = 200, array $headers = []): self
+    {
+        $response = new self($statusCode, '', $headers);
+        $response->stream = $callback;
+
+        return $response;
+    }
+
+    /**
+     * Indica si el cuerpo se escribe en streaming.
+     */
+    public function isStreamed(): bool
+    {
+        return $this->stream !== null;
     }
 
     /**
@@ -269,6 +300,19 @@ class Response
      */
     public function getBody(): string
     {
+        // En streaming (tests, middleware que lee el cuerpo) se genera una vez y se guarda
+        if ($this->stream !== null) {
+            ob_start();
+
+            try {
+                ($this->stream)();
+            } finally {
+                $this->body = (string) ob_get_clean();
+            }
+
+            $this->stream = null;
+        }
+
         return $this->body;
     }
 
@@ -353,6 +397,7 @@ class Response
     {
         $new = clone $this;
         $new->body = $body;
+        $new->stream = null;
 
         return $new;
     }
@@ -494,6 +539,13 @@ class Response
         }
 
         // Enviar body
+        if ($this->stream !== null) {
+            ($this->stream)();
+            flush();
+
+            return;
+        }
+
         echo $this->body;
     }
 

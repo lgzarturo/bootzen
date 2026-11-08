@@ -1,5 +1,33 @@
 # CHANGELOG
 
+## [2.9.0] - 2026-11-08
+
+Panel de administración (fase 9.4), la última pieza de la fase 9.
+
+### Agregado
+
+- `make:admin Producto nombre:string precio:float` (proyectos `--auth`):
+  controlador en `app/Controllers/Admin`, vistas con el layout
+  `<x-layouts.admin>` y barra lateral (`config/admin.php`), rutas en un grupo
+  `/admin` con `['auth', 'verified', 'role:admin']` y su test. Si el modelo
+  no existe, crea también la migración, el modelo y la factory.
+- `BootZen\Admin\Listing`: búsqueda (`?q=`), orden por columnas de una lista
+  blanca, filtros booleanos y por rango de fechas, paginación que conserva
+  todo en los enlaces y exportación a CSV en streaming (BOM para Excel y
+  protección contra fórmulas).
+- `whereLike()` en el query builder y en los modelos (los `%` y `_` del
+  usuario se buscan literales, igual en SQLite y MySQL) y `cursor()` para
+  recorrer tablas grandes por bloques.
+- `Response::stream()` y el helper `current_path()`.
+- Demo: panel con usuarios (buscar, filtrar por rol, cambiar rol, marcar
+  verificado; un admin no puede quitarse su propio rol) y tareas de todos
+  los usuarios con su dueño. Enlace "Administración" solo para admins.
+
+### Cambiado
+
+- Los booleanos en las vistas de `make:resource` usan `__('Sí')` y
+  `__('No')`.
+
 ## [2.8.0] - 2026-11-08
 
 URLs traducidas (fase 9.3): las páginas en inglés ya no viven en

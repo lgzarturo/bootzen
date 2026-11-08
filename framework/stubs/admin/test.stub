@@ -1,0 +1,62 @@
+<?php
+
+declare(strict_types=1);
+
+use App\Models\[[Model]];
+use App\Models\User;
+
+/**
+ * Datos válidos como los enviaría el formulario del panel.
+ *
+ * @return array<string, string>
+ */
+function admin[[Model]]Data(): array
+{
+    return [
+[[data]]
+    ];
+}
+
+it('solo deja entrar a administradores', function (): void {
+    $client = client();
+
+    $client->get('/admin/[[route]]')->assertRedirect('/login');
+    $client->actingAs(User::factory()->create())->get('/admin/[[route]]')->assertForbidden();
+    $client->actingAs(User::factory()->admin()->create())->get('/admin/[[route]]')->assertOk();
+});
+
+it('lista, busca y ordena', function (): void {
+    $client = client();
+    $[[singular]] = [[Model]]::factory()->create();
+    [[Model]]::factory()->count(3)->create();
+
+    $client->actingAs(User::factory()->admin()->create())
+        ->get('/admin/[[route]]?sort=id&dir=asc')
+        ->assertOk()[[seeIndex]];
+});
+
+it('crea, edita y borra desde el panel', function (): void {
+    $client = client();
+    $client->actingAs(User::factory()->admin()->create());
+
+    $client->post('/admin/[[route]]', admin[[Model]]Data())->assertRedirect('/admin/[[route]]');
+    $client->assertDatabaseCount('[[table]]', 1);
+
+    $client->get('/admin/[[route]]/1/edit')->assertOk();
+    $client->put('/admin/[[route]]/1', admin[[Model]]Data())->assertRedirect('/admin/[[route]]');
+
+    $client->delete('/admin/[[route]]/1')->assertRedirect('/admin/[[route]]');
+    $client->assertDatabaseCount('[[table]]', 0);
+});
+
+it('exporta a CSV', function (): void {
+    $client = client();
+    [[Model]]::factory()->count(2)->create();
+
+    $csv = $client->actingAs(User::factory()->admin()->create())->get('/admin/[[route]]/exportar')
+        ->assertOk()
+        ->assertHeader('content-type', 'text/csv; charset=utf-8')
+        ->body();
+
+    expect(explode("\n", trim($csv)))->toHaveCount(3);
+});

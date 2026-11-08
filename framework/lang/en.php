@@ -63,6 +63,19 @@ return [
     'Registro actualizado.' => 'Record updated.',
     'Registro borrado.' => 'Record deleted.',
 
+    // Panel de administración (make:admin)
+    'Sí' => 'Yes',
+    'No' => 'No',
+    'Administración' => 'Admin',
+    'Exportar CSV' => 'Export CSV',
+    'Buscar' => 'Search',
+    'Filtrar' => 'Filter',
+    'Limpiar' => 'Clear',
+    'Todos' => 'All',
+    'desde' => 'from',
+    'hasta' => 'to',
+    'No hay registros que coincidan.' => 'No matching records.',
+
     // Archivos
     'El enlace no es válido o ya venció.' => 'The link is invalid or has expired.',
     'El archivo ya no existe.' => 'The file no longer exists.',

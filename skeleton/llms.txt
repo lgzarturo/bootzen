@@ -23,6 +23,7 @@
 - [Cola de trabajos](docs/ai/recipes/cola-de-trabajos.md)
 - [Tareas programadas](docs/ai/recipes/tareas-programadas.md)
 - [Idiomas](docs/ai/recipes/idiomas.md)
+- [Panel de administración](docs/ai/recipes/panel-admin.md)
 
 ## Skills
 

@@ -27,6 +27,8 @@ fricción en hosting compartido, VPS o Docker.
   una sola línea de cron
 - **Varios idiomas** con `__('Texto')`, URLs `/en/...` con `hreflang` para
   buscadores y `format_date()`/`format_money()`; español e inglés incluidos
+- **Usuarios completos y panel de administración**: verificación de correo,
+  "recordarme", roles, políticas y `make:admin` con búsqueda, filtros y CSV
 - **Capa para IA**: `AGENTS.md`, recetas, referencia de la API generada desde
   el código, skills y `make:resource`; `bootzen-new mi-app --demo` trae una
   app de tareas completa para tomar de ejemplo
