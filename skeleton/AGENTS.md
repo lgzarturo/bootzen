@@ -36,7 +36,7 @@ aplicación monolítica construida con BootZen.
 | `resources/views/`         | Vistas `.php` con directivas y componentes `<x-*>`            |
 | `resources/views/components/` | Componentes: `card.php` es `<x-card>`, `layouts/app.php` es `<x-layouts.app>` |
 | `resources/views/errors/`  | Páginas de error: `{codigo}.php` o `default.php`              |
-| `lang/`                    | Traducciones: `en.php` (y `en/*.php`) con texto en español => traducción |
+| `lang/`                    | Traducciones: `en.php` (y `en/*.php`) con texto en español => traducción; `en/rutas.php` traduce segmentos de URL |
 | `resources/css/app.css`    | Fuente de Tailwind CSS v4                                     |
 | `app/View/Components/`     | Clases opcionales de componentes con lógica                   |
 | `public/`                  | Document root: `index.php`, `.htaccess` y `assets/`           |
@@ -639,6 +639,8 @@ cache()->forget('dashboard.stats');
   Las páginas van dentro de `$router->localized()` (`/precios` y
   `/en/precios`); `route()` elige la del idioma activo. `make:resource` ya
   agrega su ruta ahí.
+- URLs en inglés: `lang/en/rutas.php` traduce segmentos (`'precios' =>
+  'pricing'` da `/en/pricing`); la URL sin traducir redirige con 301.
 - Layout: `lang="{{ locale() }}"` y `{{ hreflang_links() }}` ya vienen.
   Cambiar de idioma: `<a href="{{ locale_url('en') }}">English</a>`.
 - Formatos del idioma activo: `format_date($fecha)` (`'short'`, `'medium'`,
@@ -812,8 +814,6 @@ librerías para suplirlas** sin preguntar:
 - `route:cache`: el router compila las rutas en cada petición y es rápido
   igual.
 - Colas en Redis u otros servicios: la cola es `sync` o `database`.
-- URLs traducidas por idioma (`/en/prices`): `localized()` solo agrega el
-  prefijo; los textos sí se traducen.
 
 ## Reglas
 

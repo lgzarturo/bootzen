@@ -72,6 +72,9 @@ The roadmap lives in `plan/04_PLAN-MVP-MONOLITO.md`; progress is tracked in
   `SetLocale` (alias `locale`, registered by Application) and
   `Router::localized()` (default locale without prefix, others under
   `/xx` with route names `xx::name`; `route()` picks the active one).
+  `lang/{xx}/rutas.php` translates fixed URL segments (kept apart from the
+  text keys), the untranslated GET URL answers a 301 to the translated one
+  and a translated path that collides with another route throws at boot.
 - `framework/src/Validation/`: Validator (closed rule list, Spanish
   messages) and ValidationException.
 - `framework/src/Auth/`: Auth (session guard with remember me and a

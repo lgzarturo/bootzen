@@ -629,6 +629,7 @@ Un texto sin traducción se muestra en español: la app nunca enseña una clave 
 - `currentRoute(): ?Route`
 - `currentParameters(): array`
 - `all(?string $locale = null): array`: Todas las traducciones de un idioma (útil para pasarlas a JavaScript).
+- `routeSegments(string $locale): array`: Traducción de segmentos de URL para $router->localized(), de lang/{locale}/rutas.php: ['tareas' => 'tasks', 'registro' => 'sign-up']. La app sobrescribe al framework.
 
 ### Formatter
 

@@ -117,17 +117,19 @@ it('responde JSON paginado y filtra por estado', function (): void {
     $client->get('/tareas?estado=pendientes')->assertOk()->assertSee('Tarea 7')->assertDontSee('Tarea 1<');
 });
 
-it('maneja las tareas en inglés con el prefijo /en', function (): void {
+it('maneja las tareas en inglés con las URLs traducidas', function (): void {
     $client = client();
     $client->actingAs(usuario());
 
-    $client->from('/en/tareas/create')->post('/en/tareas', ['titulo' => ''])->assertRedirect('/en/tareas/create');
-    $client->get('/en/tareas/create')->assertSee('The title field is required.')->assertSee('New task');
+    $client->from('/en/tasks/create')->post('/en/tasks', ['titulo' => ''])->assertRedirect('/en/tasks/create');
+    $client->get('/en/tasks/create')->assertSee('The title field is required.')->assertSee('New task');
 
-    $client->post('/en/tareas', ['titulo' => 'Pay the bills', 'vence' => '2026-12-01'])
-        ->assertRedirect('/en/tareas')
+    $client->post('/en/tasks', ['titulo' => 'Pay the bills', 'vence' => '2026-12-01'])
+        ->assertRedirect('/en/tasks')
         ->assertSessionHas('status', 'Task created.');
-    $client->get('/en/tareas')->assertSee('My tasks')->assertSee('Due ')->assertSee('Delete this task?');
+    $client->get('/en/tasks')->assertSee('My tasks')->assertSee('Due ')->assertSee('Delete this task?')
+        ->assertSee('action="/en/tasks/1/toggle"', false);
+    $client->get('/en/tareas')->assertStatus(301)->assertRedirect('/en/tasks');
 });
 
 it('el seeder crea a Ana con 50 tareas', function (): void {

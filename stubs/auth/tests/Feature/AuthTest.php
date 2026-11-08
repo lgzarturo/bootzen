@@ -53,7 +53,7 @@ function enlaceDeVerificacion(TestClient $client): string
 {
     $correos = correosEnviados($client);
     $texto = end($correos) instanceof Message ? end($correos)->text : '';
-    preg_match('#https?://[^/\s]+(/\S*verificar-correo/\S+)#', $texto, $match);
+    preg_match('#https?://[^/\s]+(/\S*signature=[a-f0-9]+)#', $texto, $match);
 
     return $match[1] ?? '';
 }
@@ -244,22 +244,28 @@ it('responde lo mismo si el correo de recuperación no se pudo enviar', function
         ->assertSessionHas('status', 'Si el correo está registrado, te enviamos un enlace para cambiar la contraseña.');
 });
 
-it('atiende en inglés con el prefijo /en', function (): void {
+it('atiende en inglés con el prefijo /en y las URLs traducidas', function (): void {
     $client = client();
     $inicioEs = inicio();
-    $inicio = '/en' . $inicioEs;
+    translator()->setLocale('en');
+    $inicio = inicio();
+    translator()->setLocale('es');
 
-    $client->post('/en/registro', registro())->assertRedirect('/en/verificar-correo');
-    $client->get('/en/verificar-correo')->assertSee('Verify your email');
-    expect(correosEnviados($client)[0]->subject ?? '')->toBe('Verify your email');
+    $client->post('/en/sign-up', registro())->assertRedirect('/en/verify-email');
+    $client->get('/en/verify-email')->assertSee('Verify your email');
+    expect(correosEnviados($client)[0]->subject ?? '')->toBe('Verify your email')
+        ->and(enlaceDeVerificacion($client))->toStartWith('/en/verify-email/1/');
     $client->get(enlaceDeVerificacion($client))->assertRedirect($inicio);
     $client->get($inicio)
         ->assertSee('<html lang="en">', false)
         ->assertSee('hreflang="es" href="' . url($inicioEs) . '"', false);
-    $client->get('/en/panel')->assertSee('Hi, Ana');
+    $client->get('/en/dashboard')->assertSee('Hi, Ana');
+
+    // La URL sin traducir sigue sirviendo: redirige con 301
+    $client->get('/en/registro')->assertStatus(301)->assertRedirect('/en/sign-up');
 
     $client->post('/en/logout')->assertRedirect('/en');
-    $client->assertGuest()->get('/en/panel')->assertRedirect('/en/login');
+    $client->assertGuest()->get('/en/dashboard')->assertRedirect('/en/login');
 
     $client->from('/en/login')->post('/en/login', ['email' => 'ana@ejemplo.com', 'password' => 'incorrecta']);
     $client->get('/en/login')->assertSee('The email or password is incorrect.')->assertSee('Forgot your password?');
