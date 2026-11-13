@@ -10,11 +10,14 @@ use BootZen\Security\RateLimiter;
 use BootZen\Validation\ValidationException;
 
 /**
- * Inicio y cierre de sesión. Después de 5 intentos fallidos por correo e IP bloquea un minuto.
+ * Inicio y cierre de sesión. Después de 5 intentos fallidos por correo e IP bloquea un minuto, y después
+ * de 30 por cuenta (desde cualquier IP) bloquea una hora.
  */
 final class LoginController
 {
     private const MAX_ATTEMPTS = 5;
+
+    private const MAX_PER_ACCOUNT = 30;
 
     public function __construct(private readonly RateLimiter $limiter)
     {
@@ -34,20 +37,24 @@ final class LoginController
 
         $email = strtolower((string) $datos['email']);
         $clave = 'login|' . $email . '|' . $request->getClientIp();
+        // Segundo tope solo por cuenta: frena a quien reparte los intentos entre muchas IP
+        $cuenta = 'login-cuenta|' . $email;
 
-        if ($this->limiter->tooManyAttempts($clave, self::MAX_ATTEMPTS)) {
-            throw ValidationException::withMessages([
-                'email' => __('Demasiados intentos. Intenta de nuevo en :seconds segundos.', ['seconds' => $this->limiter->availableIn($clave)]),
-            ]);
+        // El intento se cuenta antes de revisar la contraseña: las peticiones en paralelo no pasan de más
+        foreach ([[$clave, self::MAX_ATTEMPTS, 60], [$cuenta, self::MAX_PER_ACCOUNT, 3600]] as [$key, $max, $seconds]) {
+            if (! $this->limiter->attempt($key, $max, $seconds)) {
+                throw ValidationException::withMessages([
+                    'email' => __('Demasiados intentos. Intenta de nuevo en :seconds segundos.', ['seconds' => $this->limiter->availableIn($key)]),
+                ]);
+            }
         }
 
         if (! auth()->attempt(['email' => $email, 'password' => $datos['password']], $request->boolean('remember'))) {
-            $this->limiter->hit($clave, 60);
-
             throw ValidationException::withMessages(['email' => 'El correo o la contraseña no son correctos.']);
         }
 
         $this->limiter->clear($clave);
+        $this->limiter->clear($cuenta);
 
         return redirect(auth()->intended(home_url()));
     }

@@ -122,7 +122,10 @@ describe('FileSessionStore', function (): void {
         $store->write('abc', ['a' => 1]);
 
         expect($store->read('abc'))->toBe(['a' => 1])
-            ->and(is_file($this->dir . '/nuevo/sess_abc'))->toBeTrue()
+            ->and(is_file($this->dir . '/nuevo/sess_' . hash('sha256', 'abc')))->toBeTrue()
+            // Ni el id en el nombre ni lectura para otros usuarios del servidor
+            ->and(glob($this->dir . '/nuevo/*abc*'))->toBe([])
+            ->and(fileperms($this->dir . '/nuevo/sess_' . hash('sha256', 'abc')) & 0777)->toBe(0600)
             ->and($store->read('otra'))->toBeNull();
 
         $store->destroy('abc');
@@ -134,11 +137,11 @@ describe('FileSessionStore', function (): void {
         $store = new FileSessionStore($this->dir, 60);
         $store->write('vieja', ['a' => 1]);
         $store->write('nueva', ['b' => 2]);
-        touch($this->dir . '/sess_vieja', time() - 120);
+        touch($this->dir . '/sess_' . hash('sha256', 'vieja'), time() - 120);
 
         expect($store->read('vieja'))->toBeNull();
 
-        touch($this->dir . '/sess_nueva', time() - 120);
+        touch($this->dir . '/sess_' . hash('sha256', 'nueva'), time() - 120);
         $store->write('otra', []);
 
         expect($store->gc(60))->toBe(1)
@@ -147,8 +150,8 @@ describe('FileSessionStore', function (): void {
 
     it('no restaura objetos ni datos corruptos', function (): void {
         $store = new FileSessionStore($this->dir);
-        file_put_contents($this->dir . '/sess_obj', serialize(['fecha' => new DateTimeImmutable()]));
-        file_put_contents($this->dir . '/sess_roto', 'no es serialize');
+        file_put_contents($this->dir . '/sess_' . hash('sha256', 'obj'), serialize(['fecha' => new DateTimeImmutable()]));
+        file_put_contents($this->dir . '/sess_' . hash('sha256', 'roto'), 'no es serialize');
 
         expect($store->read('obj')['fecha'])->toBeInstanceOf(__PHP_Incomplete_Class::class)
             ->and($store->read('roto'))->toBeNull();

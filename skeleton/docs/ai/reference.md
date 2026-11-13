@@ -38,7 +38,7 @@
 - `format_number(int|float $number, int $decimals = 0): string`: Número con los separadores del idioma activo.
 - `formatter(): Formatter`: Formateador de números, moneda y fechas para el idioma activo (lo usan format_number(), format_money() y format_date()).
 - `gate(): Gate`: Permisos y políticas (Gate).
-- `get_client_ip(): string`: Obtiene la IP pública del cliente considerando proxies y cabeceras.
+- `get_client_ip(): string`: IP del cliente de la petición actual. Las cabeceras X-Forwarded-* solo cuentan si la conexión viene de un proxy de confianza (config security.trusted_proxies); igual que $request->getClientIp().
 - `home_url(): string`: URL a donde va un usuario autenticado: config auth.home, que puede ser un nombre de ruta ('dashboard', respeta el idioma de $router->localized()) o una ruta ('/panel').
 - `hreflang_links(): HtmlString`: Etiquetas <link rel="alternate" hreflang> de la página actual en cada idioma (para SEO). Vacío si la página no es de $router->localized(). Va en el <head> del layout.
 - `is_ajax(): bool`: Verifica si la petición actual es AJAX.
@@ -104,8 +104,10 @@ Clase Request
 - `wantsJson(): bool`: Indica si el cliente espera una respuesta JSON (Accept o Content-Type JSON).
 - `isJson(): bool`: Determina si la solicitud es de tipo JSON
 - `isAjax(): bool`: Determina si la solicitud es AJAX
-- `isSecure(): bool`: Determina si la solicitud es segura (HTTPS)
-- `getClientIp(): string`: Obtiene la IP del cliente que realiza la solicitud
+- `::setTrustedProxies(array $proxies): void`: Define los proxies de confianza (lo hace Application desde config security.trusted_proxies). Solo de ellos se aceptan X-Forwarded-For y X-Forwarded-Proto.
+- `::trustedProxies(): array`: Proxies de confianza ya expandidos ('private' se convierte en sus rangos).
+- `isSecure(): bool`: Determina si la solicitud es segura (HTTPS). X-Forwarded-Proto solo cuenta si la conexión viene de un proxy de confianza.
+- `getClientIp(): string`: Obtiene la IP del cliente. Sin proxies de confianza es siempre la de la conexión (REMOTE_ADDR): las cabeceras las escribe quien quiera y con ellas se saltarían los límites de peticiones. Con proxies de confianza se recorre X-Forwarded-For desde el final y se devuelve la primera IP que no es un proxy.
 
 ### Response
 
@@ -502,6 +504,7 @@ Usa la columna role y los permisos de config/auth.php (roles).
 Limitador de intentos.
 
 - `hit(string $key, int $decaySeconds = 60): int`: Suma un intento. La ventana empieza con el primer intento y dura $decaySeconds. Devuelve el total de intentos en la ventana.
+- `attempt(string $key, int $maxAttempts, int $decaySeconds = 60): bool`: Cuenta un intento si todavía hay cupo y dice si se puede seguir. Revisar y contar van en un solo paso, así las peticiones en paralelo no pasan todas antes de que suba el contador. Úsalo ANTES de la operación que proteges (verificar una contraseña, enviar un correo).
 - `attempts(string $key): int`
 - `tooManyAttempts(string $key, int $maxAttempts): bool`
 - `remaining(string $key, int $maxAttempts): int`
@@ -586,7 +589,8 @@ Caché clave/valor persistida en archivos.
 - `has(string $key): bool`: Indica si existe un valor vigente para la clave.
 - `forget(string $key): void`: Elimina una clave.
 - `remember(string $key, ?int $ttl, Closure $callback): mixed`: Devuelve el valor cacheado o lo calcula, lo guarda y lo devuelve.
-- `increment(string $key, int $by = 1, ?int $ttl = null): int`: Incrementa un contador y devuelve el nuevo valor. Conserva la expiración existente.
+- `increment(string $key, int $by = 1, ?int $ttl = null): int`: Incrementa un contador y devuelve el nuevo valor. Conserva la expiración existente. Es atómico: dos peticiones a la vez no leen el mismo valor.
+- `atomic(string $key, Closure $callback): mixed`: Ejecuta $callback con un candado exclusivo sobre la clave: mientras corre, ningún otro proceso entra a atomic() ni a increment() con esa clave. Sirve para "leer, decidir y escribir" sin carreras.
 - `flush(): void`: Elimina todas las claves.
 
 ### Logger

@@ -123,6 +123,18 @@ class Request
     private const SPOOFABLE_METHODS = ['PUT', 'PATCH', 'DELETE'];
 
     /**
+     * Rangos que cubre la palabra 'private' en los proxies de confianza
+     */
+    private const PRIVATE_RANGES = ['127.0.0.0/8', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', '::1/128', 'fc00::/7'];
+
+    /**
+     * Proxies de los que se aceptan las cabeceras X-Forwarded-* (IPs o rangos CIDR)
+     *
+     * @var list<string>
+     */
+    private static array $trustedProxies = [];
+
+    /**
      * Constructor de Request
      *
      * Un POST con el campo `_method` (o la cabecera X-HTTP-Method-Override) igual a PUT, PATCH o DELETE
@@ -615,19 +627,59 @@ class Request
     }
 
     /**
-     * Determina si la solicitud es segura (HTTPS)
+     * Define los proxies de confianza (lo hace Application desde config security.trusted_proxies).
+     * Solo de ellos se aceptan X-Forwarded-For y X-Forwarded-Proto.
+     *
+     * @param list<string> $proxies IPs, rangos CIDR ('10.0.0.0/8'), 'private' (redes privadas y loopback) o '*'
+     * @example Request::setTrustedProxies(['private']);
+     */
+    public static function setTrustedProxies(array $proxies): void
+    {
+        $expanded = [];
+        foreach ($proxies as $proxy) {
+            $proxy = trim($proxy);
+            if ($proxy === 'private') {
+                array_push($expanded, ...self::PRIVATE_RANGES);
+            } elseif ($proxy !== '') {
+                $expanded[] = $proxy;
+            }
+        }
+
+        self::$trustedProxies = $expanded;
+    }
+
+    /**
+     * Proxies de confianza ya expandidos ('private' se convierte en sus rangos).
+     *
+     * @return list<string>
+     */
+    public static function trustedProxies(): array
+    {
+        return self::$trustedProxies;
+    }
+
+    /**
+     * Determina si la solicitud es segura (HTTPS). X-Forwarded-Proto solo cuenta si la conexión viene de
+     * un proxy de confianza.
      *
      * @return bool true si es HTTPS
      */
     public function isSecure(): bool
     {
-        return ($this->server['HTTPS'] ?? 'off') !== 'off' ||
-               ($this->server['SERVER_PORT'] ?? 80) == 443 ||
-               strtolower($this->getHeader('x-forwarded-proto') ?? '') === 'https';
+        if (($this->server['HTTPS'] ?? 'off') !== 'off' || ($this->server['SERVER_PORT'] ?? 80) == 443) {
+            return true;
+        }
+
+        $remote = $this->server['REMOTE_ADDR'] ?? null;
+        $proto = strtolower(trim(explode(',', $this->getHeader('x-forwarded-proto') ?? '')[0]));
+
+        return $proto === 'https' && is_string($remote) && self::isTrustedProxy($remote);
     }
 
     /**
-     * Obtiene la IP del cliente que realiza la solicitud
+     * Obtiene la IP del cliente. Sin proxies de confianza es siempre la de la conexión (REMOTE_ADDR): las
+     * cabeceras las escribe quien quiera y con ellas se saltarían los límites de peticiones. Con proxies de
+     * confianza se recorre X-Forwarded-For desde el final y se devuelve la primera IP que no es un proxy.
      *
      * @return string IP del cliente
      * @example $ip = $request->getClientIp();
@@ -635,29 +687,75 @@ class Request
     public function getClientIp(): string
     {
         $remote = $this->server['REMOTE_ADDR'] ?? null;
+        $remote = is_string($remote) && filter_var($remote, FILTER_VALIDATE_IP) !== false ? $remote : '127.0.0.1';
 
-        // Si el cliente se conecta directo (IP pública), las cabeceras de proxy no son confiables:
-        // cualquiera puede enviarlas para hacerse pasar por otra IP y saltarse los límites de peticiones
-        if (is_string($remote) && filter_var($remote, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
+        if (! self::isTrustedProxy($remote)) {
             return $remote;
         }
 
-        $ipKeys = [
-            'HTTP_X_FORWARDED_FOR',
-            'HTTP_X_REAL_IP',
-            'HTTP_CLIENT_IP',
-            'REMOTE_ADDR',
-        ];
+        $forwarded = $this->server['HTTP_X_FORWARDED_FOR'] ?? $this->getHeader('x-forwarded-for');
+        $chain = is_string($forwarded) ? array_reverse(array_map('trim', explode(',', $forwarded))) : [];
+        $client = $remote;
 
-        foreach ($ipKeys as $key) {
-            if (! empty($this->server[$key])) {
-                $ip = trim(explode(',', $this->server[$key])[0]);
-                if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
-                    return $ip;
-                }
+        foreach ($chain as $ip) {
+            if (filter_var($ip, FILTER_VALIDATE_IP) === false) {
+                break;
+            }
+
+            $client = $ip;
+
+            if (! self::isTrustedProxy($ip)) {
+                break;
             }
         }
 
-        return $this->server['REMOTE_ADDR'] ?? '127.0.0.1';
+        return $client;
+    }
+
+    private static function isTrustedProxy(string $ip): bool
+    {
+        foreach (self::$trustedProxies as $range) {
+            if ($range === '*' || self::ipInRange($ip, $range)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Indica si una IP (v4 o v6) cae dentro de una IP exacta o un rango CIDR.
+     */
+    private static function ipInRange(string $ip, string $range): bool
+    {
+        [$subnet, $bits] = array_pad(explode('/', $range, 2), 2, null);
+        $address = @inet_pton($ip);
+        $network = @inet_pton((string) $subnet);
+
+        if ($address === false || $network === false || strlen($address) !== strlen($network)) {
+            return false;
+        }
+
+        $max = strlen($address) * 8;
+        $bits = $bits === null ? $max : (ctype_digit($bits) ? min((int) $bits, $max) : -1);
+
+        if ($bits < 0) {
+            return false;
+        }
+
+        $bytes = intdiv($bits, 8);
+        $rest = $bits % 8;
+
+        if (substr($address, 0, $bytes) !== substr($network, 0, $bytes)) {
+            return false;
+        }
+
+        if ($rest === 0) {
+            return true;
+        }
+
+        $mask = 0xFF << (8 - $rest) & 0xFF;
+
+        return (ord($address[$bytes]) & $mask) === (ord($network[$bytes]) & $mask);
     }
 }

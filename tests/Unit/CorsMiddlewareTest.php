@@ -39,3 +39,12 @@ it('responde el preflight de una ruta con cors como middleware de ruta', functio
     expect($response->getHeader('access-control-allow-origin'))->toBe('https://app.ejemplo.com')
         ->and($response->getHeader('access-control-allow-methods'))->toContain('POST');
 });
+
+it('agrega Vary: Origin cuando refleja el origen, sin pisar otro Vary', function (): void {
+    $cors = new CorsMiddleware();
+    $origen = new Request('GET', '/', ['Origin' => 'https://app.ejemplo.com']);
+
+    expect($cors->process($origen, static fn (): Response => Response::json([]))->getHeader('vary'))->toBe('Origin')
+        ->and($cors->process($origen, static fn (): Response => Response::json([], 200, ['Vary' => 'Accept-Language']))->getHeader('vary'))->toBe('Accept-Language, Origin')
+        ->and($cors->process(new Request('GET', '/'), static fn (): Response => Response::json([]))->getHeader('vary'))->toBeNull();
+});

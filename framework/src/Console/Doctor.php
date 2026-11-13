@@ -108,6 +108,25 @@ final class Doctor
             $this->ok('APP_DEBUG desactivado en producción');
         }
 
+        if ($this->app->config()->get('app.env') === 'testing') {
+            $this->error('APP_ENV=testing: es solo para los tests. En el servidor usa production.');
+        }
+
+        // Lectura para "otros": en un hosting compartido cualquier usuario del servidor vería la APP_KEY o la base
+        $exposed = [];
+        foreach (['.env', $this->sqliteFile()] as $file) {
+            $path = $file === null ? null : (str_starts_with($file, '/') ? $file : $this->app->basePath($file));
+            $permissions = $path !== null && is_file($path) && DIRECTORY_SEPARATOR === '/' ? fileperms($path) : false;
+
+            if ($permissions !== false && ($permissions & 0004) !== 0) {
+                $exposed[] = (string) $file;
+            }
+        }
+
+        if ($exposed !== []) {
+            $this->warning('Otros usuarios del servidor pueden leer: ' . implode(', ', $exposed) . '. Ciérralos con chmod 600.');
+        }
+
         if (filter_var($this->app->config()->get('app.installer', false), FILTER_VALIDATE_BOOL)) {
             $this->warning('INSTALL_ENABLED=true: la instalación web está activa. Ponla en false cuando termines.');
         }
@@ -115,6 +134,19 @@ final class Doctor
         if ($production && ! is_file($this->app->basePath('storage/cache/config.php'))) {
             $this->warning('En producción conviene php bin/bootzen config:cache (y view:cache).');
         }
+    }
+
+    /**
+     * Archivo de la base SQLite por defecto, o null si la conexión es otra o está en memoria.
+     */
+    private function sqliteFile(): ?string
+    {
+        $config = $this->app->config();
+        $default = $config->get('database.default', 'sqlite');
+        $connection = is_string($default) ? $config->get('database.connections.' . $default) : null;
+        $database = is_array($connection) && ($connection['driver'] ?? null) === 'sqlite' ? ($connection['database'] ?? null) : null;
+
+        return is_string($database) && $database !== '' && $database !== ':memory:' ? $database : null;
     }
 
     private function checkPermissions(): void
@@ -244,6 +276,23 @@ final class Doctor
                 }
             } catch (Throwable $e) {
                 $this->error("Archivos {$label}: " . $e->getMessage());
+            }
+        }
+
+        $disks = $this->app->config()->get('storage.disks', []);
+        foreach (is_array($disks) ? $disks : [] as $name => $disk) {
+            if (! is_array($disk)) {
+                continue;
+            }
+
+            $driver = $disk['driver'] ?? null;
+
+            if ($driver === 'ftp' && is_string($disk['host'] ?? null) && $disk['host'] !== '' && ! filter_var($disk['ssl'] ?? false, FILTER_VALIDATE_BOOL)) {
+                $this->warning("Disco {$name}: FTP sin cifrar, la contraseña y los archivos viajan en claro. Activa 'ssl' (FTPS) o usa SFTP.");
+            }
+
+            if ($driver === 'sftp' && is_string($disk['host'] ?? null) && $disk['host'] !== '' && ! (is_string($disk['fingerprint'] ?? null) && $disk['fingerprint'] !== '')) {
+                $this->warning("Disco {$name}: SFTP sin 'fingerprint', se acepta cualquier servidor que responda en esa dirección. Configura la huella.");
             }
         }
 

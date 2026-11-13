@@ -124,10 +124,13 @@ mi-app/
 - **Auth**: guard de sesión (`auth()`), `Hash` (Argon2id o bcrypt) y
   `PasswordReset` (tokens guardados como hash). Scaffold opcional con
   `bootzen-new --auth` desde `stubs/auth`.
-- **Security / Mail**: `RateLimiter` sobre la caché y `Mailer` con drivers
-  `log` y `array`.
+- **Security / Mail**: `RateLimiter` sobre la caché (`attempt()` cuenta y
+  revisa con candado) y `Mailer` con drivers `log` y `array`.
+- **Proxies**: `Request::getClientIp()` e `isSecure()` solo aceptan
+  `X-Forwarded-For` y `X-Forwarded-Proto` de los proxies de
+  `config security.trusted_proxies`; sin ellos cuenta la IP de la conexión.
 - **Middleware**: `StartSession` y `VerifyCsrfToken` (grupo `web`),
-  `SecurityHeaders` (global), `RateLimit` (`throttle:max,minutos`),
+  `SecurityHeaders` (global), `RateLimit` (`throttle:max,minutos[,nombre]`),
   `Authenticate` (`auth`), `RedirectIfAuthenticated` (`guest`) y CORS.
 - **Console**: `bin/bootzen` (serve, css:*, view:*, migrate, migrate:rollback,
   migrate:status, db:seed, db:fresh, db:backup, make:*, route:list,

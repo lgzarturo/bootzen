@@ -181,6 +181,37 @@ it('rechaza credenciales incorrectas y bloquea tras 5 intentos', function (): vo
     $client->assertGuest()->get('/login')->assertSee('Demasiados intentos.');
 });
 
+it('una cabecera X-Forwarded-For inventada no da intentos nuevos de login', function (): void {
+    $client = client()->from('/login');
+    User::factory()->create(['email' => 'ana@ejemplo.com']);
+
+    for ($i = 1; $i <= 5; $i++) {
+        $client->post('/login', ['email' => 'ana@ejemplo.com', 'password' => 'incorrecta'], ['X-Forwarded-For' => "198.51.100.{$i}"]);
+    }
+
+    $client->post('/login', ['email' => 'ana@ejemplo.com', 'password' => 'secreto-largo'], ['X-Forwarded-For' => '198.51.100.99'])
+        ->assertSessionHasErrors(['email']);
+    $client->assertGuest()->get('/login')->assertSee('Demasiados intentos.');
+});
+
+it('limita los registros desde una misma IP', function (): void {
+    $client = client();
+    $registrar = static fn (int $n) => $client->post('/registro', [
+        'nombre' => "Persona {$n}",
+        'email' => "persona{$n}@ejemplo.com",
+        'password' => 'secreto-largo',
+        'password_confirmation' => 'secreto-largo',
+    ]);
+
+    for ($i = 1; $i <= 5; $i++) {
+        $registrar($i)->assertRedirect('/verificar-correo');
+        $client->post('/logout');
+    }
+
+    $registrar(6)->assertStatus(429);
+    $client->assertDatabaseCount('users', 5);
+});
+
 it('recupera la contraseña con el enlace del correo', function (): void {
     $client = client();
     User::factory()->sinVerificar()->create(['email' => 'ana@ejemplo.com']);

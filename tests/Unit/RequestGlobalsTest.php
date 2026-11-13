@@ -75,20 +75,45 @@ it('usa valores por defecto si faltan las variables del servidor', function (): 
         ->and($request->getClientIp())->toBe('127.0.0.1');
 });
 
-it('detecta HTTPS por variable, puerto o proxy', function (array $server, array $headers, bool $secure): void {
+beforeEach(fn () => Request::setTrustedProxies([]));
+afterEach(fn () => Request::setTrustedProxies([]));
+
+it('detecta HTTPS por variable o puerto, y por X-Forwarded-Proto solo desde un proxy de confianza', function (array $server, array $headers, array $proxies, bool $secure): void {
+    Request::setTrustedProxies($proxies);
+
     expect((new Request('GET', '/', $headers, [], [], $server))->isSecure())->toBe($secure);
 })->with([
-    'HTTPS on' => [['HTTPS' => 'on'], [], true],
-    'puerto 443' => [['SERVER_PORT' => 443], [], true],
-    'proxy' => [[], ['X-Forwarded-Proto' => 'https'], true],
-    'HTTP plano' => [['HTTPS' => 'off', 'SERVER_PORT' => 80], [], false],
+    'HTTPS on' => [['HTTPS' => 'on'], [], [], true],
+    'puerto 443' => [['SERVER_PORT' => 443], [], [], true],
+    'proxy de confianza' => [['REMOTE_ADDR' => '10.0.0.1'], ['X-Forwarded-Proto' => 'https'], ['private'], true],
+    'cabecera sin proxies configurados' => [['REMOTE_ADDR' => '10.0.0.1'], ['X-Forwarded-Proto' => 'https'], [], false],
+    'cabecera desde una IP que no es proxy' => [['REMOTE_ADDR' => '203.0.113.9'], ['X-Forwarded-Proto' => 'https'], ['private'], false],
+    'HTTP plano' => [['HTTPS' => 'off', 'SERVER_PORT' => 80], [], [], false],
 ]);
 
-it('obtiene la IP pública del cliente ignorando rangos privados', function (array $server, string $ip): void {
+it('sin proxies de confianza la IP es la de la conexión, diga lo que diga X-Forwarded-For', function (array $server, string $ip): void {
     expect((new Request('GET', '/', [], [], [], $server))->getClientIp())->toBe($ip);
 })->with([
-    'proxy con IP pública' => [['HTTP_X_FORWARDED_FOR' => '198.51.100.4, 10.0.0.1', 'REMOTE_ADDR' => '10.0.0.1'], '198.51.100.4'],
-    'solo IP privada' => [['HTTP_X_FORWARDED_FOR' => '192.168.1.5', 'REMOTE_ADDR' => '10.0.0.2'], '10.0.0.2'],
-    'remote addr pública' => [['REMOTE_ADDR' => '203.0.113.9'], '203.0.113.9'],
-    'cabecera falsa sin proxy' => [['HTTP_X_FORWARDED_FOR' => '198.51.100.4', 'REMOTE_ADDR' => '203.0.113.9'], '203.0.113.9'],
+    'conexión privada con cabecera' => [['HTTP_X_FORWARDED_FOR' => '198.51.100.4', 'REMOTE_ADDR' => '10.0.0.1'], '10.0.0.1'],
+    'loopback con cabecera' => [['HTTP_X_FORWARDED_FOR' => '198.51.100.4', 'REMOTE_ADDR' => '127.0.0.1'], '127.0.0.1'],
+    'conexión pública' => [['REMOTE_ADDR' => '203.0.113.9'], '203.0.113.9'],
+    'conexión pública con cabecera' => [['HTTP_X_FORWARDED_FOR' => '198.51.100.4', 'REMOTE_ADDR' => '203.0.113.9'], '203.0.113.9'],
+    'sin REMOTE_ADDR' => [[], '127.0.0.1'],
+]);
+
+it('con proxies de confianza toma la última IP de X-Forwarded-For que no es un proxy', function (array $proxies, array $server, string $ip): void {
+    Request::setTrustedProxies($proxies);
+
+    expect((new Request('GET', '/', [], [], [], $server))->getClientIp())->toBe($ip);
+})->with([
+    'el cliente inventa el primer valor' => [['private'], ['HTTP_X_FORWARDED_FOR' => '1.2.3.4, 203.0.113.9', 'REMOTE_ADDR' => '172.18.0.1'], '203.0.113.9'],
+    'dos proxies encadenados' => [['private'], ['HTTP_X_FORWARDED_FOR' => '203.0.113.9, 10.0.0.7', 'REMOTE_ADDR' => '127.0.0.1'], '203.0.113.9'],
+    'conexión directa que no es proxy' => [['private'], ['HTTP_X_FORWARDED_FOR' => '1.2.3.4', 'REMOTE_ADDR' => '198.51.100.1'], '198.51.100.1'],
+    'proxy sin cabecera' => [['private'], ['REMOTE_ADDR' => '10.0.0.1'], '10.0.0.1'],
+    'valor que no es una IP' => [['private'], ['HTTP_X_FORWARDED_FOR' => '<script>, 10.0.0.2', 'REMOTE_ADDR' => '10.0.0.1'], '10.0.0.2'],
+    'rango CIDR' => [['203.0.113.0/24'], ['HTTP_X_FORWARDED_FOR' => '9.9.9.9', 'REMOTE_ADDR' => '203.0.113.77'], '9.9.9.9'],
+    'fuera del rango CIDR' => [['203.0.113.0/24'], ['HTTP_X_FORWARDED_FOR' => '9.9.9.9', 'REMOTE_ADDR' => '203.0.114.1'], '203.0.114.1'],
+    'IP exacta' => [['10.0.0.5'], ['HTTP_X_FORWARDED_FOR' => '9.9.9.9', 'REMOTE_ADDR' => '10.0.0.5'], '9.9.9.9'],
+    'IPv6' => [['2001:db8::/32'], ['HTTP_X_FORWARDED_FOR' => '2606:4700::1', 'REMOTE_ADDR' => '2001:db8::5'], '2606:4700::1'],
+    'comodín' => [['*'], ['HTTP_X_FORWARDED_FOR' => '9.9.9.9', 'REMOTE_ADDR' => '198.51.100.1'], '9.9.9.9'],
 ]);

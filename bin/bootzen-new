@@ -172,6 +172,8 @@ if (is_file($envExample)) {
     $key = 'base64:' . base64_encode(random_bytes(32));
     $env = (string) preg_replace('/^APP_KEY=.*$/m', 'APP_KEY=' . $key, (string) file_get_contents($envExample));
     file_put_contents($target . '/.env', $env);
+    // Trae la APP_KEY: solo la lee su dueño
+    @chmod($target . '/.env', 0600);
 }
 
 if ($withGit && shell_exec('git --version 2>&1') !== null) {

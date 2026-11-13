@@ -92,6 +92,12 @@ final class StartSession implements MiddlewareInterface
         $session->save();
         $this->collectGarbage();
 
+        // Una respuesta con sesión es de una sola persona: ni proxies ni el botón atrás la guardan.
+        // La ruta que quiera caché pone su propio Cache-Control
+        if ($response->getHeader('cache-control') === null) {
+            $response = $response->withHeader('Cache-Control', 'private, no-store');
+        }
+
         return $response->withCookie(
             $this->cookieName(),
             $session->getId(),

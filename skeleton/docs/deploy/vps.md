@@ -93,6 +93,10 @@ DB_DATABASE=/var/www/tienda/shared/database/app.sqlite   # ruta absoluta, fuera 
 
 y protégelo con `chmod 600 /var/www/tienda/shared/.env`.
 
+Si pones Cloudflare u otro proxy delante del servidor, agrega
+`TRUSTED_PROXIES` con sus rangos de IP (ver `docs/deploy/README.md`). Con
+Nginx o Caddy hablando directo con PHP-FPM, como en esta guía, déjalo vacío.
+
 ## Desplegar
 
 Desde la carpeta del proyecto, en tu máquina (necesitas `rsync` y `ssh`):

@@ -35,6 +35,14 @@ sin pisar datos. Sin `--version` usa la fecha (`20260115093000`). Con
 - El servidor web apunta a `public/`. Si no puedes elegirlo, el `.htaccess` de
   la raíz manda todo a `public/` y bloquea el resto.
 - `storage/` y la carpeta de la base SQLite con permiso de escritura para PHP.
+  `.env` y la base con permiso 600 (`doctor` avisa si otros usuarios del
+  servidor pueden leerlos).
+- Si hay un proxy, balanceador o CDN delante (Cloudflare, el proxy de Docker,
+  un Nginx que reenvía a otro servidor), define `TRUSTED_PROXIES` con su IP o
+  rango, separados por coma, o `private` si llega por una red privada. Sin
+  eso la app ve la IP del proxy: todos los visitantes comparten los límites
+  de intentos y las cookies no salen `Secure`. Con Nginx o Caddy sirviendo
+  PHP-FPM directo en el mismo servidor no hace falta.
 - Correo: `MAIL_DRIVER=smtp` con `MAIL_HOST`, `MAIL_PORT`, `MAIL_ENCRYPTION`,
   usuario, contraseña y `MAIL_FROM_ADDRESS` (con `log` los correos no salen).
   `php bin/bootzen mail:test tu@correo.com` confirma que funciona; si no

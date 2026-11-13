@@ -49,7 +49,8 @@ aplicación monolítica construida con BootZen.
 | `config/auth.php`          | Modelo de usuario y página de inicio tras el login (`home_url()`) |
 | `config/admin.php`         | Menú del panel `/admin` (lo crea `make:admin`)                |
 | `app/Controllers/Admin/`   | Controladores del panel de administración (`make:admin`)      |
-| `config/security.php`      | Content-Security-Policy y HSTS                                |
+| `config/security.php`      | Content-Security-Policy, HSTS y proxies de confianza          |
+| `config/cors.php`          | Qué dominios pueden llamar a las rutas `api` (alias `cors`)   |
 | `app/Jobs/`                | Jobs para la cola (`make:job`), se encolan con `dispatch()`   |
 | `routes/schedule.php`      | Tareas programadas; las ejecuta `schedule:run` desde cron     |
 | `config/storage.php`       | Discos de archivos: local, `s3` (y compatibles), `ftp` y `sftp` |
@@ -194,7 +195,7 @@ return static function (Router $router): void {
 - Los formularios HTML envían PUT, PATCH o DELETE con un POST y el campo
   oculto `_method`.
 - Middleware disponibles: `auth` (solo usuarios), `guest` (solo invitados),
-  `throttle:max,minutos`, `cors`, `locale` (idioma, ver Idiomas), `verified`
+  `throttle:max,minutos[,nombre]`, `cors`, `locale` (idioma, ver Idiomas), `verified`
   (correo verificado), `signed` (enlaces de `signed_route()`), `role:admin`
   (alguno de los roles) y `can:reportes.ver` (permiso del rol). Grupos: `web`
   (sesión, "recordarme" y CSRF; todas las rutas de `web.php`) y `api` (todas
@@ -378,8 +379,15 @@ $usuario->password = Hash::make($password);     // BootZen\Auth\Hash: Argon2id o
 - Enlaces que se mandan por correo y funcionan sin sesión:
   `signed_route('nombre', ['id' => 5], 60)` (minutos) y la ruta con
   `->middleware('signed')`; un parámetro cambiado o un enlace vencido da 403.
-- Login con límite de intentos: `BootZen\Security\RateLimiter` (`hit`,
-  `tooManyAttempts`, `availableIn`, `clear`), ver `LoginController`.
+- Login con límite de intentos: `BootZen\Security\RateLimiter`. Usa
+  `attempt($clave, $max, $segundos)` **antes** de la operación (cuenta y
+  revisa en un solo paso, así las peticiones en paralelo no pasan de más) y
+  `clear($clave)` si salió bien; `availableIn($clave)` dice cuánto falta. El
+  `LoginController` limita por correo e IP (5 por minuto) y por cuenta (30
+  por hora).
+- Rutas que envían correo o prueban contraseñas llevan `throttle` con nombre:
+  `->middleware('throttle:5,10,registro')`. El tercer parámetro le da cupo
+  propio; sin él, las rutas con el mismo `throttle:5,1` comparten contador.
 - Correo: `mailer()->send(new Message($email, 'Asunto', $texto, $html))`, con
   `->cc()`, `->bcc()`, `->replyTo()`, `->attach($ruta)` y `->attachData()`
   encadenables. `MAIL_DRIVER=log` lo escribe en `storage/logs`; `smtp` lo
@@ -397,6 +405,17 @@ $usuario->password = Hash::make($password);     // BootZen\Auth\Hash: Argon2id o
   (fuentes, analytics), agrégalo en `config/security.php`.
 - Cookies de sesión `HttpOnly`, `SameSite=Lax` y `Secure` en HTTPS. El id de
   sesión cambia al iniciar y cerrar sesión.
+- Toda respuesta con sesión sale con `Cache-Control: private, no-store`. Si
+  una página pública debe cachearse, pon tu propio `Cache-Control` en la
+  respuesta.
+- La IP del visitante (`$request->getClientIp()`, la que usan los límites) es
+  la de la conexión. `X-Forwarded-For` y `X-Forwarded-Proto` solo cuentan si
+  vienen de un proxy listado en `TRUSTED_PROXIES` (`config/security.php`):
+  detrás de Nginx, Caddy, un balanceador o Cloudflare hay que definirlo, o
+  todos los visitantes compartirán límite y las cookies no saldrán `Secure`.
+  No leas `$_SERVER['HTTP_X_FORWARDED_FOR']` a mano.
+- Sesiones, caché, logs, `.env` y la base SQLite se crean con permiso 600; la
+  caché en archivo va firmada con `APP_KEY`.
 
 ### CSS (Tailwind v4)
 
@@ -639,6 +658,8 @@ logger('Pago rechazado', 'error', ['orden' => $orden]);
 
 $stats = cache()->remember('dashboard.stats', 600, fn () => $this->calcularStats());
 cache()->forget('dashboard.stats');
+cache()->increment('visitas');                       // atómico entre peticiones
+cache()->atomic('stock:5', fn () => /* leer, decidir y escribir sin carreras */ null);
 ```
 
 ### Idiomas

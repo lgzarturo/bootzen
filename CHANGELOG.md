@@ -1,5 +1,66 @@
 # CHANGELOG
 
+## [2.10.0] - 2026-11-13
+
+Versión de seguridad: fase A de la auditoría
+(`plan/05_AUDITORIA-SEGURIDAD-Y-RENDIMIENTO.md`). Conviene actualizar.
+
+### Seguridad
+
+- Los límites de intentos ya no se saltan con un `X-Forwarded-For`
+  inventado. `getClientIp()` devuelve la IP de la conexión y solo lee
+  `X-Forwarded-For` si viene de un proxy de confianza; en ese caso recorre la
+  cadena desde el final y se queda con la primera IP que no es un proxy.
+  `isSecure()` aplica la misma regla a `X-Forwarded-Proto`, y el helper
+  `get_client_ip()` usa la misma lógica.
+- Contadores atómicos: `Cache::increment()` toma un candado, y
+  `RateLimiter::attempt()` revisa y cuenta en un solo paso. Con 40 logins en
+  paralelo contra un límite de 5 antes pasaban 13; ahora pasan 5.
+- Scaffold `--auth`: `throttle` en registro (5 cada 10 minutos por IP), login
+  y restablecer contraseña; el login cuenta el intento antes de verificar la
+  contraseña y suma un tope por cuenta (30 por hora desde cualquier IP).
+- Las respuestas con sesión salen con `Cache-Control: private, no-store`,
+  salvo que la ruta ponga el suyo.
+- Permiso 600 para `.env` (`bootzen-new` y `key:generate`), sesiones, caché,
+  logs y la base SQLite al crearla. El archivo de sesión lleva el hash del
+  id, no el id.
+- La caché en archivo se firma con `APP_KEY`: un archivo sin firma válida se
+  descarta sin deserializarlo.
+- El CSRF solo se omite con `APP_ENV=testing` en CLI (los tests), no en un
+  servidor web.
+- `CorsMiddleware` agrega `Vary: Origin` al reflejar el origen.
+- El log sangra las líneas siguientes de un mensaje, así no se pueden fingir
+  entradas.
+
+### Agregado
+
+- `config/security.php`: `trusted_proxies` (variable `TRUSTED_PROXIES`):
+  IPs, rangos CIDR (IPv4 e IPv6), `private` o `*`.
+  `Request::setTrustedProxies()`.
+- `throttle:max,minutos,nombre`: el tercer parámetro da cupo propio a la
+  ruta.
+- `Cache::atomic($clave, fn)` y `RateLimiter::attempt()`.
+- `config/cors.php` para configurar el alias `cors`.
+- `doctor` avisa de `APP_ENV=testing`, de `.env` o base SQLite legibles por
+  otros usuarios, de FTP sin cifrar y de SFTP sin huella.
+
+### Al actualizar
+
+- Si la app está detrás de un proxy, balanceador o CDN, define
+  `TRUSTED_PROXIES` (ver `docs/deploy/README.md`). Sin eso la app ve la IP
+  del proxy y las cookies no salen `Secure`. El `docker-compose.yml` nuevo
+  trae `private` por defecto; en proyectos existentes agrégalo a mano, junto
+  con la línea `'trusted_proxies' => env('TRUSTED_PROXIES', '')` en
+  `config/security.php`.
+- Las sesiones abiertas y la caché en archivo se pierden una vez (cambió el
+  nombre del archivo de sesión y el formato de la caché): los usuarios
+  vuelven a iniciar sesión. Los tokens de "recordarme" siguen valiendo.
+- Los archivos nuevos se crean con permiso 600. Si el servidor web y la
+  terminal usan usuarios distintos, deben ser el mismo (como en las guías) o
+  compartir los archivos por otro medio.
+- Los cambios del scaffold `--auth` (rutas y `LoginController`) solo llegan a
+  proyectos nuevos; en uno existente cópialos de `stubs/auth`.
+
 ## [2.9.0] - 2026-11-08
 
 Panel de administración (fase 9.4), la última pieza de la fase 9.

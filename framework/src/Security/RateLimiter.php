@@ -24,8 +24,8 @@ use BootZen\Core\Cache;
  *
  * @example
  *   $clave = 'login|' . $email . '|' . $request->getClientIp();
- *   if ($limiter->tooManyAttempts($clave, 5)) { ... $limiter->availableIn($clave) ... }
- *   $limiter->hit($clave, 60);
+ *   if (! $limiter->attempt($clave, 5, 60)) { ... $limiter->availableIn($clave) ... }
+ *   // ... y si la operación salió bien: $limiter->clear($clave);
  */
 final class RateLimiter
 {
@@ -39,12 +39,34 @@ final class RateLimiter
      */
     public function hit(string $key, int $decaySeconds = 60): int
     {
-        if (! $this->cache->has($this->timerKey($key))) {
-            $this->cache->set($this->timerKey($key), time() + $decaySeconds, $decaySeconds);
-            $this->cache->forget($this->counterKey($key));
-        }
+        return $this->cache->atomic($this->counterKey($key), function () use ($key, $decaySeconds): int {
+            if (! $this->cache->has($this->timerKey($key))) {
+                $this->cache->set($this->timerKey($key), time() + $decaySeconds, $decaySeconds);
+                $this->cache->forget($this->counterKey($key));
+            }
 
-        return $this->cache->increment($this->counterKey($key), 1, $decaySeconds);
+            return $this->cache->increment($this->counterKey($key), 1, $decaySeconds);
+        });
+    }
+
+    /**
+     * Cuenta un intento si todavía hay cupo y dice si se puede seguir. Revisar y contar van en un solo
+     * paso, así las peticiones en paralelo no pasan todas antes de que suba el contador. Úsalo ANTES de
+     * la operación que proteges (verificar una contraseña, enviar un correo).
+     *
+     * @example if (! $limiter->attempt($clave, 5, 60)) { abort(429); }
+     */
+    public function attempt(string $key, int $maxAttempts, int $decaySeconds = 60): bool
+    {
+        return $this->cache->atomic($this->counterKey($key), function () use ($key, $maxAttempts, $decaySeconds): bool {
+            if ($this->tooManyAttempts($key, $maxAttempts)) {
+                return false;
+            }
+
+            $this->hit($key, $decaySeconds);
+
+            return true;
+        });
     }
 
     public function attempts(string $key): int

@@ -141,7 +141,9 @@ final class Logger
             date('Y-m-d H:i:s'),
             $this->channel,
             strtoupper($level),
-            $this->interpolate((string) $message, $context),
+            // Las líneas siguientes van con sangría: un mensaje con datos del usuario no puede fingir otra
+            // entrada del log (todas empiezan con la fecha en la columna 0)
+            strtr($this->interpolate((string) $message, $context), ["\r\n" => "\n    ", "\r" => "\n    ", "\n" => "\n    "]),
             $this->formatContext($context)
         );
 
@@ -151,7 +153,14 @@ final class Logger
 
         $file = sprintf('%s/%s-%s.log', rtrim($this->directory, '/'), $this->channel, date('Y-m-d'));
 
-        if (@file_put_contents($file, $line . PHP_EOL, FILE_APPEND | LOCK_EX) === false) {
+        $new = ! is_file($file);
+
+        if (@file_put_contents($file, $line . PHP_EOL, FILE_APPEND | LOCK_EX) !== false) {
+            if ($new) {
+                // El log puede traer correos (MAIL_DRIVER=log) y datos de errores: solo lo lee su dueño
+                @chmod($file, 0600);
+            }
+        } else {
             // Último recurso para no perder el evento si storage/ no es escribible
             error_log($line);
         }

@@ -38,10 +38,27 @@ final class Cache
     private array $memory = [];
 
     /**
-     * @param string|null $directory Directorio de los archivos de caché; null para guardar en memoria
+     * Candados tomados por este proceso: número => [archivo abierto, veces tomado].
+     *
+     * @var array<int, array{resource, int}>
      */
-    public function __construct(private readonly ?string $directory)
-    {
+    private array $locks = [];
+
+    /**
+     * Cuántos archivos de candado se reparten entre todas las claves.
+     */
+    private const LOCK_SLOTS = 64;
+
+    /**
+     * @param string|null $directory Directorio de los archivos de caché; null para guardar en memoria
+     * @param string|null $key Clave (APP_KEY) para firmar cada archivo: uno que no lleve la firma se descarta
+     *                         sin deserializarlo
+     */
+    public function __construct(
+        private readonly ?string $directory,
+        #[\SensitiveParameter]
+        private readonly ?string $key = null
+    ) {
     }
 
     /**
@@ -73,11 +90,19 @@ final class Cache
             return;
         }
 
+        if ($this->key !== null) {
+            $payload = $this->signature($payload) . $payload;
+        }
+
         $this->ensureDirectory($this->directory);
         $file = $this->path($key);
         $temporary = $file . '.' . bin2hex(random_bytes(4)) . '.tmp';
 
-        if (file_put_contents($temporary, $payload, LOCK_EX) === false || ! rename($temporary, $file)) {
+        // 0600: los contadores y lo que guarde la app no los lee otro usuario del servidor
+        $written = file_put_contents($temporary, $payload, LOCK_EX) !== false;
+        @chmod($temporary, 0600);
+
+        if (! $written || ! rename($temporary, $file)) {
             @unlink($temporary);
 
             throw new RuntimeException("No se pudo escribir la caché en {$this->directory}.");
@@ -132,19 +157,64 @@ final class Cache
     }
 
     /**
-     * Incrementa un contador y devuelve el nuevo valor. Conserva la expiración existente.
+     * Incrementa un contador y devuelve el nuevo valor. Conserva la expiración existente. Es atómico:
+     * dos peticiones a la vez no leen el mismo valor.
      *
      * @param int|null $ttl Segundos de vida si la clave no existía
      */
     public function increment(string $key, int $by = 1, ?int $ttl = null): int
     {
-        $entry = $this->read($key);
-        $current = $entry !== null && is_int($entry['value']) ? $entry['value'] : 0;
-        $remaining = $entry !== null && $entry['expires'] !== null ? max(1, $entry['expires'] - time()) : $ttl;
+        return $this->atomic($key, function () use ($key, $by, $ttl): int {
+            $entry = $this->read($key);
+            $current = $entry !== null && is_int($entry['value']) ? $entry['value'] : 0;
+            $remaining = $entry !== null && $entry['expires'] !== null ? max(1, $entry['expires'] - time()) : $ttl;
 
-        $this->set($key, $current + $by, $remaining);
+            $this->set($key, $current + $by, $remaining);
 
-        return $current + $by;
+            return $current + $by;
+        });
+    }
+
+    /**
+     * Ejecuta $callback con un candado exclusivo sobre la clave: mientras corre, ningún otro proceso entra
+     * a atomic() ni a increment() con esa clave. Sirve para "leer, decidir y escribir" sin carreras.
+     *
+     * @template T
+     * @param Closure(): T $callback
+     * @return T
+     * @example $cache->atomic('stock:5', fn () => $cache->set('stock:5', $cache->get('stock:5', 0) - 1));
+     */
+    public function atomic(string $key, Closure $callback): mixed
+    {
+        if ($this->directory === null) {
+            return $callback();
+        }
+
+        $slot = abs(crc32($key)) % self::LOCK_SLOTS;
+
+        if (isset($this->locks[$slot])) {
+            // El mismo proceso ya lo tiene (increment() dentro de atomic()): no se vuelve a pedir
+            $this->locks[$slot][1]++;
+        } else {
+            $this->ensureDirectory($this->directory);
+            $handle = @fopen($this->directory . '/.lock-' . $slot, 'c');
+
+            if ($handle === false || ! flock($handle, LOCK_EX)) {
+                throw new RuntimeException("No se pudo tomar el candado de la caché en {$this->directory}.");
+            }
+
+            $this->locks[$slot] = [$handle, 1];
+        }
+
+        try {
+            return $callback();
+        } finally {
+            if (--$this->locks[$slot][1] === 0) {
+                flock($this->locks[$slot][0], LOCK_UN);
+                fclose($this->locks[$slot][0]);
+                unset($this->locks[$slot]);
+            }
+        }
     }
 
     /**
@@ -181,6 +251,12 @@ final class Cache
             return null;
         }
 
+        if ($contents !== false && $this->directory !== null && $this->key !== null) {
+            // Sin firma válida no se deserializa: el archivo no lo escribió esta aplicación
+            $payload = substr($contents, 64);
+            $contents = strlen($contents) > 64 && hash_equals($this->signature($payload), substr($contents, 0, 64)) ? $payload : false;
+        }
+
         $entry = $contents === false ? false : self::unserializeQuietly($contents);
 
         if (! is_array($entry) || ! array_key_exists('value', $entry) || ! array_key_exists('expires', $entry)) {
@@ -213,6 +289,11 @@ final class Cache
         }
     }
 
+    private function signature(string $payload): string
+    {
+        return hash_hmac('sha256', $payload, 'bootzen-cache|' . $this->key);
+    }
+
     private function path(string $key): string
     {
         return $this->directory . '/' . sha1($key) . '.cache';
@@ -223,7 +304,7 @@ final class Cache
      */
     private function ensureDirectory(string $directory): void
     {
-        if (! is_dir($directory) && ! @mkdir($directory, 0775, true) && ! is_dir($directory)) {
+        if (! is_dir($directory) && ! @mkdir($directory, 0700, true) && ! is_dir($directory)) {
             throw new RuntimeException("No se pudo crear el directorio de caché {$directory}.");
         }
     }

@@ -62,3 +62,48 @@ it('descarta archivos corruptos', function (): void {
 
     expect($this->cache->get('dato', 'def'))->toBe('def');
 });
+
+it('guarda los archivos solo para su dueño', function (): void {
+    $this->cache->set('dato', 'ok');
+
+    expect(fileperms($this->directory . '/data/' . sha1('dato') . '.cache') & 0777)->toBe(0600);
+});
+
+it('con clave firma cada archivo y descarta sin deserializar el que no lleva la firma', function (): void {
+    $cache = new Cache($this->directory . '/firmada', 'clave-de-la-app');
+    $cache->set('dato', ['fecha' => new DateTimeImmutable('2026-01-01')]);
+
+    expect($cache->get('dato')['fecha'])->toBeInstanceOf(DateTimeImmutable::class)
+        // Otra aplicación (otra clave) no lee la entrada
+        ->and((new Cache($this->directory . '/firmada', 'otra-clave'))->get('dato', 'def'))->toBe('def');
+
+    // Un archivo plantado por otro usuario del servidor: bien formado pero sin firma
+    $cache->set('plantado', 'original');
+    file_put_contents($this->directory . '/firmada/' . sha1('plantado') . '.cache', serialize(['expires' => null, 'value' => 'falso']));
+
+    expect($cache->get('plantado', 'def'))->toBe('def');
+});
+
+it('ejecuta atomic con candado y deja usar increment dentro', function (): void {
+    $this->cache->increment('contador');
+
+    expect($this->cache->atomic('contador', fn (): int => $this->cache->increment('contador')))->toBe(2)
+        ->and($this->cache->atomic('contador', fn (): string => 'valor'))->toBe('valor')
+        ->and((new Cache(null))->atomic('x', fn (): int => 7))->toBe(7);
+});
+
+it('no pierde incrementos entre procesos simultáneos', function (): void {
+    $script = $this->directory . '/sumar.php';
+    file_put_contents($script, '<?php require ' . var_export(dirname(__DIR__, 2) . '/framework/bootstrap.php', true) . ';'
+        . '$c = new BootZen\\Core\\Cache($argv[1]); for ($i = 0; $i < 50; $i++) { $c->increment("n", 1, 60); }');
+
+    $procesos = [];
+    for ($i = 0; $i < 4; $i++) {
+        $procesos[] = proc_open([PHP_BINARY, $script, $this->directory . '/data'], [], $pipes);
+    }
+    foreach ($procesos as $proceso) {
+        proc_close($proceso);
+    }
+
+    expect($this->cache->get('n'))->toBe(200);
+});

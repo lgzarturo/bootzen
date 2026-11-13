@@ -47,6 +47,7 @@ function makeProject(string $env = '', array $files = []): string
 afterEach(function (): void {
     forgetEnv('APP_NAME', 'BZ_APP_DEBUG');
     date_default_timezone_set('UTC');
+    Request::setTrustedProxies([]);
 
     if (isset($this->project)) {
         removeDir($this->project);
@@ -255,4 +256,60 @@ it('responde JSON al devolver un modelo o un paginador desde el controlador', fu
     });
 
     expect(json_decode($app->run(new Request('GET', '/pagina'))->getBody(), true)['total'])->toBe(1);
+});
+
+it('lee los proxies de confianza de config/security.php', function (): void {
+    $this->project = makeProject('', ['config/security.php' => "<?php return ['trusted_proxies' => ' private , 203.0.113.7 '];"]);
+    new Application($this->project);
+    $request = new Request('GET', '/', ['X-Forwarded-Proto' => 'https'], [], [], ['REMOTE_ADDR' => '203.0.113.7', 'HTTP_X_FORWARDED_FOR' => '198.51.100.20']);
+
+    expect(Request::trustedProxies())->toContain('10.0.0.0/8', '203.0.113.7')
+        ->and($request->getClientIp())->toBe('198.51.100.20')
+        ->and($request->isSecure())->toBeTrue();
+
+    // Sin la configuración no se confía en nadie
+    removeDir($this->project);
+    $this->project = makeProject();
+    new Application($this->project);
+
+    expect(Request::trustedProxies())->toBe([])
+        ->and($request->getClientIp())->toBe('203.0.113.7')
+        ->and($request->isSecure())->toBeFalse();
+});
+
+it('marca como privadas las respuestas con sesión y respeta el Cache-Control de la ruta', function (): void {
+    $this->project = makeProject('', ['config/session.php' => "<?php return ['driver' => 'array'];"]);
+    $app = new Application($this->project);
+    $app->middlewareGroup('web', [BootZen\Middleware\StartSession::class]);
+    $app->routes(static function (Router $router): void {
+        $router->group(['middleware' => 'web'], static function (Router $router): void {
+            $router->get('/cuenta', static function (Request $request): string {
+                $request->session()->put('visto', true);
+
+                return 'privado';
+            });
+            $router->get('/publica', static fn (): string => 'sin sesión');
+            $router->get('/propia', static function (Request $request): Response {
+                $request->session()->put('visto', true);
+
+                return Response::html('x')->withHeader('Cache-Control', 'public, max-age=60');
+            });
+        });
+    });
+
+    expect($app->run(new Request('GET', '/cuenta'))->getHeader('cache-control'))->toBe('private, no-store')
+        ->and($app->run(new Request('GET', '/publica'))->getHeader('cache-control'))->toBeNull()
+        ->and($app->run(new Request('GET', '/propia'))->getHeader('cache-control'))->toBe('public, max-age=60');
+});
+
+it('configura el alias cors desde config/cors.php', function (): void {
+    $this->project = makeProject('', ['config/cors.php' => "<?php return ['allowed_origins' => ['https://ok.com'], 'credentials' => true];"]);
+    $app = new Application($this->project);
+    $app->aliasMiddleware('cors', BootZen\Middleware\CorsMiddleware::class);
+    $app->routes(static function (Router $router): void {
+        $router->get('/api/x', static fn (): array => [])->middleware('cors');
+    });
+
+    expect($app->run(new Request('GET', '/api/x', ['Origin' => 'https://ok.com']))->getHeader('access-control-allow-origin'))->toBe('https://ok.com')
+        ->and($app->run(new Request('GET', '/api/x', ['Origin' => 'https://otro.com']))->getHeader('access-control-allow-origin'))->toBeNull();
 });
