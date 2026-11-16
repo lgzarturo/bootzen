@@ -740,6 +740,7 @@ final class Console
             : rtrim($contents) . ($contents === '' ? '' : "\n") . 'APP_KEY=' . $key . "\n";
 
         file_put_contents($env, $contents);
+        @chmod($env, 0600);
         $this->line('APP_KEY guardada en .env.');
 
         return 0;

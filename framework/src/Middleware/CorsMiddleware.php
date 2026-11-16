@@ -125,7 +125,7 @@ class CorsMiddleware implements MiddlewareInterface
         $response = new Response(200);
 
         if ($this->isOriginAllowed($origin)) {
-            $response = $response->withHeader('Access-Control-Allow-Origin', $origin ?? '*');
+            $response = $this->allowOrigin($response, $origin);
         }
 
         $response = $response
@@ -151,7 +151,7 @@ class CorsMiddleware implements MiddlewareInterface
     private function addCorsHeaders(Response $response, ?string $origin): Response
     {
         if ($this->isOriginAllowed($origin)) {
-            $response = $response->withHeader('Access-Control-Allow-Origin', $origin ?? '*');
+            $response = $this->allowOrigin($response, $origin);
         }
 
         if (! empty($this->config['exposed_headers'])) {
@@ -179,6 +179,23 @@ class CorsMiddleware implements MiddlewareInterface
      *
      * @todo Permitir validaciones personalizadas de origen mediante callback
      */
+    /**
+     * Al reflejar el origen agrega Vary: Origin, así una caché intermedia no le sirve a un origen la
+     * respuesta autorizada para otro.
+     */
+    private function allowOrigin(Response $response, ?string $origin): Response
+    {
+        if ($origin === null) {
+            return $response->withHeader('Access-Control-Allow-Origin', '*');
+        }
+
+        $vary = $response->getHeader('Vary');
+
+        return $response
+            ->withHeader('Access-Control-Allow-Origin', $origin)
+            ->withHeader('Vary', $vary === null || $vary === '' ? 'Origin' : (stripos($vary, 'origin') === false ? $vary . ', Origin' : $vary));
+    }
+
     private function isOriginAllowed(?string $origin): bool
     {
         // Si las credenciales están habilitadas, no se permite el comodín '*'

@@ -257,3 +257,33 @@ it('revisa los discos de archivos con doctor', function (): void {
 
     expect(consoleOutput($this->output))->toContain('✗ Archivos privados: Al disco s3 (s3) le falta: key, secret.');
 });
+
+it('avisa de archivos legibles por otros usuarios, APP_ENV=testing y discos remotos sin proteger', function (): void {
+    writeFile($this->project . '/.env', "APP_KEY=base64:abc\n");
+    chmod($this->project . '/.env', 0644);
+    putenv('BZ_TOOLS_ENV=testing');
+    writeFile($this->project . '/config/storage.php', "<?php return ['disks' => ["
+        . "'ftp' => ['driver' => 'ftp', 'host' => 'ftp.ejemplo.com', 'ssl' => false],"
+        . "'sftp' => ['driver' => 'sftp', 'host' => 'sftp.ejemplo.com', 'fingerprint' => null],"
+        . "'apagado' => ['driver' => 'ftp', 'host' => null]]];");
+
+    try {
+        ($this->run)('doctor');
+    } finally {
+        putenv('BZ_TOOLS_ENV');
+    }
+
+    $output = consoleOutput($this->output);
+
+    expect($output)->toContain('! Otros usuarios del servidor pueden leer: .env')
+        ->toContain('✗ APP_ENV=testing')
+        ->toContain('! Disco ftp: FTP sin cifrar')
+        ->toContain("! Disco sftp: SFTP sin 'fingerprint'")
+        ->not->toContain('Disco apagado');
+
+    chmod($this->project . '/.env', 0600);
+    $this->output = fopen('php://memory', 'w+');
+    ($this->run)('doctor');
+
+    expect(consoleOutput($this->output))->not->toContain('pueden leer');
+})->skip(DIRECTORY_SEPARATOR !== '/', 'Permisos POSIX');

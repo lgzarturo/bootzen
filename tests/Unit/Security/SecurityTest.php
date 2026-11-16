@@ -60,6 +60,20 @@ it('cuenta intentos por ventana y se reinicia', function (): void {
         ->and($limiter->tooManyAttempts('login', 2))->toBeFalse();
 });
 
+it('attempt cuenta y revisa en un solo paso', function (): void {
+    $limiter = new RateLimiter(new Cache(null));
+
+    expect($limiter->attempt('login', 2, 60))->toBeTrue()
+        ->and($limiter->attempt('login', 2, 60))->toBeTrue()
+        ->and($limiter->attempt('login', 2, 60))->toBeFalse()
+        // El intento rechazado no suma
+        ->and($limiter->attempts('login'))->toBe(2);
+
+    $limiter->clear('login');
+
+    expect($limiter->attempt('login', 2, 60))->toBeTrue();
+});
+
 it('guarda la caché en memoria sin directorio', function (): void {
     $cache = new Cache(null);
     $cache->set('a', [1, 2]);
@@ -102,6 +116,26 @@ it('limita las peticiones con throttle:max,minutos', function (): void {
     // Otra IP tiene su propio contador
     $otra = new Request('GET', '/api', [], [], [], ['REMOTE_ADDR' => '203.0.113.6']);
     expect($pipeline->run(['throttle:2,1'], $otra, static fn (): Response => Response::html('ok'))->getStatusCode())->toBe(200);
+});
+
+it('da cupo propio a un throttle con nombre e ignora X-Forwarded-For sin proxies de confianza', function (): void {
+    $container = new Container();
+    $container->instance(RateLimiter::class, new RateLimiter(new Cache(null)));
+    $pipeline = new Pipeline($container);
+    $pipeline->alias('throttle', RateLimit::class);
+    Request::setTrustedProxies([]);
+    $send = static fn (string $throttle, string $forwarded): Response => $pipeline->run(
+        [$throttle],
+        new Request('POST', '/login', [], [], [], ['REMOTE_ADDR' => '10.0.0.1', 'HTTP_X_FORWARDED_FOR' => $forwarded]),
+        static fn (): Response => Response::html('ok')
+    );
+
+    expect($send('throttle:1,1,login', '8.8.8.8')->getStatusCode())->toBe(200)
+        // Mismo límite con otro nombre: contador aparte
+        ->and($send('throttle:1,1,registro', '8.8.8.8')->getStatusCode())->toBe(200)
+        // Cambiar la cabecera no da un cupo nuevo
+        ->and(fn () => $send('throttle:1,1,login', '9.9.9.9'))->toThrow(HttpException::class)
+        ->and(fn () => $send('throttle:1,1,nombre con espacios', '8.8.8.8'))->toThrow(InvalidArgumentException::class);
 });
 
 it('rechaza parámetros inválidos de throttle y middleware sin parámetros', function (): void {

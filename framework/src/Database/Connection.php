@@ -280,7 +280,13 @@ final class Connection
             mkdir(dirname($database), 0775, true);
         }
 
+        $new = ! $memory && ! is_file($database);
         $pdo = new PDO('sqlite:' . $database, null, null, $options);
+
+        if ($new && is_file($database)) {
+            // La base recién creada solo la lee su dueño (los archivos -wal y -shm heredan el permiso)
+            @chmod($database, 0600);
+        }
         $pdo->exec('PRAGMA foreign_keys = ' . (($config['foreign_keys'] ?? true) ? 'ON' : 'OFF'));
         $pdo->exec('PRAGMA busy_timeout = ' . (int) ($config['busy_timeout'] ?? 5000));
 

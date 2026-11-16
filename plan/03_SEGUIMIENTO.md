@@ -408,3 +408,32 @@ Notas del panel de administración (v2.9.0):
   celular.
 
 Con esto la fase 9 queda completa.
+
+## Auditoría de seguridad y rendimiento
+
+Informe y plan en [05_AUDITORIA-SEGURIDAD-Y-RENDIMIENTO.md](05_AUDITORIA-SEGURIDAD-Y-RENDIMIENTO.md).
+
+- [x] Fase A, seguridad (v2.10.0): proxies de confianza, contadores
+      atómicos, límites en el scaffold de auth, `Cache-Control` privado,
+      permisos 600, caché firmada, CSRF de tests solo en CLI, `Vary: Origin`,
+      avisos nuevos en `doctor`
+- [ ] Fase B, entrega al navegador: versión en los imports de módulos, caché
+      y compresión en Apache y Nginx, sesión que solo se escribe si cambió
+- [ ] Fase C, archivos y datos: descargas en streaming, `cursor()` por clave
+- [ ] Fase D, documentación: `SECURITY.md`, guía de seguridad para
+      producción, `doctor --production`
+
+Notas de la fase A:
+
+- Decisión del usuario: toda la fase en un solo cambio.
+- `throttle` sigue compartiendo contador por IP entre rutas (como antes); el
+  cupo propio se pide con un nombre. Ponerlo por ruta de forma automática
+  habría debilitado el límite global del grupo `api`.
+- El log no aplana los saltos de línea, los sangra: con `MAIL_DRIVER=log` los
+  correos siguen legibles.
+- Verificado a mano en un proyecto `--demo` servido con 8 workers: cabecera
+  falsa bloqueada al sexto intento, 5 de 40 logins en paralelo, registro
+  cortado al sexto, permisos 600 y `Cache-Control` en páginas con sesión.
+  **No se pudo correr `composer check` en el entorno donde se hizo** (sin
+  acceso a las dependencias de desarrollo): la suite, PHPStan y los tests
+  nuevos quedan por confirmar en CI.

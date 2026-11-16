@@ -42,3 +42,15 @@ it('resume las excepciones del contexto', function (): void {
 it('rechaza niveles desconocidos', function (): void {
     (new Logger($this->directory))->log('fatal', 'x');
 })->throws(InvalidArgumentException::class, 'Nivel de log desconocido');
+
+it('no deja que un mensaje con saltos de línea finja otra entrada', function (): void {
+    (new Logger($this->directory))->warning("Login fallido de ana\n[2026-01-01 00:00:00] app.INFO: Login correcto de admin\r\notra");
+
+    $file = $this->directory . '/app-' . date('Y-m-d') . '.log';
+    $lines = explode("\n", trim((string) file_get_contents($file)));
+
+    expect($lines)->toHaveCount(3)
+        ->and($lines[1])->toBe('    [2026-01-01 00:00:00] app.INFO: Login correcto de admin')
+        ->and($lines[2])->toBe('    otra')
+        ->and(fileperms($file) & 0777)->toBe(0600);
+});

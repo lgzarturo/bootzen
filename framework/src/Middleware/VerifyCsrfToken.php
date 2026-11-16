@@ -26,7 +26,7 @@ use BootZen\Core\Response;
 /**
  * Middleware CSRF (grupo web). Va después de StartSession.
  *
- * Con APP_ENV=testing no verifica nada, así los tests envían formularios sin pedir un token antes.
+ * Con APP_ENV=testing y solo en CLI (los tests) no verifica nada, así se envían formularios sin pedir un token antes.
  * Las rutas de config session.csrf_except (admite *) tampoco se verifican, por ejemplo webhooks.
  */
 final class VerifyCsrfToken implements MiddlewareInterface
@@ -41,7 +41,8 @@ final class VerifyCsrfToken implements MiddlewareInterface
     {
         if (
             in_array($request->getMethod(), self::SAFE_METHODS, true)
-            || $this->config->get('app.env') === 'testing'
+            // Solo en los tests (CLI): un APP_ENV=testing olvidado en el servidor no apaga el CSRF
+            || ($this->config->get('app.env') === 'testing' && in_array(PHP_SAPI, ['cli', 'phpdbg'], true))
             || $this->isExcluded($request)
         ) {
             return $next($request);

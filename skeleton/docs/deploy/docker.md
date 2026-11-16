@@ -87,8 +87,16 @@ docker compose cp app:/var/www/html/storage/backups ./respaldos
 
 El contenedor habla HTTP. Ponle delante el proxy que ya uses (Caddy, Nginx,
 Traefik, el balanceador de tu proveedor) y define `APP_URL=https://...`. La app
-reconoce HTTPS por la cabecera `X-Forwarded-Proto`, así que las cookies salen
-con `Secure`. Con Caddy en el mismo servidor basta con:
+reconoce HTTPS por la cabecera `X-Forwarded-Proto` y la IP real del visitante
+por `X-Forwarded-For`, pero solo si vienen de un proxy de confianza. El
+`docker-compose.yml` trae `TRUSTED_PROXIES=private`: confía en lo que llega
+por redes privadas, que es por donde entra un proxy del mismo servidor o de la
+red de Docker. Así las cookies salen con `Secure` y los límites de intentos
+cuentan por visitante. Si el proxy llega desde una IP pública (un balanceador
+externo), pon esa IP o su rango en `TRUSTED_PROXIES` del `.env`; si publicas el
+puerto directo a internet sin proxy, déjalo vacío (`TRUSTED_PROXIES=`).
+
+Con Caddy en el mismo servidor basta con:
 
 ```
 tienda.example.com {

@@ -85,13 +85,15 @@ it('aplana y agrupa arreglos', function (): void {
 
 it('detecta peticiones AJAX y la IP del cliente desde $_SERVER', function (): void {
     $server = $_SERVER;
-    $_SERVER = ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest', 'HTTP_X_FORWARDED_FOR' => '10.0.0.1, 198.51.100.8'];
+    BootZen\Core\Request::setTrustedProxies([]);
+    $_SERVER = ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest', 'HTTP_X_FORWARDED_FOR' => '198.51.100.8', 'REMOTE_ADDR' => '203.0.113.5'];
 
     $ajax = is_ajax();
+    // La cabecera la escribe el cliente: sin proxies de confianza cuenta la IP de la conexión
     $ip = get_client_ip();
-    $_SERVER = ['REMOTE_ADDR' => '127.0.0.1'];
+    $_SERVER = ['HTTP_X_FORWARDED_FOR' => '198.51.100.8'];
     $unknown = get_client_ip();
     $_SERVER = $server;
 
-    expect([$ajax, $ip, $unknown])->toBe([true, '198.51.100.8', 'unknown']);
+    expect([$ajax, $ip, $unknown])->toBe([true, '203.0.113.5', 'unknown']);
 });

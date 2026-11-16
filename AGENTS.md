@@ -89,6 +89,13 @@ The roadmap lives in `plan/04_PLAN-MVP-MONOLITO.md`; progress is tracked in
   permissions from `config/auth.php` with `x.*` wildcards, policies found by
   convention as `App\Policies\{Model}Policy`, a `'*'` role passes all) and
   the Authorizable trait (`$user->can()`, `hasRole()`).
+- Client IP and HTTPS detection (`Request::getClientIp()`, `isSecure()`) only
+  trust `X-Forwarded-*` from `config security.trusted_proxies`
+  (`TRUSTED_PROXIES`); rate limits count before the protected operation
+  (`RateLimiter::attempt()`, `Cache::atomic()` with `flock`), `throttle`
+  takes an optional bucket name (`throttle:5,1,login`), and session, cache
+  and log files are written with mode 600 (file cache entries are HMAC
+  signed with APP_KEY).
 - `framework/src/Security/SignedUrl.php` (`signed_route()`, signs the route
   name without locale prefix plus its parameters with APP_KEY) and
   `framework/src/Security/RateLimiter.php`, and `framework/src/Mail/`

@@ -36,6 +36,7 @@ use BootZen\Mail\ArrayMailer;
 use BootZen\Mail\LogMailer;
 use BootZen\Mail\Mailer;
 use BootZen\Mail\SmtpMailer;
+use BootZen\Middleware\CorsMiddleware;
 use BootZen\Middleware\EnsureEmailIsVerified;
 use BootZen\Middleware\RequirePermission;
 use BootZen\Middleware\RequireRole;
@@ -110,6 +111,7 @@ class Application
             ? Config::fromDirectory($this->basePath('config'))
             : Config::load($this->basePath('config'), $this->basePath('storage/cache/config.php'));
         $this->configureTimezone();
+        $this->configureTrustedProxies();
         $this->registerCoreBindings();
 
         // Idiomas: alias 'locale' y los de APP_LOCALES para $router->localized()
@@ -355,9 +357,14 @@ class Application
             (string) $this->config->get('app.log_level', 'debug')
         ));
 
-        $this->container->singleton(Cache::class, fn (): Cache => new Cache(
-            $this->config->get('cache.driver', 'file') === 'array' ? null : $this->basePath('storage/cache/data')
-        ));
+        $this->container->singleton(Cache::class, function (): Cache {
+            $key = $this->config->get('app.key');
+
+            return new Cache(
+                $this->config->get('cache.driver', 'file') === 'array' ? null : $this->basePath('storage/cache/data'),
+                is_string($key) && $key !== '' ? $key : null
+            );
+        });
 
         $this->container->singleton(SessionStore::class, fn (): SessionStore => match ($this->config->get('session.driver', 'file')) {
             'array' => new ArraySessionStore(),
@@ -452,6 +459,11 @@ class Application
 
             return new FileController($storage, is_string($key) && $key !== '' ? new UrlSigner($key, $this->urlPath()) : null);
         });
+
+        // config/cors.php (opcional) configura el alias 'cors'; sin archivo valen los valores por defecto
+        $this->container->bind(CorsMiddleware::class, fn (): CorsMiddleware => new CorsMiddleware(
+            array_filter((array) $this->config->get('cors', []), 'is_string', ARRAY_FILTER_USE_KEY)
+        ));
 
         $this->container->singleton(SignedUrl::class, function (): SignedUrl {
             $key = $this->config->get('app.key');
@@ -562,6 +574,21 @@ class Application
         }
 
         return $handler;
+    }
+
+    /**
+     * Proxies de los que se aceptan X-Forwarded-For y X-Forwarded-Proto (config security.trusted_proxies:
+     * lista o texto separado por comas). Vacío: solo cuenta la IP de la conexión.
+     */
+    private function configureTrustedProxies(): void
+    {
+        $proxies = $this->config->get('security.trusted_proxies', []);
+        $proxies = is_string($proxies) ? explode(',', $proxies) : (is_array($proxies) ? $proxies : []);
+
+        Request::setTrustedProxies(array_values(array_filter(
+            array_map(static fn (mixed $proxy): string => is_string($proxy) ? trim($proxy) : '', $proxies),
+            static fn (string $proxy): bool => $proxy !== ''
+        )));
     }
 
     /**

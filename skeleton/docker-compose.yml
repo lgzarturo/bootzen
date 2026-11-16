@@ -16,6 +16,9 @@ x-app: &app
     APP_ENV: production
     APP_DEBUG: "false"
     LOG_LEVEL: ${LOG_LEVEL:-warning}
+    # El proxy que pongas delante (HTTPS) llega por la red de Docker: se confía en sus cabeceras
+    # X-Forwarded-*. Si publicas el puerto directo a internet, déjalo vacío en .env
+    TRUSTED_PROXIES: ${TRUSTED_PROXIES-private}
     DB_CONNECTION: sqlite
     DB_DATABASE: storage/database/app.sqlite
   volumes:

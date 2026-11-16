@@ -994,38 +994,21 @@ if (! function_exists('is_ajax')) {
 
 if (! function_exists('get_client_ip')) {
     /**
-     * Obtiene la IP pública del cliente considerando proxies y cabeceras.
+     * IP del cliente de la petición actual. Las cabeceras X-Forwarded-* solo cuentan si la conexión viene
+     * de un proxy de confianza (config security.trusted_proxies); igual que $request->getClientIp().
      *
-     * @return string IP del cliente o 'unknown'
+     * @return string IP del cliente o 'unknown' si no hay conexión (CLI)
      * @example get_client_ip()
      */
     function get_client_ip(): string
     {
-        $ipKeys = [
-            'HTTP_CLIENT_IP',
-            'HTTP_X_FORWARDED_FOR',
-            'HTTP_X_FORWARDED',
-            'HTTP_X_CLUSTER_CLIENT_IP',
-            'HTTP_FORWARDED_FOR',
-            'HTTP_FORWARDED',
-            'REMOTE_ADDR',
-        ];
+        $remote = $_SERVER['REMOTE_ADDR'] ?? null;
 
-        foreach ($ipKeys as $key) {
-            $value = $_SERVER[$key] ?? null;
-            if (! is_string($value)) {
-                continue;
-            }
-
-            foreach (explode(',', $value) as $ip) {
-                $ip = trim($ip);
-                if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) !== false) {
-                    return $ip;
-                }
-            }
+        if (! is_string($remote) || filter_var($remote, FILTER_VALIDATE_IP) === false) {
+            return 'unknown';
         }
 
-        return 'unknown';
+        return (new \BootZen\Core\Request('GET', '/', [], [], [], $_SERVER))->getClientIp();
     }
 }
 

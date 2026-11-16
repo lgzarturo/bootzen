@@ -56,14 +56,18 @@ final class FileSessionStore implements SessionStore
 
     public function write(string $id, array $data): void
     {
-        if (! is_dir($this->directory) && ! self::quietly(fn (): bool => mkdir($this->directory, 0775, true)) && ! is_dir($this->directory)) {
+        if (! is_dir($this->directory) && ! self::quietly(fn (): bool => mkdir($this->directory, 0700, true)) && ! is_dir($this->directory)) {
             throw new RuntimeException("No se pudo crear el directorio de sesiones {$this->directory}.");
         }
 
         $file = $this->path($id);
         $temporary = $file . '.' . bin2hex(random_bytes(4)) . '.tmp';
 
-        if (file_put_contents($temporary, serialize($data), LOCK_EX) === false || ! rename($temporary, $file)) {
+        $written = file_put_contents($temporary, serialize($data), LOCK_EX) !== false;
+        // 0600: otro usuario del servidor no puede leer la sesión
+        @chmod($temporary, 0600);
+
+        if (! $written || ! rename($temporary, $file)) {
             @unlink($temporary);
 
             throw new RuntimeException("No se pudo guardar la sesión en {$this->directory}.");
@@ -112,7 +116,7 @@ final class FileSessionStore implements SessionStore
 
     private function path(string $id): string
     {
-        // El id ya viene validado por Session::isValidId(); basename evita salir de la carpeta igualmente
-        return $this->directory . '/sess_' . basename($id);
+        // El archivo lleva el hash del id, no el id: quien pueda listar la carpeta no obtiene sesiones válidas
+        return $this->directory . '/sess_' . hash('sha256', $id);
     }
 }
