@@ -194,7 +194,7 @@ final class Cache
 
         if (isset($this->locks[$slot])) {
             // El mismo proceso ya lo tiene (increment() dentro de atomic()): no se vuelve a pedir
-            $this->locks[$slot][1]++;
+            $this->locks[$slot][1] = $this->locks[$slot][1] + 1;
         } else {
             $this->ensureDirectory($this->directory);
             $handle = @fopen($this->directory . '/.lock-' . $slot, 'c');
@@ -209,10 +209,15 @@ final class Cache
         try {
             return $callback();
         } finally {
-            if (--$this->locks[$slot][1] === 0) {
-                flock($this->locks[$slot][0], LOCK_UN);
-                fclose($this->locks[$slot][0]);
+            $taken = $this->locks[$slot][1] - 1;
+
+            if ($taken === 0) {
+                $handle = $this->locks[$slot][0];
+                flock($handle, LOCK_UN);
+                fclose($handle);
                 unset($this->locks[$slot]);
+            } else {
+                $this->locks[$slot][1] = $taken;
             }
         }
     }

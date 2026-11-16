@@ -283,8 +283,9 @@ final class Connection
         $new = ! $memory && ! is_file($database);
         $pdo = new PDO('sqlite:' . $database, null, null, $options);
 
-        if ($new && is_file($database)) {
-            // La base recién creada solo la lee su dueño (los archivos -wal y -shm heredan el permiso)
+        if ($new) {
+            // La base recién creada solo la lee su dueño (los archivos -wal y -shm heredan el permiso).
+            // Sin segundo is_file(): PDO ya la creó (o lanzó) y la caché de stat mentiría aquí.
             @chmod($database, 0600);
         }
         $pdo->exec('PRAGMA foreign_keys = ' . (($config['foreign_keys'] ?? true) ? 'ON' : 'OFF'));

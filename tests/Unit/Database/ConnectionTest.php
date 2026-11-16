@@ -79,6 +79,15 @@ it('configura SQLite en archivo con WAL y claves foráneas', function (): void {
     removeDir($directory);
 });
 
+it('crea la base SQLite solo para su dueño', function (): void {
+    $directory = makeTempDir();
+    Connection::fromConfig(['driver' => 'sqlite', 'database' => 'database/app.sqlite'], $directory);
+
+    expect(fileperms($directory . '/database/app.sqlite') & 0777)->toBe(0600);
+
+    removeDir($directory);
+});
+
 it('rechaza drivers y modos de journal desconocidos', function (array $config, string $message): void {
     Connection::fromConfig($config, sys_get_temp_dir() . '/bootzen-' . bin2hex(random_bytes(4)));
 })->throws(InvalidArgumentException::class)->with([

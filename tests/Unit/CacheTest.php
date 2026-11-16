@@ -92,6 +92,14 @@ it('ejecuta atomic con candado y deja usar increment dentro', function (): void 
         ->and((new Cache(null))->atomic('x', fn (): int => 7))->toBe(7);
 });
 
+it('libera el candado de atomic aunque el callback falle', function (): void {
+    expect(fn () => $this->cache->atomic('contador', function (): void {
+        throw new RuntimeException('falla');
+    }))->toThrow(RuntimeException::class, 'falla');
+
+    expect($this->cache->atomic('contador', fn (): string => 'ok'))->toBe('ok');
+});
+
 it('no pierde incrementos entre procesos simultáneos', function (): void {
     $script = $this->directory . '/sumar.php';
     file_put_contents($script, '<?php require ' . var_export(dirname(__DIR__, 2) . '/framework/bootstrap.php', true) . ';'
